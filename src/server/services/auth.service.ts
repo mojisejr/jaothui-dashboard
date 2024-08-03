@@ -12,3 +12,16 @@ export const login = async (username: string, password: string) => {
     );
   }
 };
+
+export const isAuth = (token: string) => {
+  try {
+    const result = jwt.verify(token, process.env.secret!) as {
+      username: string;
+      iat: number;
+    };
+
+    return result.username === process.env.username;
+  } catch (error) {
+    return false;
+  }
+};

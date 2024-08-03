@@ -2,13 +2,11 @@ import React, { useEffect, useState } from "react";
 import { useBuffaloInfo } from "~/context/buffalo-info.context";
 import { api } from "~/utils/api";
 import { useRouter } from "next/router";
-import { NewBuffaloInput } from "./NewBuffaloForm";
 
 const Minting = () => {
   const { replace } = useRouter();
 
   const [minted, setMinted] = useState<boolean>(false);
-  const [metadataAdded, setMetadataAdded] = useState<boolean>(false);
 
   const { newBuffaloInfo, completeMinting } = useBuffaloInfo();
   const {
@@ -29,8 +27,6 @@ const Minting = () => {
     if (mintingSuccess && !minted) {
       alert("mint เรียบร้อยแล้ว เพ่ิม metadata ได้เลย");
       setMinted(true);
-      // completeMinting();
-      // replace("/dashboard");
     }
 
     if (mintingError) {
@@ -41,7 +37,6 @@ const Minting = () => {
   useEffect(() => {
     if (addingMetaSuccess && minted) {
       alert("เพิ่มข้อมูลสำเร็จ");
-      setMetadataAdded(true);
       completeMinting();
       void replace("/dashboard");
     }

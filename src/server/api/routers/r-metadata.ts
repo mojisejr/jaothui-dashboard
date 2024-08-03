@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+import {
+  createTRPCRouter,
+  protectProcedure,
+  publicProcedure,
+} from "~/server/api/trpc";
 import {
   addMetadata,
   getAllMintedBuffalos,
@@ -12,10 +16,10 @@ import {
 } from "~/server/services/buffalo.service";
 
 export const metadataRouter = createTRPCRouter({
-  getAllMetadata: publicProcedure.query(async () => {
+  getAllMetadata: protectProcedure.query(async () => {
     return await getAllMintedBuffalos();
   }),
-  upload: publicProcedure
+  upload: protectProcedure
     .input(
       z.object({
         tokenId: z.number(),
@@ -25,7 +29,7 @@ export const metadataRouter = createTRPCRouter({
     .mutation(async ({ input }) => {
       return await uploadBuffaloJson(input.tokenId, input.metadata);
     }),
-  checkCanMint: publicProcedure
+  checkCanMint: protectProcedure
     .input(
       z.object({
         tokenId: z.number(),
@@ -34,7 +38,7 @@ export const metadataRouter = createTRPCRouter({
     .mutation(({ input }) => {
       return checkCanMint(input.tokenId);
     }),
-  mint: publicProcedure
+  mint: protectProcedure
     .input(
       z.object({
         tokenId: z.number(),
@@ -59,7 +63,7 @@ export const metadataRouter = createTRPCRouter({
       if (input.tokenId == -1) return;
       return await mintNFT(input.tokenId);
     }),
-  addMetadata: publicProcedure
+  addMetadata: protectProcedure
     .input(
       z.object({
         tokenId: z.number(),
@@ -85,7 +89,7 @@ export const metadataRouter = createTRPCRouter({
       return await addMetadata(input.tokenId, input.newBuffalo);
     }),
 
-  getCurrentTokenId: publicProcedure.query(async ({ ctx }) => {
+  getCurrentTokenId: protectProcedure.query(async ({ ctx }) => {
     return await getCurrentTokenId();
   }),
 });

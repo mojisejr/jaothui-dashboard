@@ -1,9 +1,13 @@
 import { z } from "zod";
 
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+import {
+  createTRPCRouter,
+  protectProcedure,
+  publicProcedure,
+} from "~/server/api/trpc";
 
 export const pedigreeRouter = createTRPCRouter({
-  getAll: publicProcedure.query(async ({ ctx }) => {
+  getAll: protectProcedure.query(async ({ ctx }) => {
     try {
       const pedigrees = await ctx.db.pedigree.findMany();
       return pedigrees;
@@ -12,7 +16,7 @@ export const pedigreeRouter = createTRPCRouter({
       return [];
     }
   }),
-  create: publicProcedure
+  create: protectProcedure
     .input(
       z.object({
         tokenId: z.string(),

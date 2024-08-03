@@ -1,11 +1,8 @@
 import React from "react";
 import BaseLayout from "~/components/layout/BaseLayout";
 import MenuButton from "~/components/menu/MenuButton";
-import { useAuth } from "~/context/auth.context";
 
 const Dashboard = () => {
-  const { isAuth, token } = useAuth();
-
   return (
     <BaseLayout>
       <div className="flex justify-center">

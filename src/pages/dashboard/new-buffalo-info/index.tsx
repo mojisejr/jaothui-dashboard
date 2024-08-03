@@ -8,7 +8,6 @@ import { useBuffaloInfo } from "~/context/buffalo-info.context";
 
 const NewBuffaloInfoMainPage = () => {
   const { step } = useBuffaloInfo();
-  // const step = 1;
   return (
     <BaseLayout title="New Buffalo Info">
       <div className="flex w-full items-center justify-center">
