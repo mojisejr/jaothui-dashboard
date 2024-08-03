@@ -14,8 +14,8 @@ export const uploadBuffaloImage = async (
 };
 
 export const checkCanMint = async (tokenId: number) => {
-  const image = getImageUrl(tokenId.toString(), true);
-  const metadata = getJsonUrl(tokenId.toString(), true);
+  const image = getImageUrl(tokenId.toString(), false);
+  const metadata = getJsonUrl(tokenId.toString(), false);
 
   if (!image || !metadata) {
     return false;

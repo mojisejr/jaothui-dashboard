@@ -11,8 +11,6 @@ import superjson from "superjson";
 
 import { type AppRouter } from "~/server/api/root";
 
-export let token: string;
-
 const getBaseUrl = () => {
   if (typeof window !== "undefined") return ""; // browser should use relative url
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`; // SSR should use vercel url
@@ -28,11 +26,6 @@ export const api = createTRPCNext<AppRouter>({
        *
        * @see https://trpc.io/docs/links
        */
-      async headers() {
-        return {
-          authorization: token,
-        };
-      },
       links: [
         loggerLink({
           enabled: (opts) =>
@@ -47,6 +40,12 @@ export const api = createTRPCNext<AppRouter>({
            */
           transformer: superjson,
           url: `${getBaseUrl()}/api/trpc`,
+          headers() {
+            const token = localStorage.getItem("jaothui-jwt");
+            return {
+              Authorization: token ? `Bearer ${token}` : "",
+            };
+          },
         }),
       ],
     };

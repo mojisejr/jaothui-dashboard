@@ -1,8 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 
 export const supabase = createClient(
-  process.env.supabase_url!,
-  process.env.supabase_key!,
+  process.env.NEXT_PUBLIC_supabase_url!,
+  process.env.NEXT_PUBLIC_supabase_key!,
 );
 
 export const getImageUrl = (path: string, test: boolean) => {

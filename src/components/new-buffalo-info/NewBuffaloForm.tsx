@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { useBuffaloInfo } from "~/context/buffalo-info.context";
 import { api } from "~/utils/api";
@@ -22,7 +23,6 @@ export type NewBuffaloInput = {
 const NewBuffaloForm = () => {
   const { saveBuffaloInput } = useBuffaloInfo();
   const { register, handleSubmit, reset, watch } = useForm<NewBuffaloInput>();
-  // const { data: metadata } = api.metadata.getAllMetadata.useQuery();
   const { data: currentTokenId } = api.metadata.getCurrentTokenId.useQuery();
 
   const onSubmit: SubmitHandler<NewBuffaloInput> = async (data, event) => {
@@ -51,8 +51,6 @@ const NewBuffaloForm = () => {
           type="number"
           readOnly
           placeholder={currentTokenId?.toString()}
-          // value={metadata?.length! + 1}
-          // {...register("tokenId", { required: true })}
         />
       </div>
 
@@ -111,8 +109,8 @@ const NewBuffaloForm = () => {
           <option disabled value="na">
             Select Color
           </option>
-          <option value="black">Black</option>
-          <option value="albino">Albino</option>
+          <option value="Black">Black</option>
+          <option value="Albino">Albino</option>
         </select>
       </div>
 
@@ -125,8 +123,8 @@ const NewBuffaloForm = () => {
           <option disabled value="na">
             Select Gender
           </option>
-          <option value="male">Male</option>
-          <option value="female">Female</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
         </select>
       </div>
 

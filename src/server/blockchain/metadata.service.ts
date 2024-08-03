@@ -24,7 +24,7 @@ export const getAllMintedBuffalos = async () => {
 
 export const mintNFT = async (tokenId: number) => {
   try {
-    const url = getJsonUrl(`${tokenId.toString()}.json`, true);
+    const url = getJsonUrl(`${tokenId.toString()}.json`, false);
     const response = await axios.get<JsonMetadata>(url);
     const data: JsonMetadata = response.data;
 
@@ -35,6 +35,8 @@ export const mintNFT = async (tokenId: number) => {
       functionName: "mintWithMetadata",
       args: ["0xD0fBB6E65B81bafe6dd6ea112ca7154368683C7C", data.image, url],
     });
+
+    // console.log(request);
 
     const minted = await viemWallet.writeContract(request);
 
@@ -51,21 +53,21 @@ export const mintNFT = async (tokenId: number) => {
 
 export const addMetadata = async (tokenId: number, input: NewBuffaloInput) => {
   try {
-    const url = getJsonUrl(`${tokenId.toString()}.json`, true);
+    const url = getJsonUrl(`${tokenId.toString()}.json`, false);
     const response = await axios.get<JsonMetadata>(url);
     const data: JsonMetadata = response.data;
     const metadataForManager = [
-      input.name,
-      input.microchip.toString(),
-      input.certNo,
-      input.origin,
-      input.color,
+      input.name == "" ? "N/A" : input.name,
+      input.microchip.toString() == "" ? "N/A" : input.microchip,
+      input.certNo == "" ? "N/A" : input.certNo,
+      input.origin == "" ? "N/A" : input.origin,
+      input.color == "" ? "N/A" : input.color,
       data.image,
-      input.detail,
-      input.sex,
-      input.rarity,
-      input.birthday,
-      input.height,
+      input.detail == "" ? "N/A" : input.detail,
+      input.sex == "" ? "N/A" : input.sex,
+      input.rarity == "" ? "Normal" : input.rarity,
+      +input.birthday / 1000 <= 0 ? 0 : +input.birthday / 1000,
+      +input.height <= 0 ? 0 : +input.height,
       new Date().getTime(),
     ];
 

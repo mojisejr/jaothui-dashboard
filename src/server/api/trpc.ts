@@ -6,12 +6,13 @@
  * TL;DR - This is where all the tRPC server stuff is created and plugged in. The pieces you will
  * need to use are documented accordingly near the end.
  */
-import { initTRPC } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import { type CreateNextContextOptions } from "@trpc/server/adapters/next";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
 import { db } from "~/server/db";
+import { isAuth } from "../services/auth.service";
 
 /**
  * 1. CONTEXT
@@ -21,7 +22,10 @@ import { db } from "~/server/db";
  * These allow you to access things when processing a request, like the database, the session, etc.
  */
 
-type CreateContextOptions = Record<string, never>;
+// type CreateContextOptions = Record<string, never>;
+type CreateContextOptions = {
+  token?: string;
+};
 
 /**
  * This helper generates the "internals" for a tRPC context. If you need to use it, you can export
@@ -35,6 +39,7 @@ type CreateContextOptions = Record<string, never>;
  */
 const createInnerTRPCContext = (_opts: CreateContextOptions) => {
   return {
+    token: _opts.token,
     db,
   };
 };
@@ -46,7 +51,8 @@ const createInnerTRPCContext = (_opts: CreateContextOptions) => {
  * @see https://trpc.io/docs/context
  */
 export const createTRPCContext = (_opts: CreateNextContextOptions) => {
-  return createInnerTRPCContext({});
+  const token = _opts.req.headers.authorization?.split(" ")[1];
+  return createInnerTRPCContext({ token });
 };
 
 /**
@@ -99,6 +105,11 @@ export const createTRPCRouter = t.router;
  * guarantee that a user querying is authorized, but you can still access user session data if they
  * are logged in.
  */
-export const publicProcedure = t.procedure.use(async (opts) => {
-  return opts.next();
+export const publicProcedure = t.procedure;
+export const protectProcedure = t.procedure.use(async (_opts) => {
+  const result = isAuth(_opts.ctx.token!);
+  if (!result) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+  return _opts.next();
 });
