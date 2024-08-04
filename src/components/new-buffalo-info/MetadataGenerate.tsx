@@ -103,7 +103,7 @@ const MetadataGenerate = () => {
                 <td className="font-bold">{data[0]}</td>
                 <td>
                   {data[0] == "birthday"
-                    ? dayjs().format("DD/MM/YYYY")
+                    ? dayjs(data[1]).format("DD/MM/YYYY")
                     : data[1]?.toString()}
                 </td>
               </tr>

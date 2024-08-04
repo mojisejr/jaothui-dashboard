@@ -71,6 +71,8 @@ export const addMetadata = async (tokenId: number, input: NewBuffaloInput) => {
       new Date().getTime(),
     ];
 
+    console.log("metadata for manager: ", metadataForManager);
+
     const { request: metadataRequest } = await viemPublic.simulateContract({
       account: account,
       address: address,
@@ -79,7 +81,11 @@ export const addMetadata = async (tokenId: number, input: NewBuffaloInput) => {
       args: [tokenId.toString(), metadataForManager],
     });
 
+    console.log("request: ", metadataRequest);
+
     const metadataAdded = await viemWallet.writeContract(metadataRequest);
+
+    console.log("adding result: ", metadataAdded);
 
     if (metadataAdded) {
       return true;
