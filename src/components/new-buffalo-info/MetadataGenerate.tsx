@@ -36,7 +36,7 @@ const MetadataGenerate = () => {
         },
         {
           trait_type: "Birthday",
-          value: dayjs(newBuffaloInfo.birthday).format("DD/MM/YYYY"),
+          value: dayjs(newBuffaloInfo.birthday).format("MM/DD/YYYY"),
         },
         {
           trait_type: "Color",

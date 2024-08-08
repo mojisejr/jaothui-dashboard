@@ -6,6 +6,7 @@ import {
 } from "~/server/api/trpc";
 import {
   addMetadata,
+  createMetadataForManager,
   getAllMintedBuffalos,
   getCurrentTokenId,
   mintNFT,
@@ -92,4 +93,14 @@ export const metadataRouter = createTRPCRouter({
   getCurrentTokenId: protectProcedure.query(async ({ ctx }) => {
     return await getCurrentTokenId();
   }),
+
+  getMetaForManager: protectProcedure
+    .input(
+      z.object({
+        tokenId: z.number(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return await createMetadataForManager(input.tokenId);
+    }),
 });
