@@ -1,12 +1,8 @@
 import React from "react";
 import BaseLayout from "~/components/layout/BaseLayout";
 import MenuButton from "~/components/menu/MenuButton";
-import { api } from "~/utils/api";
 
 const Dashboard = () => {
-  const { data } = api.metadata.getMetaForManager.useQuery({ tokenId: 392 });
-
-  console.log(data);
   return (
     <BaseLayout>
       <div className="flex justify-center">
@@ -15,7 +11,7 @@ const Dashboard = () => {
             title="เพิ่มข้อมูลควาย"
             path="/dashboard/new-buffalo-info"
           />
-          <MenuButton className="bg-slate-300" title="??" path="#" />
+          <MenuButton title="อัพเดด wallet" path="/dashboard/update-wallet" />
           <MenuButton className="bg-slate-300" title="??" path="#" />
           <MenuButton className="bg-slate-300" title="??" path="#" />
           <MenuButton className="bg-slate-300" title="??" path="#" />
