@@ -3,6 +3,7 @@ import { pedigreeRouter } from "./routers/r-pedigree";
 import { authRouter } from "./routers/r-auth";
 import { metadataRouter } from "./routers/r-metadata";
 import { imageRouter } from "./routers/r-image";
+import { kwaithaiRouter } from "./routers/r-kwaithai";
 
 /**
  * This is the primary router for your server.
@@ -14,6 +15,7 @@ export const appRouter = createTRPCRouter({
   auth: authRouter,
   metadata: metadataRouter,
   image: imageRouter,
+  kwaithai: kwaithaiRouter,
 });
 
 // export type definition of API
