@@ -31,7 +31,7 @@ export const uploadBuffaloJson = async (
       updatedAt: new Date().getTime().toString(),
       detail: "N/A",
       dna: "N/A",
-      image: parsed.image,
+      image: parsed.image.split(".")[0],
       rarity: parsed.attributes[6]?.value ?? "Normal",
     },
   });
