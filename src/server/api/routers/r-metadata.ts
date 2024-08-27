@@ -25,10 +25,17 @@ export const metadataRouter = createTRPCRouter({
       z.object({
         tokenId: z.number(),
         metadata: z.string(),
+        motherId: z.string().optional(),
+        fatherId: z.string().optional(),
       }),
     )
     .mutation(async ({ input }) => {
-      return await uploadBuffaloJson(input.tokenId, input.metadata);
+      return await uploadBuffaloJson(
+        input.tokenId,
+        input.metadata,
+        input.motherId,
+        input.fatherId,
+      );
     }),
   checkCanMint: protectProcedure
     .input(

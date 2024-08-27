@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import Image from "next/image";
 import { useBuffaloInfo } from "~/context/buffalo-info.context";
 import Link from "next/link";
@@ -65,6 +65,8 @@ const MetadataGenerate = () => {
     upload({
       tokenId: newBuffaloInfo.tokenId!,
       metadata: JSON.stringify(formatMetadata),
+      fatherId: newBuffaloInfo.fatherId!,
+      motherId: newBuffaloInfo.motherId!,
     });
   };
 
