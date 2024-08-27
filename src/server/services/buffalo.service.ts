@@ -12,19 +12,21 @@ export const uploadBuffaloJson = async (
 ) => {
   const parsed = JSON.parse(metadata) as JsonMetadata;
 
+  if (parsed == undefined) throw Error("parsed metadata error");
+
   const result = await db.pedigree.create({
     data: {
       tokenId: parsed.edition,
-      microchip: parsed.attributes[1]?.value!,
-      name: parsed.name.split(" #")[0]!,
+      microchip: parsed.attributes[1]?.value ?? "N/A",
+      name: parsed.name.split(" #")[0] ?? "N/A",
       certNo: "N/A",
-      birthday: new Date(parsed.attributes[2]?.value!),
-      sex: parsed.attributes[0]?.value!,
+      birthday: new Date(parsed.attributes[2]?.value ?? 0),
+      sex: parsed.attributes[0]?.value ?? "N/A",
       motherId: motherId ?? "N/A",
       fatherId: fatherId ?? "N/A",
-      origin: parsed.attributes[4]?.value!,
+      origin: parsed.attributes[4]?.value ?? "N/A",
       height: 0,
-      color: parsed.attributes[3]?.value!,
+      color: parsed.attributes[3]?.value ?? "N/A",
       createdAt: new Date().getTime().toString(),
       updatedAt: new Date().getTime().toString(),
       detail: "N/A",
