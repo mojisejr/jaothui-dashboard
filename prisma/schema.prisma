@@ -1,158 +1,160 @@
 generator client {
-    provider      = "prisma-client-js"
-    binaryTargets = ["native", "linux-musl"]
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl"]
 }
 
 datasource db {
-    provider = "postgresql"
-    url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-    id                  Int                  @id @default(autoincrement())
-    avatar              String?
-    name                String?
-    farmName            String?
-    wallet              String               @unique
-    address             String
-    province            String
-    lat                 Float?
-    lon                 Float?
-    role                String               @default("USER")
-    lineId              String?              @unique
-    email               String?
-    tel                 String?
-    active              Boolean              @default(false)
-    approved            String[]             @default([])
-    approvedCount       Int                  @default(0)
-    createdAt           DateTime             @default(now())
-    updateAt            DateTime             @updatedAt
-    Certificate         Certificate[]
-    CertificateApprover CertificateApprover?
-    Farm                Farm[]
-    MicrochipOrder      MicrochipOrder[]
-    payment             Payment[]
+  id                  Int                  @id @default(autoincrement())
+  avatar              String?
+  name                String?
+  farmName            String?
+  wallet              String               @unique
+  address             String
+  province            String
+  lat                 Float?
+  lon                 Float?
+  role                String               @default("USER")
+  lineId              String?              @unique
+  email               String?
+  tel                 String?
+  active              Boolean              @default(false)
+  approved            String[]             @default([])
+  approvedCount       Int                  @default(0)
+  createdAt           DateTime             @default(now())
+  updateAt            DateTime             @updatedAt
+  Certificate         Certificate[]
+  CertificateApprover CertificateApprover?
+  Farm                Farm[]
+  MicrochipOrder      MicrochipOrder[]
+  payment             Payment[]
 }
 
 model Farm {
-    id             Int              @id @default(autoincrement())
-    name           String
-    lat            Float
-    lon            Float
-    imageUrl       String?          @default("/images/thuiLogo.png")
-    description    String?
-    tel            String?
-    websiteUrl     String?
-    facebook       String?
-    twitter        String?
-    locationUrl    String?
-    userId         Int?
-    user           User?            @relation(fields: [userId], references: [id])
-    MicrochipOrder MicrochipOrder[]
+  id             Int              @id @default(autoincrement())
+  name           String
+  lat            Float
+  lon            Float
+  imageUrl       String?          @default("/images/thuiLogo.png")
+  description    String?
+  tel            String?
+  websiteUrl     String?
+  facebook       String?
+  twitter        String?
+  locationUrl    String?
+  userId         Int?
+  user           User?            @relation(fields: [userId], references: [id])
+  MicrochipOrder MicrochipOrder[]
 }
 
 model Payment {
-    id            Int       @id @default(autoincrement())
-    wallet        String
-    isLifeTime    Boolean   @default(false)
-    active        Boolean   @default(true)
-    start         DateTime  @default(now())
-    end           DateTime?
-    slipUrl       String
-    approver      String[]  @default([])
-    approvedCount Int       @default(0)
-    rejector      String[]  @default([])
-    rejectedCount Int       @default(0)
-    userId        Int?
-    currentStep   Int       @default(0)
-    User          User?     @relation(fields: [userId], references: [id])
+  id            Int       @id @default(autoincrement())
+  wallet        String
+  isLifeTime    Boolean   @default(false)
+  active        Boolean   @default(true)
+  start         DateTime  @default(now())
+  end           DateTime?
+  slipUrl       String
+  approver      String[]  @default([])
+  approvedCount Int       @default(0)
+  rejector      String[]  @default([])
+  rejectedCount Int       @default(0)
+  userId        Int?
+  currentStep   Int       @default(0)
+  User          User?     @relation(fields: [userId], references: [id])
 }
 
 model Pedigree {
-    tokenId   String   @unique
-    name      String
-    microchip String   @id @unique
-    certNo    String?
-    origin    String?  @default("thai")
-    color     String
-    imageUrl  String
-    detail    String?
-    sex       String
-    rarity    String   @default("Normal")
-    birthday  DateTime
-    height    Int?
-    motherId  String?
-    fatherId  String?
-    isMinted  Boolean  @default(false)
+  microchip String   @id @unique
+  name      String
+  certNo    String?
+  birthday  DateTime
+  sex       String
+  motherId  String?
+  fatherId  String?
+  origin    String?  @default("thai")
+  height    Int?     @default(0)
+  color     String
+  createdAt String
+  detail    String
+  dna       String
+  image     String?
+  rarity    String   @default("Normal")
+  tokenId   BigInt
+  updatedAt String
 }
 
 model Advertisements {
-    id          Int     @id @default(autoincrement())
-    name        String
-    description String
-    imageUrl    String?
-    active      Boolean @default(true)
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String
+  imageUrl    String?
+  active      Boolean @default(true)
 }
 
 model Microchip {
-    id             Int             @id @default(autoincrement())
-    microchip      String          @unique
-    tokenId        String?         @unique
-    sold           Boolean         @default(false)
-    active         Boolean         @default(false)
-    MicrochipOrder MicrochipOrder?
+  id             Int             @id @default(autoincrement())
+  microchip      String          @unique
+  tokenId        String?         @unique
+  sold           Boolean         @default(false)
+  active         Boolean         @default(false)
+  MicrochipOrder MicrochipOrder?
 }
 
 model MicrochipOrder {
-    id              Int        @id @default(autoincrement())
-    microchipId     String?    @unique
-    wallet          String
-    farmId          Int?
-    shippingAddress String?
-    slipUrl         String?
-    note            String?
-    approver        String[]
-    approved        Boolean    @default(false)
-    canMint         Boolean    @default(false)
-    minted          Boolean    @default(false)
-    shipped         Boolean    @default(false)
-    buffaloName     String
-    buffaloOrigin   String
-    buffaloBirthday String
-    buffaloColor    String
-    buffaloSex      String
-    buffaloHeight   String
-    buffaloipfsUrl  String
-    timestamp       DateTime
-    farm            Farm?      @relation(fields: [farmId], references: [id])
-    microchip       Microchip? @relation(fields: [microchipId], references: [microchip])
-    user            User       @relation(fields: [wallet], references: [wallet])
+  id              Int        @id @default(autoincrement())
+  microchipId     String?    @unique
+  wallet          String
+  farmId          Int?
+  shippingAddress String?
+  slipUrl         String?
+  note            String?
+  approver        String[]
+  approved        Boolean    @default(false)
+  canMint         Boolean    @default(false)
+  minted          Boolean    @default(false)
+  shipped         Boolean    @default(false)
+  buffaloName     String
+  buffaloOrigin   String
+  buffaloBirthday String
+  buffaloColor    String
+  buffaloSex      String
+  buffaloHeight   String
+  buffaloipfsUrl  String
+  timestamp       DateTime
+  farm            Farm?      @relation(fields: [farmId], references: [id])
+  microchip       Microchip? @relation(fields: [microchipId], references: [microchip])
+  user            User       @relation(fields: [wallet], references: [wallet])
 }
 
 model Certificate {
-    microchip   String                @id @unique
-    no          Int                   @default(autoincrement())
-    isActive    Boolean               @default(false)
-    updatedAt   DateTime              @updatedAt
-    bornAt      String?               @default("N/A")
-    wallet      String
-    slipUrl     String
-    dadId       String?
-    fGranDadId  String?
-    fGrandMomId String?
-    mGrandDadId String?
-    mGrandMomId String?
-    momId       String?
-    ownerName   String
-    user        User                  @relation(fields: [wallet], references: [wallet])
-    approvers   CertificateApprover[] @relation("CertificateToCertificateApprover")
+  microchip   String                @id @unique
+  no          Int                   @default(autoincrement())
+  isActive    Boolean               @default(false)
+  updatedAt   DateTime              @updatedAt
+  bornAt      String?               @default("N/A")
+  wallet      String
+  slipUrl     String
+  dadId       String?
+  fGranDadId  String?
+  fGrandMomId String?
+  mGrandDadId String?
+  mGrandMomId String?
+  momId       String?
+  ownerName   String
+  user        User                  @relation(fields: [wallet], references: [wallet])
+  approvers   CertificateApprover[] @relation("CertificateToCertificateApprover")
 }
 
 model CertificateApprover {
-    wallet       String        @id @unique
-    signatureUrl String
-    job          String
-    position     Int
-    user         User          @relation(fields: [wallet], references: [wallet])
-    certificates Certificate[] @relation("CertificateToCertificateApprover")
+  wallet       String        @id @unique
+  signatureUrl String
+  job          String
+  position     Int
+  user         User          @relation(fields: [wallet], references: [wallet])
+  certificates Certificate[] @relation("CertificateToCertificateApprover")
 }
