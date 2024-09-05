@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { api } from "~/utils/api";
 import { useRef } from "react";
+import BaseLayout from "~/components/layout/BaseLayout";
 
 const UpdateWallet = () => {
   const searchRef = useRef<HTMLInputElement>(null);
@@ -66,57 +67,59 @@ const UpdateWallet = () => {
   };
 
   return (
-    <div className="flex w-full justify-center">
-      <div className="grid w-full max-w-md grid-cols-1 px-6">
-        <div className="py-4">
-          <h1 className="text-xl font-bold">ระบบค้นหา และ แก้ไข wallet</h1>
-          <h3>สำหรับ e-member kwaithai</h3>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <input
-            ref={searchRef}
-            className="input input-bordered"
-            placeholder="หมายเลข member เดิม"
-            type="text"
-          ></input>
-          <button
-            disabled={memberLoading}
-            onClick={() => handleSearch()}
-            className="btn btn-primary"
-          >
-            {memberLoading ? "กำลังค้นหา..." : "ค้นหา"}
-          </button>
-        </div>
-
-        {memberLoading ? (
-          <div>กำลังค้นหา..</div>
-        ) : (
-          <div className="py-6">
-            {member == null ? (
-              <div className="font-bold">ไม่พบข้อมูล</div>
-            ) : (
-              <div className="flex flex-col gap-2 border-2 p-4">
-                <h1 className="text-xl">พบข้อมูล</h1>
-                <h2>ชื่อ: {member.name}</h2>
-                <input
-                  ref={updateRef}
-                  className="input-borderd input input-primary"
-                  placeholder="wallet ที่ต้องการแก้"
-                ></input>
-                <button
-                  onClick={() => handleUpdate()}
-                  disabled={walletUpdating}
-                  className="btn btn-primary"
-                >
-                  {walletUpdating ? "กำลังบันทึก..." : "ยืนยินการแก้ไข"}
-                </button>
-              </div>
-            )}
+    <BaseLayout title="ระบบค้นหา และ แก้ไข wallet">
+      <div className="flex w-full justify-center">
+        <div className="grid w-full max-w-md grid-cols-1 px-6">
+          <div className="py-4">
+            <h1 className="text-xl font-bold">ระบบค้นหา และ แก้ไข wallet</h1>
+            <h3>สำหรับ e-member kwaithai</h3>
           </div>
-        )}
+
+          <div className="flex flex-col gap-2">
+            <input
+              ref={searchRef}
+              className="input input-bordered"
+              placeholder="หมายเลข member เดิม"
+              type="text"
+            ></input>
+            <button
+              disabled={memberLoading}
+              onClick={() => handleSearch()}
+              className="btn btn-primary"
+            >
+              {memberLoading ? "กำลังค้นหา..." : "ค้นหา"}
+            </button>
+          </div>
+
+          {memberLoading ? (
+            <div>กำลังค้นหา..</div>
+          ) : (
+            <div className="py-6">
+              {member == null ? (
+                <div className="font-bold">ไม่พบข้อมูล</div>
+              ) : (
+                <div className="flex flex-col gap-2 border-2 p-4">
+                  <h1 className="text-xl">พบข้อมูล</h1>
+                  <h2>ชื่อ: {member.name}</h2>
+                  <input
+                    ref={updateRef}
+                    className="input-borderd input input-primary"
+                    placeholder="wallet ที่ต้องการแก้"
+                  ></input>
+                  <button
+                    onClick={() => handleUpdate()}
+                    disabled={walletUpdating}
+                    className="btn btn-primary"
+                  >
+                    {walletUpdating ? "กำลังบันทึก..." : "ยืนยินการแก้ไข"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </BaseLayout>
   );
 };
 
