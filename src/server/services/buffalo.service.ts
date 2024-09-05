@@ -3,6 +3,7 @@ import { uploadJson } from "./supabase/upload-jsonfile";
 import { getImageUrl, getJsonUrl } from "./supabase/supabase";
 import { db } from "../db";
 import { JsonMetadata } from "~/interfaces/i-metadata-json";
+import { Reward } from "~/interfaces/i-reward";
 
 export const uploadBuffaloJson = async (
   tokenId: number,
@@ -56,5 +57,28 @@ export const checkCanMint = async (tokenId: number) => {
     return false;
   } else {
     return true;
+  }
+};
+
+export const getByMicrochip = async (microchip: string) => {
+  try {
+    const found = await db.pedigree.findFirst({
+      where: { microchip },
+      include: { Reward: true },
+    });
+    return found;
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
+};
+
+export const addNewReward = async (reward: Reward) => {
+  try {
+    const created = await db.reward.create({ data: reward });
+    return created;
+  } catch (error) {
+    console.log(error);
+    return null;
   }
 };

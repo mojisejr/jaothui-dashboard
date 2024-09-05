@@ -23,3 +23,9 @@ export const getAvatarUrl = (path: string) => {
   return supabase.storage.from("slipstorage/avatar").getPublicUrl(path).data
     .publicUrl;
 };
+
+export const getRewardUrl = (path: string) => {
+  if (path == "") return null;
+  return supabase.storage.from("slipstorage/reward").getPublicUrl(path).data
+    .publicUrl;
+};

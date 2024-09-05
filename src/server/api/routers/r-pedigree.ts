@@ -1,10 +1,7 @@
 import { z } from "zod";
 
-import {
-  createTRPCRouter,
-  protectProcedure,
-  publicProcedure,
-} from "~/server/api/trpc";
+import { createTRPCRouter, protectProcedure } from "~/server/api/trpc";
+import { getByMicrochip } from "~/server/services/buffalo.service";
 
 export const pedigreeRouter = createTRPCRouter({
   getAll: protectProcedure.query(async ({ ctx }) => {
@@ -16,6 +13,11 @@ export const pedigreeRouter = createTRPCRouter({
       return [];
     }
   }),
+  searchByMicrochip: protectProcedure
+    .input(z.string())
+    .query(async ({ input }) => {
+      return await getByMicrochip(input);
+    }),
   // create: protectProcedure
   //   .input(
   //     z.object({
