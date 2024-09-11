@@ -11,13 +11,16 @@ const Dashboard = () => {
             title="เพิ่มข้อมูลควาย"
             path="/dashboard/new-buffalo-info"
           />
+          <MenuButton
+            title="แก้ไขข้อมูลควาย"
+            path="/dashboard/update-buffalo-info"
+          />
           <MenuButton title="อัพเดด wallet" path="/dashboard/update-wallet" />
           <MenuButton
             className=""
             title="เพิ่มข้อมูลรางวัล"
             path="/dashboard/new-reward"
           />
-          <MenuButton className="bg-slate-300" title="??" path="#" />
           <MenuButton className="bg-slate-300" title="??" path="#" />
           <MenuButton className="bg-slate-300" title="??" path="#" />
         </div>

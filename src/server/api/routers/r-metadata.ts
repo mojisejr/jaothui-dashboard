@@ -1,14 +1,12 @@
 import { z } from "zod";
-import {
-  createTRPCRouter,
-  protectProcedure,
-  publicProcedure,
-} from "~/server/api/trpc";
+import { createTRPCRouter, protectProcedure } from "~/server/api/trpc";
 import {
   addMetadata,
+  addMetadataBatch,
   createMetadataForManager,
   getAllMintedBuffalos,
   getCurrentTokenId,
+  getMetadataByMicrochipId,
   mintNFT,
 } from "~/server/blockchain/metadata.service";
 import {
@@ -94,7 +92,7 @@ export const metadataRouter = createTRPCRouter({
     )
     .mutation(async ({ input }) => {
       if (input.tokenId == -1) return;
-      return await addMetadata(input.tokenId, input.newBuffalo);
+      return await addMetadata(input.tokenId);
     }),
 
   getCurrentTokenId: protectProcedure.query(async ({ ctx }) => {
@@ -109,5 +107,15 @@ export const metadataRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       return await createMetadataForManager(input.tokenId);
+    }),
+  getMetadataByMicrochip: protectProcedure
+    .input(z.string())
+    .query(async ({ input }) => {
+      return await getMetadataByMicrochipId(input);
+    }),
+  updateBuffaloImage: protectProcedure
+    .input(z.number())
+    .mutation(async ({ input }) => {
+      return await addMetadataBatch(input);
     }),
 });
