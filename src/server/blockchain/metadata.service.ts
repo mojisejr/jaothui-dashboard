@@ -1,11 +1,14 @@
 import { account, viemPublic, viemWallet } from "./viem";
 import { abi, address } from "./metadata-maneger/abi";
 import { abi as nftAbi, address as nftAddress } from "./nft/abi";
-import { IMetadata } from "~/interfaces/i-metadata";
+import { IMetadata, RawMetadata } from "~/interfaces/i-metadata";
 import { getJsonUrl } from "../services/supabase/supabase";
 import axios from "axios";
 import { JsonMetadata } from "~/interfaces/i-metadata-json";
 import { NewBuffaloInput } from "~/components/new-buffalo-info/NewBuffaloForm";
+import { getByMicrochip } from "../services/buffalo.service";
+import dayjs from "dayjs";
+import { parse } from "path";
 
 export const getAllMintedBuffalos = async () => {
   const metadata = (await viemPublic.readContract({
@@ -51,7 +54,7 @@ export const mintNFT = async (tokenId: number) => {
   }
 };
 
-export const addMetadata = async (tokenId: number, input: NewBuffaloInput) => {
+export const addMetadata = async (tokenId: number) => {
   try {
     const metadataForManager = await createMetadataForManager(tokenId);
     const { request: metadataRequest } = await viemPublic.simulateContract({
@@ -64,7 +67,29 @@ export const addMetadata = async (tokenId: number, input: NewBuffaloInput) => {
 
     const metadataAdded = await viemWallet.writeContract(metadataRequest);
 
-    console.log("adding result: ", metadataAdded);
+    if (metadataAdded) {
+      return true;
+    } else {
+      return false;
+    }
+  } catch (error) {
+    console.log(error);
+    return false;
+  }
+};
+
+export const addMetadataBatch = async (tokenId: number) => {
+  try {
+    const metadataForManager = await createMetadataForManager(tokenId);
+    const { request: metadataRequest } = await viemPublic.simulateContract({
+      account: account,
+      address: address,
+      abi: abi,
+      functionName: "addMetadataBatch",
+      args: [[tokenId.toString()], [metadataForManager]],
+    });
+
+    const metadataAdded = await viemWallet.writeContract(metadataRequest);
 
     if (metadataAdded) {
       return true;
@@ -104,8 +129,6 @@ export const createMetadataForManager = async (tokenId: number) => {
     Math.floor(new Date().getTime() / 1000),
   ];
 
-  console.log("metadata created: ", metadataForManager);
-
   return metadataForManager;
 };
 
@@ -119,4 +142,60 @@ export const getCurrentTokenId = async () => {
   const currentTokenId = tokenId + 1n;
 
   return +currentTokenId.toString();
+};
+
+export const getMetadataByMicrochipId = async (microchipId: string) => {
+  try {
+    const data = (await viemPublic.readContract({
+      address: address,
+      abi: abi,
+      functionName: "getMetadataByMicrochip",
+      args: [microchipId],
+    })) as RawMetadata;
+
+    const fromDb = await getByMicrochip(microchipId);
+
+    if (!fromDb) return null;
+
+    // const parsed = {
+    //   ...data!,
+    //   imageUri: getImageUrl(`${tokenId}.jpg`),
+    //   birthdate: +data.birthdate!.toString(),
+    //   height: +data.height.toString(),
+    //   certify: {
+    //     ...data.certify,
+    //     issuedAt: +data.certify.issuedAt.toString(),
+    //   },
+    //   createdAt: +data.createdAt.toString(),
+    //   updatedAt: +data.updatedAt.toString(),
+    //   certificate: certificationData,
+    // };
+
+    const parsed: IMetadata = {
+      tokenId: parseInt(fromDb.tokenId.toString()),
+      name: data.name,
+      origin: data.origin,
+      color: data.color,
+      image: data.imageUri,
+      detail: data.detail,
+      sex: data.sex,
+      birthdate: parseInt(data.birthdate.toString()) * 1000,
+      birthday: dayjs(
+        new Date(parseInt(data.birthdate.toString()) * 1000),
+      ).format("YYYY/MM/DD"),
+      height: data.height.toString(),
+      microchip: microchipId,
+      certNo: data.certify.certNo,
+      dna: data.certify.dna,
+      rarity: data.certify.rarity,
+      fatherId: data.relation.fatherTokenId,
+      motherId: data.relation.motherTokenId,
+      createdAt: data.createdAt.toString(),
+      updatedAt: data.updatedAt.toString(),
+    };
+
+    return parsed;
+  } catch (error) {
+    console.log(error);
+  }
 };
