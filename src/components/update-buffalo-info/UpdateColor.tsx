@@ -76,13 +76,13 @@ const UpdateColorDialog = ({ metadata }: UpdateColorDialogProps) => {
   }, [isSuccess]);
 
   return (
-    <dialog id="upload_origin_dialog" className="modal">
+    <dialog id="color_dialog" className="modal">
       <div className="modal-box">
         <h3 className="text-lg font-bold">แก้ไข color</h3>
         <form onSubmit={onSubmit} className="grid grid-cols-1 gap-2">
           <input
             type="text"
-            className="input"
+            className="input input-bordered input-primary"
             {...register("color", { required: true })}
           ></input>
           <button disabled={loading} className="btn btn-primary" type="submit">

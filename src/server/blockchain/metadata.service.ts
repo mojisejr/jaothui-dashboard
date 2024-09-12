@@ -9,6 +9,7 @@ import { NewBuffaloInput } from "~/components/new-buffalo-info/NewBuffaloForm";
 import { getByMicrochip } from "../services/buffalo.service";
 import dayjs from "dayjs";
 import { parse } from "path";
+import { db } from "../db";
 
 export const getAllMintedBuffalos = async () => {
   const metadata = (await viemPublic.readContract({
@@ -197,5 +198,35 @@ export const getMetadataByMicrochipId = async (microchipId: string) => {
     return parsed;
   } catch (error) {
     console.log(error);
+  }
+};
+
+export const updateParentId = async (
+  microchip: string,
+  motherMicrochip: string,
+  fatherMicrochip: string,
+) => {
+  try {
+    const target = await db.pedigree.findFirst({
+      where: { microchip: microchip },
+    });
+
+    const { request: metadataRequest } = await viemPublic.simulateContract({
+      account: account,
+      address: address,
+      abi: abi,
+      functionName: "setParent",
+      args: [target?.tokenId, fatherMicrochip, motherMicrochip],
+    });
+
+    const metadataAdded = await viemWallet.writeContract(metadataRequest);
+    if (metadataAdded) {
+      return true;
+    } else {
+      return false;
+    }
+  } catch (error) {
+    console.log(error);
+    return false;
   }
 };

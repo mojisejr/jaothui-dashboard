@@ -16,16 +16,7 @@ import UpdateBirthdayDialog from "~/components/update-buffalo-info/UpdateBirthda
 import UpdateCertNoDialog from "~/components/update-buffalo-info/UpdateCertNo";
 import UpdateDNADialog from "~/components/update-buffalo-info/UpdateDNA";
 import UpdateRarityDialog from "~/components/update-buffalo-info/UpdateRarity";
-
-//1. เลือก edit ทีละอย่าง
-//2. ตอน edit
-//2.1 เอาข้อมูลเดิมมาเตรียมไว้
-//2.2 แล้วเชคว่าอะไรที่จะ update
-//2.3 จากนั้น แทนที่ข้อมูลใหม่เข้าไป
-//** ถ้า upload image จะต้อง upload image แล้วเอา link ที่ ได้มาใส่ ก่อน gen metadata */
-//2.4 จากนั้น generate json metadata
-//2.5 จากนั้น upload new json (replace)
-//2.6 จากนั้น addMetadata to contract
+import UpdateParentDialog from "~/components/update-buffalo-info/UpdateParent";
 
 const UpdateBuffalo = () => {
   const [microchip, setMicrochip] = useState<string>();
@@ -67,7 +58,7 @@ const UpdateBuffalo = () => {
   };
   return (
     <BaseLayout title="ระบบค้นหา และ แก้ไข ข้อมูลควาย">
-      <div className="mb-10 mt-2 flex w-full justify-center">
+      <div className="mb-20 mt-2 flex w-full justify-center">
         <div className="grid grid-cols-1 gap-2 rounded-xl border-[1px] border-primary p-10">
           <div>ค้นหาควายด้วย microchip</div>
           <input
@@ -103,6 +94,7 @@ const UpdateBuffalo = () => {
       <UpdateCertNoDialog metadata={metadata!} />
       <UpdateDNADialog metadata={metadata!} />
       <UpdateRarityDialog metadata={metadata!} />
+      <UpdateParentDialog metadata={metadata!} />
     </BaseLayout>
   );
 };

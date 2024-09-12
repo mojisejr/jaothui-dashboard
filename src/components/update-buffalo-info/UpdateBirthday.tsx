@@ -86,7 +86,7 @@ const UpdateBirthdayDialog = ({ metadata }: UpdateBirthdayProps) => {
         <form onSubmit={onSubmit} className="grid grid-cols-1 gap-2">
           <input
             type="date"
-            className="input"
+            className="input input-bordered input-primary"
             {...register("date", { required: true })}
           ></input>
           <button disabled={loading} className="btn btn-primary" type="submit">

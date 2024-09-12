@@ -98,7 +98,7 @@ const UpdateImageDialog = ({ metadata }: UpdateImageDialogProps) => {
           <input
             type="file"
             accept="image/jpg"
-            className="file-input"
+            className="file-input file-input-bordered file-input-primary"
             {...register("image", { required: true })}
           ></input>
           <button disabled={loading} className="btn btn-primary" type="submit">

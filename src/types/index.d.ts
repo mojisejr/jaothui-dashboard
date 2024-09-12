@@ -11,10 +11,13 @@ declare global {
     upload_name_dialog: {
       showModal: () => void;
     };
-    upload_origin_dialog: {
+    origin_dialog: {
       showModal: () => void;
     };
-    upload_color_dialog: {
+    // upload_color_dialog: {
+    //   showModal: () => void;
+    // };
+    color_dialog: {
       showModal: () => void;
     };
     upload_detail_dialog: {
@@ -36,6 +39,9 @@ declare global {
       showModal: () => void;
     };
     upload_rarity_dialog: {
+      showModal: () => void;
+    };
+    upload_parent_dialog: {
       showModal: () => void;
     };
   }

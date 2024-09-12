@@ -1,19 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { IMetadata } from "~/interfaces/i-metadata";
-import { supabase } from "~/server/services/supabase/supabase";
-import { jsonMetadataGenerate } from "~/server/utils/jsonGenerator";
 import { api } from "~/utils/api";
 
-interface UpdateOriginDialogProps {
+interface UpdateParentDialogProps {
   metadata: IMetadata;
 }
 
 type inputType = {
-  origin: string;
+  father: string;
+  mother: string;
 };
 
-const UpdateOriginDialog = ({ metadata }: UpdateOriginDialogProps) => {
+const UpdateParentDialog = ({ metadata }: UpdateParentDialogProps) => {
   const [loading, setLoading] = useState<boolean>(false);
   const { register, handleSubmit, reset } = useForm<inputType>();
   const {
@@ -22,7 +21,7 @@ const UpdateOriginDialog = ({ metadata }: UpdateOriginDialogProps) => {
     isSuccess,
     isError,
     error,
-  } = api.metadata.updateBuffaloImage.useMutation();
+  } = api.metadata.updateParentId.useMutation();
 
   const onSubmit = handleSubmit(async (data, event) => {
     setLoading(true);
@@ -34,28 +33,11 @@ const UpdateOriginDialog = ({ metadata }: UpdateOriginDialogProps) => {
       return;
     }
 
-    //Json Metadata Generate
-    const jsonMetadata = jsonMetadataGenerate(
-      { ...metadata, origin: data.origin },
-      // metadata.image!,
-      `slipstorage/buffalo/${metadata.tokenId}.jpg`,
-    );
-
-    //Upload Json Metadata
-    const jsonUploadResult = await supabase.storage
-      .from("slipstorage/json")
-      .upload(`${metadata.tokenId}.json`, JSON.stringify(jsonMetadata), {
-        upsert: true,
-      });
-
-    if (jsonUploadResult.error != null) {
-      alert("ไม่สามารถ upload ข้อมูลได้");
-      setLoading(false);
-      return;
-    }
-
-    //Upload Json
-    update(metadata.tokenId);
+    update({
+      microchip: metadata.microchip,
+      fatherMicrochip: data.father,
+      motherMicrochip: data.mother,
+    });
   });
 
   useEffect(() => {
@@ -73,14 +55,27 @@ const UpdateOriginDialog = ({ metadata }: UpdateOriginDialogProps) => {
   }, [isSuccess]);
 
   return (
-    <dialog id="origin_dialog" className="modal">
+    <dialog id="upload_parent_dialog" className="modal">
       <div className="modal-box">
-        <h3 className="text-lg font-bold">แก้ไข origin</h3>
+        <h3 className="text-lg font-bold">แก้ไข parent</h3>
+        <div className="p-2 text-error">
+          ใส่แค่พ่อหรือแม่ อย่างเดียวได้ แต่ถ้าข้อมูลเก่ามีอยู่แล้ว
+          ต้องเอาข้อมูลเก่ามาใส่ด้วย เช่น เดิมมีแต่แม่ ไม่มีพ่อ ตอนจะ update
+          ต้องเอาข้อมูลแม่ มาใส่ด้วย ไม่งั้นจะหายเพราะเป็นการ update
+          พร้อมกันท้องสองช่อง
+        </div>
         <form onSubmit={onSubmit} className="grid grid-cols-1 gap-2">
           <input
             type="text"
             className="input input-bordered input-primary"
-            {...register("origin", { required: true })}
+            placeholder="microchip พ่อ"
+            {...register("father")}
+          ></input>
+          <input
+            type="text"
+            className="input input-bordered input-primary"
+            placeholder="microchip แม่"
+            {...register("mother")}
           ></input>
           <button disabled={loading} className="btn btn-primary" type="submit">
             {loading ? (
@@ -106,4 +101,4 @@ const UpdateOriginDialog = ({ metadata }: UpdateOriginDialogProps) => {
   );
 };
 
-export default UpdateOriginDialog;
+export default UpdateParentDialog;
