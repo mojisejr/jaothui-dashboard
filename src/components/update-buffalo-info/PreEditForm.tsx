@@ -83,7 +83,8 @@ const PreEditForm = ({ metadata }: PreEditFormProps) => {
 
           <button
             onClick={() => {
-              window.upload_origin_dialog.showModal();
+              // window.upload_origin_dialog.showModal();
+              window.origin_dialog.showModal();
             }}
             className="btn btn-primary"
           >
@@ -103,7 +104,8 @@ const PreEditForm = ({ metadata }: PreEditFormProps) => {
 
           <button
             onClick={() => {
-              window.upload_color_dialog.showModal();
+              // window.upload_color_dialog.showModal();
+              window.color_dialog.showModal();
             }}
             className="btn btn-primary"
           >
@@ -268,6 +270,16 @@ const PreEditForm = ({ metadata }: PreEditFormProps) => {
           value={metadata.motherId}
           readOnly
         ></input>
+      </div>
+      <div className="my-2 flex w-full justify-end">
+        <button
+          onClick={() => {
+            window.upload_parent_dialog.showModal();
+          }}
+          className="btn btn-primary"
+        >
+          แก้ไขข้อมูลพ่อแม่
+        </button>
       </div>
     </div>
   );

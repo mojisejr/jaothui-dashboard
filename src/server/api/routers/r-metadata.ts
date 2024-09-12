@@ -8,6 +8,7 @@ import {
   getCurrentTokenId,
   getMetadataByMicrochipId,
   mintNFT,
+  updateParentId,
 } from "~/server/blockchain/metadata.service";
 import {
   checkCanMint,
@@ -117,5 +118,20 @@ export const metadataRouter = createTRPCRouter({
     .input(z.number())
     .mutation(async ({ input }) => {
       return await addMetadataBatch(input);
+    }),
+  updateParentId: protectProcedure
+    .input(
+      z.object({
+        microchip: z.string(),
+        fatherMicrochip: z.string().optional(),
+        motherMicrochip: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return await updateParentId(
+        input.microchip,
+        input.fatherMicrochip!,
+        input.motherMicrochip!,
+      );
     }),
 });

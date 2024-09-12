@@ -80,7 +80,10 @@ const UpdateSexDialog = ({ metadata }: UpdateSexDialogProps) => {
       <div className="modal-box">
         <h3 className="text-lg font-bold">แก้ไข sex</h3>
         <form onSubmit={onSubmit} className="grid grid-cols-1 gap-2">
-          <select className="input" {...register("sex", { required: true })}>
+          <select
+            className="select select-bordered select-primary"
+            {...register("sex", { required: true })}
+          >
             <option value="Male">Male</option>
             <option value="Female">Female</option>
           </select>

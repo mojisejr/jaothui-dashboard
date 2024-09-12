@@ -86,7 +86,7 @@ const UpdateRarityDialog = ({ metadata }: UpdateRarityDialogProps) => {
             {...register("rarity", { required: true })}
           ></input> */}
           <select
-            className="select select-bordered"
+            className="select select-bordered select-primary"
             defaultValue="na"
             {...register("rarity", { required: true })}
           >
