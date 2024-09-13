@@ -68,14 +68,14 @@ const UpdateParentDialog = ({ metadata }: UpdateParentDialogProps) => {
           <input
             type="text"
             className="input input-bordered input-primary"
-            placeholder="microchip พ่อ"
-            {...register("father")}
+            placeholder="microchip แม่"
+            {...register("mother")}
           ></input>
           <input
             type="text"
             className="input input-bordered input-primary"
-            placeholder="microchip แม่"
-            {...register("mother")}
+            placeholder="microchip พ่อ"
+            {...register("father")}
           ></input>
           <button disabled={loading} className="btn btn-primary" type="submit">
             {loading ? (

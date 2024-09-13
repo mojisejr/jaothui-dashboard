@@ -130,8 +130,8 @@ export const metadataRouter = createTRPCRouter({
     .mutation(async ({ input }) => {
       return await updateParentId(
         input.microchip,
-        input.fatherMicrochip!,
         input.motherMicrochip!,
+        input.fatherMicrochip!,
       );
     }),
 });
