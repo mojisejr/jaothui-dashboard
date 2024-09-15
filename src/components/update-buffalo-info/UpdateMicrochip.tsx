@@ -22,7 +22,7 @@ const UpdateMicrochipDialog = ({ metadata }: UpdateMicrochipProps) => {
     isSuccess,
     isError,
     error,
-  } = api.metadata.updateBuffaloImage.useMutation();
+  } = api.metadata.updateBuffaloMicrochip.useMutation();
 
   const onSubmit = handleSubmit(async (data, event) => {
     setLoading(true);
@@ -58,7 +58,11 @@ const UpdateMicrochipDialog = ({ metadata }: UpdateMicrochipProps) => {
 
     //Upload Json
 
-    update(metadata.tokenId);
+    update({
+      tokenId: metadata.tokenId,
+      oldMicrochip: metadata.microchip,
+      microchip: data.newMicrochip,
+    });
   });
 
   useEffect(() => {

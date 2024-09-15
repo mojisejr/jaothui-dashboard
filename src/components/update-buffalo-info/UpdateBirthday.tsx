@@ -11,7 +11,7 @@ interface UpdateBirthdayProps {
 }
 
 type inputType = {
-  date: string;
+  date: Date;
 };
 
 const UpdateBirthdayDialog = ({ metadata }: UpdateBirthdayProps) => {
@@ -23,7 +23,7 @@ const UpdateBirthdayDialog = ({ metadata }: UpdateBirthdayProps) => {
     isSuccess,
     isError,
     error,
-  } = api.metadata.updateBuffaloImage.useMutation();
+  } = api.metadata.updateBuffaloBirthday.useMutation();
 
   const onSubmit = handleSubmit(async (data, event) => {
     setLoading(true);
@@ -62,7 +62,11 @@ const UpdateBirthdayDialog = ({ metadata }: UpdateBirthdayProps) => {
 
     //Upload Json
 
-    update(metadata.tokenId);
+    update({
+      tokenId: metadata.tokenId,
+      microchip: metadata.microchip,
+      birthday: data.date,
+    });
   });
 
   useEffect(() => {

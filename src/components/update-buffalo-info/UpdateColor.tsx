@@ -22,7 +22,7 @@ const UpdateColorDialog = ({ metadata }: UpdateColorDialogProps) => {
     isSuccess,
     isError,
     error,
-  } = api.metadata.updateBuffaloImage.useMutation();
+  } = api.metadata.updateBuffaloColor.useMutation();
 
   const onSubmit = handleSubmit(async (data, event) => {
     setLoading(true);
@@ -58,7 +58,11 @@ const UpdateColorDialog = ({ metadata }: UpdateColorDialogProps) => {
 
     //Upload Json
 
-    update(metadata.tokenId);
+    update({
+      tokenId: metadata.tokenId,
+      microchip: metadata.microchip,
+      color: data.color,
+    });
   });
 
   useEffect(() => {

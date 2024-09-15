@@ -22,7 +22,7 @@ const UpdateCertNoDialog = ({ metadata }: UpdateCertNoProps) => {
     isSuccess,
     isError,
     error,
-  } = api.metadata.updateBuffaloImage.useMutation();
+  } = api.metadata.updateBuffaloCertNo.useMutation();
 
   const onSubmit = handleSubmit(async (data, event) => {
     setLoading(true);
@@ -58,7 +58,11 @@ const UpdateCertNoDialog = ({ metadata }: UpdateCertNoProps) => {
 
     //Upload Json
 
-    update(metadata.tokenId);
+    update({
+      tokenId: metadata.tokenId,
+      microchip: metadata.microchip,
+      certNo: data.certNo,
+    });
   });
 
   useEffect(() => {

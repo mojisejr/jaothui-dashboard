@@ -201,6 +201,165 @@ export const getMetadataByMicrochipId = async (microchipId: string) => {
   }
 };
 
+export const updateBuffaloMicrochip = async (
+  tokenId: number,
+  oldMicrochip: string,
+  microchip: string,
+) => {
+  try {
+    const result = await addMetadataBatch(tokenId);
+    if (result) {
+      await db.pedigree.update({
+        where: { microchip: oldMicrochip },
+        data: { microchip: microchip },
+      });
+    }
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+export const updateBuffaloBirthday = async (
+  tokenId: number,
+  microchip: string,
+  birthday: Date,
+) => {
+  const result = await addMetadataBatch(tokenId);
+  if (result) {
+    await db.pedigree.update({
+      where: { microchip },
+      data: { birthday: birthday },
+    });
+  }
+};
+
+export const updateBuffaloCertNo = async (
+  tokenId: number,
+  microchip: string,
+  certNo: string,
+) => {
+  const result = await addMetadataBatch(tokenId);
+  if (result) {
+    await db.pedigree.update({
+      where: { microchip },
+      data: { certNo: certNo },
+    });
+  }
+};
+
+export const updateBuffaloColor = async (
+  tokenId: number,
+  microchip: string,
+  color: string,
+) => {
+  const result = await addMetadataBatch(tokenId);
+  if (result) {
+    await db.pedigree.update({
+      where: { microchip },
+      data: { color: color },
+    });
+  }
+};
+
+export const updateBuffaloDetail = async (
+  tokenId: number,
+  microchip: string,
+  detail: string,
+) => {
+  const result = await addMetadataBatch(tokenId);
+  if (result) {
+    await db.pedigree.update({
+      where: { microchip },
+      data: { detail: detail },
+    });
+  }
+};
+
+export const updateBuffaloDna = async (
+  tokenId: number,
+  microchip: string,
+  dna: string,
+) => {
+  const result = await addMetadataBatch(tokenId);
+  if (result) {
+    await db.pedigree.update({
+      where: { microchip },
+      data: { dna: dna },
+    });
+  }
+};
+
+export const updateBuffaloHeight = async (
+  tokenId: number,
+  microchip: string,
+  height: number,
+) => {
+  const result = await addMetadataBatch(tokenId);
+  if (result) {
+    await db.pedigree.update({
+      where: { microchip },
+      data: { height: height },
+    });
+  }
+};
+
+export const updateBuffaloName = async (
+  tokenId: number,
+  microchip: string,
+  name: string,
+) => {
+  const result = await addMetadataBatch(tokenId);
+  if (result) {
+    await db.pedigree.update({
+      where: { microchip },
+      data: { name: name },
+    });
+  }
+};
+
+export const updateBuffaloOrigin = async (
+  tokenId: number,
+  microchip: string,
+  origin: string,
+) => {
+  const result = await addMetadataBatch(tokenId);
+  if (result) {
+    await db.pedigree.update({
+      where: { microchip },
+      data: { origin: origin },
+    });
+  }
+};
+
+export const updateBuffaloRarity = async (
+  tokenId: number,
+  microchip: string,
+  rarity: string,
+) => {
+  const result = await addMetadataBatch(tokenId);
+  if (result) {
+    await db.pedigree.update({
+      where: { microchip },
+      data: { rarity: rarity },
+    });
+  }
+};
+
+export const updateBuffaloSex = async (
+  tokenId: number,
+  microchip: string,
+  sex: string,
+) => {
+  const result = await addMetadataBatch(tokenId);
+  if (result) {
+    await db.pedigree.update({
+      where: { microchip },
+      data: { sex: sex },
+    });
+  }
+};
+
 export const updateParentId = async (
   microchip: string,
   motherMicrochip: string,

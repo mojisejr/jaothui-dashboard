@@ -22,7 +22,7 @@ const UpdateDetailDialog = ({ metadata }: UpdateDetailDialogProps) => {
     isSuccess,
     isError,
     error,
-  } = api.metadata.updateBuffaloImage.useMutation();
+  } = api.metadata.updateBuffaloDetail.useMutation();
 
   const onSubmit = handleSubmit(async (data, event) => {
     setLoading(true);
@@ -58,7 +58,11 @@ const UpdateDetailDialog = ({ metadata }: UpdateDetailDialogProps) => {
 
     //Upload Json
 
-    update(metadata.tokenId);
+    update({
+      tokenId: metadata.tokenId,
+      microchip: metadata.microchip,
+      detail: data.detail,
+    });
   });
 
   useEffect(() => {

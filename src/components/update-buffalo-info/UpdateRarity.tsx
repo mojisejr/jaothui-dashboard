@@ -22,7 +22,7 @@ const UpdateRarityDialog = ({ metadata }: UpdateRarityDialogProps) => {
     isSuccess,
     isError,
     error,
-  } = api.metadata.updateBuffaloImage.useMutation();
+  } = api.metadata.updateBuffaloRarity.useMutation();
 
   const onSubmit = handleSubmit(async (data, event) => {
     setLoading(true);
@@ -58,7 +58,11 @@ const UpdateRarityDialog = ({ metadata }: UpdateRarityDialogProps) => {
 
     //Upload Json
 
-    update(metadata.tokenId);
+    update({
+      tokenId: metadata.tokenId,
+      microchip: metadata.microchip,
+      rarity: data.rarity,
+    });
   });
 
   useEffect(() => {

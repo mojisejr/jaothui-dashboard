@@ -10,7 +10,7 @@ interface UpdateHeightDialogProps {
 }
 
 type inputType = {
-  height: string;
+  height: number;
 };
 
 const UpdateHeightDialog = ({ metadata }: UpdateHeightDialogProps) => {
@@ -22,7 +22,7 @@ const UpdateHeightDialog = ({ metadata }: UpdateHeightDialogProps) => {
     isSuccess,
     isError,
     error,
-  } = api.metadata.updateBuffaloImage.useMutation();
+  } = api.metadata.updateBuffaloHeight.useMutation();
 
   const onSubmit = handleSubmit(async (data, event) => {
     setLoading(true);
@@ -36,7 +36,7 @@ const UpdateHeightDialog = ({ metadata }: UpdateHeightDialogProps) => {
 
     //Json Metadata Generate
     const jsonMetadata = jsonMetadataGenerate(
-      { ...metadata, height: data.height },
+      { ...metadata, height: data.height.toString() },
       // metadata.image!,
       `slipstorage/buffalo/${metadata.tokenId}.jpg`,
     );
@@ -58,7 +58,11 @@ const UpdateHeightDialog = ({ metadata }: UpdateHeightDialogProps) => {
 
     //Upload Json
 
-    update(metadata.tokenId);
+    update({
+      tokenId: metadata.tokenId,
+      microchip: metadata.microchip,
+      height: data.height,
+    });
   });
 
   useEffect(() => {
