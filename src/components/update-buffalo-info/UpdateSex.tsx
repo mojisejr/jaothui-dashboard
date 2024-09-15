@@ -22,7 +22,7 @@ const UpdateSexDialog = ({ metadata }: UpdateSexDialogProps) => {
     isSuccess,
     isError,
     error,
-  } = api.metadata.updateBuffaloImage.useMutation();
+  } = api.metadata.updateBuffaloSex.useMutation();
 
   const onSubmit = handleSubmit(async (data, event) => {
     setLoading(true);
@@ -58,7 +58,11 @@ const UpdateSexDialog = ({ metadata }: UpdateSexDialogProps) => {
 
     //Upload Json
 
-    update(metadata.tokenId);
+    update({
+      tokenId: metadata.tokenId,
+      microchip: metadata.microchip,
+      sex: data.sex,
+    });
   });
 
   useEffect(() => {

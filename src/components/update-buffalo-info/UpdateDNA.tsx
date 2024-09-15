@@ -22,7 +22,7 @@ const UpdateDNADialog = ({ metadata }: UpdateDNADialogProps) => {
     isSuccess,
     isError,
     error,
-  } = api.metadata.updateBuffaloImage.useMutation();
+  } = api.metadata.updateBuffaloDna.useMutation();
 
   const onSubmit = handleSubmit(async (data, event) => {
     setLoading(true);
@@ -57,7 +57,11 @@ const UpdateDNADialog = ({ metadata }: UpdateDNADialogProps) => {
 
     //Upload Json
 
-    update(metadata.tokenId);
+    update({
+      tokenId: metadata.tokenId,
+      microchip: metadata.microchip,
+      dna: data.dna,
+    });
   });
 
   useEffect(() => {

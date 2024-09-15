@@ -8,6 +8,17 @@ import {
   getCurrentTokenId,
   getMetadataByMicrochipId,
   mintNFT,
+  updateBuffaloBirthday,
+  updateBuffaloCertNo,
+  updateBuffaloColor,
+  updateBuffaloDetail,
+  updateBuffaloDna,
+  updateBuffaloHeight,
+  updateBuffaloMicrochip,
+  updateBuffaloName,
+  updateBuffaloOrigin,
+  updateBuffaloRarity,
+  updateBuffaloSex,
   updateParentId,
 } from "~/server/blockchain/metadata.service";
 import {
@@ -119,6 +130,166 @@ export const metadataRouter = createTRPCRouter({
     .mutation(async ({ input }) => {
       return await addMetadataBatch(input);
     }),
+  updateBuffaloMicrochip: protectProcedure
+    .input(
+      z.object({
+        tokenId: z.number(),
+        oldMicrochip: z.string(),
+        microchip: z.string(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return await updateBuffaloMicrochip(
+        input.tokenId,
+        input.oldMicrochip,
+        input.microchip,
+      );
+    }),
+  updateBuffaloBirthday: protectProcedure
+    .input(
+      z.object({
+        tokenId: z.number(),
+        microchip: z.string(),
+        birthday: z.date(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return await updateBuffaloBirthday(
+        input.tokenId,
+        input.microchip,
+        input.birthday,
+      );
+    }),
+  updateBuffaloCertNo: protectProcedure
+    .input(
+      z.object({
+        tokenId: z.number(),
+        microchip: z.string(),
+        certNo: z.string(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return await updateBuffaloCertNo(
+        input.tokenId,
+        input.microchip,
+        input.certNo,
+      );
+    }),
+  updateBuffaloColor: protectProcedure
+    .input(
+      z.object({
+        tokenId: z.number(),
+        microchip: z.string(),
+        color: z.string(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return await updateBuffaloColor(
+        input.tokenId,
+        input.microchip,
+        input.color,
+      );
+    }),
+  updateBuffaloDetail: protectProcedure
+    .input(
+      z.object({
+        tokenId: z.number(),
+        microchip: z.string(),
+        detail: z.string(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return await updateBuffaloDetail(
+        input.tokenId,
+        input.microchip,
+        input.detail,
+      );
+    }),
+  updateBuffaloDna: protectProcedure
+    .input(
+      z.object({
+        tokenId: z.number(),
+        microchip: z.string(),
+        dna: z.string(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return await updateBuffaloDna(input.tokenId, input.microchip, input.dna);
+    }),
+  updateBuffaloHeight: protectProcedure
+    .input(
+      z.object({
+        tokenId: z.number(),
+        microchip: z.string(),
+        height: z.number(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return await updateBuffaloHeight(
+        input.tokenId,
+        input.microchip,
+        input.height,
+      );
+    }),
+  updateBuffaloName: protectProcedure
+    .input(
+      z.object({
+        tokenId: z.number(),
+        microchip: z.string(),
+        name: z.string(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return await updateBuffaloName(
+        input.tokenId,
+        input.microchip,
+        input.name,
+      );
+    }),
+  updateBuffaloOrigin: protectProcedure
+    .input(
+      z.object({
+        tokenId: z.number(),
+        microchip: z.string(),
+        origin: z.string(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return await updateBuffaloOrigin(
+        input.tokenId,
+        input.microchip,
+        input.origin,
+      );
+    }),
+
+  updateBuffaloRarity: protectProcedure
+    .input(
+      z.object({
+        tokenId: z.number(),
+        microchip: z.string(),
+        rarity: z.string(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return await updateBuffaloRarity(
+        input.tokenId,
+        input.microchip,
+        input.rarity,
+      );
+    }),
+
+  updateBuffaloSex: protectProcedure
+    .input(
+      z.object({
+        tokenId: z.number(),
+        microchip: z.string(),
+        sex: z.string(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return await updateBuffaloSex(input.tokenId, input.microchip, input.sex);
+    }),
+
   updateParentId: protectProcedure
     .input(
       z.object({
