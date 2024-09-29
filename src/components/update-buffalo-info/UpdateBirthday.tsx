@@ -44,7 +44,6 @@ const UpdateBirthdayDialog = ({ metadata }: UpdateBirthdayProps) => {
       // metadata.image!,
       `slipstorage/buffalo/${metadata.tokenId}.jpg`,
     );
-
     //Upload Json Metadata
     const jsonUploadResult = await supabase.storage
       .from("slipstorage/json")
@@ -65,7 +64,7 @@ const UpdateBirthdayDialog = ({ metadata }: UpdateBirthdayProps) => {
     update({
       tokenId: metadata.tokenId,
       microchip: metadata.microchip,
-      birthday: data.date,
+      birthday: new Date(data.date),
     });
   });
 
