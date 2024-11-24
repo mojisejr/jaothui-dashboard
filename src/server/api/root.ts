@@ -5,6 +5,7 @@ import { metadataRouter } from "./routers/r-metadata";
 import { imageRouter } from "./routers/r-image";
 import { kwaithaiRouter } from "./routers/r-kwaithai";
 import { rewardRouter } from "./routers/r-reward";
+import { dnaRouter } from "./routers/r-dna";
 
 /**
  * This is the primary router for your server.
@@ -18,6 +19,7 @@ export const appRouter = createTRPCRouter({
   image: imageRouter,
   kwaithai: kwaithaiRouter,
   reward: rewardRouter,
+  dna: dnaRouter,
 });
 
 // export type definition of API

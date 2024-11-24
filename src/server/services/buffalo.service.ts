@@ -4,6 +4,8 @@ import { getImageUrl, getJsonUrl } from "./supabase/supabase";
 import { db } from "../db";
 import { JsonMetadata } from "~/interfaces/i-metadata-json";
 import { Reward } from "~/interfaces/i-reward";
+import { viemWallet } from "../blockchain/viem";
+import { updateDNAOnChain } from "../blockchain/metadata.service";
 
 export const uploadBuffaloJson = async (
   tokenId: number,
@@ -77,6 +79,32 @@ export const addNewReward = async (reward: Reward) => {
   try {
     const created = await db.reward.create({ data: reward });
     return created;
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
+};
+
+export const updateDNA = async (
+  tokenId: string,
+  microchip: string,
+  dnaURL: string,
+) => {
+  try {
+    const dbUpdated = await db.pedigree.update({
+      where: { microchip },
+      data: { dna: dnaURL },
+    });
+
+    if (!dbUpdated) return null;
+
+    const updated = await updateDNAOnChain(tokenId, dnaURL);
+
+    if (!updated) {
+      return null;
+    }
+
+    return dbUpdated;
   } catch (error) {
     console.log(error);
     return null;

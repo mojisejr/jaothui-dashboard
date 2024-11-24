@@ -1,6 +1,7 @@
 import React from "react";
 import Image from "next/image";
 import { IMetadata } from "~/interfaces/i-metadata";
+import Link from "next/link";
 
 interface PreEditFormProps {
   metadata: IMetadata;
@@ -223,14 +224,12 @@ const PreEditForm = ({ metadata }: PreEditFormProps) => {
             readOnly
           ></input>
 
-          <button
-            onClick={() => {
-              window.upload_dna_dialog.showModal();
-            }}
+          <Link
+            href="/dashboard/update-buffalo-dna"
             className="btn btn-primary"
           >
             แก้ไข
-          </button>
+          </Link>
         </div>
       </div>
       <div className="form-control">

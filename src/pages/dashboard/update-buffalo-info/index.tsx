@@ -3,7 +3,6 @@ import { api } from "~/utils/api";
 import { useRef } from "react";
 import BaseLayout from "~/components/layout/BaseLayout";
 import PreEditForm from "~/components/update-buffalo-info/PreEditForm";
-import { IMetadata } from "~/interfaces/i-metadata";
 import UpdateImageDialog from "~/components/update-buffalo-info/UpdateImage";
 import UpdateMicrochipDialog from "~/components/update-buffalo-info/UpdateMicrochip";
 import UpdateNameDialog from "~/components/update-buffalo-info/UpdateName";
@@ -14,7 +13,7 @@ import UpdateSexDialog from "~/components/update-buffalo-info/UpdateSex";
 import UpdateHeightDialog from "~/components/update-buffalo-info/UpdateHeight";
 import UpdateBirthdayDialog from "~/components/update-buffalo-info/UpdateBirthday";
 import UpdateCertNoDialog from "~/components/update-buffalo-info/UpdateCertNo";
-import UpdateDNADialog from "~/components/update-buffalo-info/UpdateDNA";
+// import UpdateDNADialog from "~/components/update-buffalo-info/UpdateDNA";
 import UpdateRarityDialog from "~/components/update-buffalo-info/UpdateRarity";
 import UpdateParentDialog from "~/components/update-buffalo-info/UpdateParent";
 
@@ -92,7 +91,7 @@ const UpdateBuffalo = () => {
       <UpdateBirthdayDialog metadata={metadata!} />
       <UpdateHeightDialog metadata={metadata!} />
       <UpdateCertNoDialog metadata={metadata!} />
-      <UpdateDNADialog metadata={metadata!} />
+      {/* <UpdateDNADialog metadata={metadata!} /> */}
       <UpdateRarityDialog metadata={metadata!} />
       <UpdateParentDialog metadata={metadata!} />
     </BaseLayout>
