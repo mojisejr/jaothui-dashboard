@@ -29,3 +29,9 @@ export const getRewardUrl = (path: string) => {
   return supabase.storage.from("slipstorage/reward").getPublicUrl(path).data
     .publicUrl;
 };
+
+export const getDNAUrl = (path: string) => {
+  if (path == "") return null;
+  return supabase.storage.from("slipstorage/dna").getPublicUrl(path).data
+    .publicUrl;
+};

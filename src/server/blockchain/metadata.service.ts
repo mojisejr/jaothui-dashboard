@@ -389,3 +389,25 @@ export const updateParentId = async (
     return false;
   }
 };
+
+export const updateDNAOnChain = async (tokenId: string, dnaUrl: string) => {
+  try {
+    const { request: dnaUpdateRequest } = await viemPublic.simulateContract({
+      account: account,
+      address: address,
+      abi: abi,
+      functionName: "setDNA",
+      args: [parseInt(tokenId), dnaUrl],
+    });
+
+    const dna = await viemWallet.writeContract(dnaUpdateRequest);
+    if (dna) {
+      return true;
+    } else {
+      return false;
+    }
+  } catch (error) {
+    console.log(error);
+    return false;
+  }
+};
