@@ -61,7 +61,7 @@ const UpdateHeightDialog = ({ metadata }: UpdateHeightDialogProps) => {
     update({
       tokenId: metadata.tokenId,
       microchip: metadata.microchip,
-      height: data.height,
+      height: +data.height,
     });
   });
 
