@@ -4,7 +4,6 @@ import { getImageUrl, getJsonUrl } from "./supabase/supabase";
 import { db } from "../db";
 import { JsonMetadata } from "~/interfaces/i-metadata-json";
 import { Reward } from "~/interfaces/i-reward";
-import { viemWallet } from "../blockchain/viem";
 import { updateDNAOnChain } from "../blockchain/metadata.service";
 
 export const uploadBuffaloJson = async (

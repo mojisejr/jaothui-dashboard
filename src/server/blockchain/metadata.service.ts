@@ -108,26 +108,41 @@ export const createMetadataForManager = async (tokenId: number) => {
   const response = await axios.get<JsonMetadata>(url);
   const data: JsonMetadata = response.data;
 
+  /**
+   *    string name; 1
+        string microchip; 2
+        string certNo;  3
+        string origin; 4
+        string color; 5
+        string imageUri; 6
+        string detail; 7
+        string sex; 8
+        string rarity; 9
+        uint256 birthdate; 10s
+        uint256 height; 11
+        uint256 issuedAt; 12
+   */
+
   const metadataForManager = [
-    data.name == "" ? "N/A" : data.name.trim().split(" #")[0],
+    data.name == "" ? "N/A" : data.name.trim().split(" #")[0], //1
     data.attributes[1]?.value.toString() == ""
       ? "N/A"
-      : data.attributes[1]?.value.toString(),
-    "N/A",
+      : data.attributes[1]?.value.toString(), //2
+    "N/A", //3
     // data.certNo == "" ? "N/A" : data.certNo,
-    data.attributes[4]?.value == "" ? "N/A" : data.attributes[4]?.value,
-    data.attributes[3]?.value == "" ? "N/A" : data.attributes[3]?.value,
-    data.image,
-    "N/A",
+    data.attributes[4]?.value == "" ? "N/A" : data.attributes[4]?.value, //4
+    data.attributes[3]?.value == "" ? "N/A" : data.attributes[3]?.value, //5
+    data.image, //6
+    "N/A", //7
     // data.detail == "" ? "N/A" : data.detail,
-    data.attributes[0]?.value == "" ? "N/A" : data.attributes[0]?.value,
-    data.attributes[6]?.value == "" ? "Normal" : data.attributes[6]?.value,
+    data.attributes[0]?.value == "" ? "N/A" : data.attributes[0]?.value, //8
+    data.attributes[6]?.value == "" ? "Normal" : data.attributes[6]?.value, //9
     Math.floor(new Date(data.attributes[2]?.value ?? 0).getTime() / 1000) <= 0
       ? 0
-      : Math.floor(new Date(data.attributes[2]?.value ?? 0).getTime() / 1000),
-    data.attributes[5]?.value ? 0 : parseInt(data.attributes[5]?.value ?? "0"),
-    // +data.attributes[5]?.value! <= 0 ? 0 : +data.attributes[5]?.value!,
-    Math.floor(new Date().getTime() / 1000),
+      : Math.floor(new Date(data.attributes[2]?.value ?? 0).getTime() / 1000), //10
+    // data.attributes[5]?.value ? 0 : parseInt(data.attributes[5]?.value ?? "0"), //11
+    parseInt(data.attributes[5]?.value ?? "0"), //11
+    Math.floor(new Date().getTime() / 1000), //12
   ];
 
   return metadataForManager;
@@ -187,7 +202,7 @@ export const getMetadataByMicrochipId = async (microchipId: string) => {
       height: data.height.toString(),
       microchip: microchipId,
       certNo: data.certify.certNo,
-      dna: data.certify.dna,
+      dna: fromDb.dna,
       rarity: data.certify.rarity,
       fatherId: data.relation.fatherTokenId,
       motherId: data.relation.motherTokenId,
