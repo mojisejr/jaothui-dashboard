@@ -25,7 +25,10 @@ const Dashboard = () => {
             title="อัพเดดข้อมูล DNA"
             path="/dashboard/update-buffalo-dna"
           />
-          <MenuButton className="bg-slate-300" title="??" path="#" />
+          <MenuButton
+            title="By Pass ใบเพ็ด"
+            path="/dashboard/certificate-approvment"
+          />
         </div>
       </div>
     </BaseLayout>
