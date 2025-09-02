@@ -2,11 +2,20 @@ import React, { useEffect, useState } from "react";
 import { useBuffaloInfo } from "~/context/buffalo-info.context";
 import { api } from "~/utils/api";
 import { useRouter } from "next/router";
+import { useCountdownTimer } from "~/hooks/useCountdownTimer";
 
 const Minting = () => {
   const { replace } = useRouter();
 
   const [minted, setMinted] = useState<boolean>(false);
+
+  // Countdown timer for 30 seconds after minting
+  const countdown = useCountdownTimer({
+    initialSeconds: 30,
+    onComplete: () => {
+      console.log("Countdown completed - Add Metadata button is now enabled");
+    },
+  });
 
   const { newBuffaloInfo, completeMinting } = useBuffaloInfo();
   const {
@@ -25,14 +34,16 @@ const Minting = () => {
 
   useEffect(() => {
     if (mintingSuccess && !minted) {
-      alert("mint เรียบร้อยแล้ว เพ่ิม metadata ได้เลย");
+      alert("mint เรียบร้อยแล้ว รอ 30 วินาทีก่อนเพิ่ม metadata");
       setMinted(true);
+      // Start countdown timer after successful mint
+      countdown.start();
     }
 
     if (mintingError) {
       alert("mint nft ไม่สำเร็จ");
     }
-  }, [mintingError, mintingSuccess]);
+  }, [mintingError, mintingSuccess, countdown]);
 
   useEffect(() => {
     if (addingMetaSuccess && minted) {
@@ -59,6 +70,11 @@ const Minting = () => {
       return;
     }
 
+    if (countdown.isActive) {
+      alert(`กรุณารอ ${countdown.timeLeft} วินาทีก่อนเพิ่ม metadata`);
+      return;
+    }
+
     await addMeta({
       tokenId: newBuffaloInfo?.tokenId ?? -1,
       newBuffalo: newBuffaloInfo!,
@@ -79,13 +95,36 @@ const Minting = () => {
           {minting ? "Minting..." : "Mint NFT"}
         </button>
       ) : (
-        <button
-          disabled={addingMeta}
-          onClick={() => handleAddMetadata()}
-          className="btn btn-primary"
-        >
-          {addingMeta ? "Minting..." : "Mint Metadata"}
-        </button>
+        <div className="space-y-2">
+          {countdown.isActive && (
+            <div className="text-center">
+              <div className="text-sm text-warning font-medium">
+                รอ {countdown.timeLeft} วินาทีก่อนเพิ่ม metadata
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                <div
+                  className="bg-warning h-2 rounded-full transition-all duration-1000"
+                  style={{
+                    width: `${((30 - countdown.timeLeft) / 30) * 100}%`,
+                  }}
+                ></div>
+              </div>
+            </div>
+          )}
+          <button
+            disabled={addingMeta || countdown.isActive}
+            onClick={() => handleAddMetadata()}
+            className={`btn btn-primary w-full ${
+              countdown.isActive ? "btn-disabled" : ""
+            }`}
+          >
+            {addingMeta
+              ? "Minting..."
+              : countdown.isActive
+              ? `รอ ${countdown.timeLeft} วินาที`
+              : "Mint Metadata"}
+          </button>
+        </div>
       )}
     </div>
   );
