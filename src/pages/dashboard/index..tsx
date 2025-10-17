@@ -26,6 +26,10 @@ const Dashboard = () => {
             path="/dashboard/update-buffalo-dna"
           />
           <MenuButton
+            title="ส่งออกข้อมูลอีเวนต์"
+            path="/dashboard/event-export"
+          />
+          <MenuButton
             title="By Pass ใบเพ็ด"
             path="/dashboard/certificate-approvment"
           />
