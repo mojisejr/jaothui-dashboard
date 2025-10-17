@@ -35,10 +35,150 @@ export interface EventRegisterData {
   type: string;
   level: string;
   birthday: string;
+  father: string;
+  mother: string;
   event: {
     title: string;
   };
 }
+
+// Task 1: Age range parsing function
+const parseAgeRange = (typeString: string): string => {
+  // Parse "มากกว่า X เดือน ถึง Y เดือน" → X-Y
+  const rangeMatch1 = typeString.match(/มากกว่า\s*(\d+)\s*เดือน\s*ถึง\s*(\d+)\s*เดือน/);
+  if (rangeMatch1) {
+    return `${rangeMatch1[1]}-${rangeMatch1[2]}`;
+  }
+
+  // Parse "X เดือน ถึง Y เดือน" → X-Y
+  const rangeMatch2 = typeString.match(/(\d+)\s*เดือน\s*ถึง\s*(\d+)\s*เดือน/);
+  if (rangeMatch2) {
+    return `${rangeMatch2[1]}-${rangeMatch2[2]}`;
+  }
+
+  // Parse "ไม่เกิน X เดือน" → 0-X
+  const maxMatch = typeString.match(/ไม่เกิน\s*(\d+)\s*เดือน/);
+  if (maxMatch) {
+    return `0-${maxMatch[1]}`;
+  }
+
+  // Parse "มากกว่า X เดือน" → X-999
+  const minMatch = typeString.match(/มากกว่า\s*(\d+)\s*เดือน/);
+  if (minMatch) {
+    return `${minMatch[1]}-999`;
+  }
+
+  // Default fallback
+  return "unknown";
+};
+
+// Task 2: Data grouping algorithm
+interface GroupedData {
+  type: string;
+  ageRange: string;
+  color: string;
+  sex: string;
+  buffaloes: EventRegisterData[];
+}
+
+const groupEventData = (eventData: EventRegisterData[]): GroupedData[] => {
+  const groups = new Map<string, GroupedData>();
+
+  eventData.forEach((item) => {
+    const type = item.type || "ไม่ระบุประเภท";
+    const ageRange = parseAgeRange(type);
+    const color = item.color || "ไม่ระบุสี";
+    const sex = item.sex || "ไม่ระบุเพศ";
+    
+    // Create unique key for Type-Color-Sex combination
+    const key = `${type}|||${color}|||${sex}`;
+    
+    if (!groups.has(key)) {
+      groups.set(key, {
+        type,
+        ageRange,
+        color,
+        sex,
+        buffaloes: [],
+      });
+    }
+    
+    groups.get(key)!.buffaloes.push(item);
+  });
+
+  // Convert to array and sort by type importance
+  return Array.from(groups.values());
+};
+
+// Task 3: Hierarchical sheet creation function
+const createHierarchicalSheet = (group: GroupedData) => {
+  const sheetData: any[] = [];
+  
+  // Row 1: Competition Type (merged A1:I1)
+  sheetData.push([`ประเภทการแข่งขัน: ${group.type}`, '', '', '', '', '', '', '', '']);
+  
+  // Row 2: Buffalo Color (merged A2:I2)
+  sheetData.push([`สีควาย: ${group.color}`, '', '', '', '', '', '', '', '']);
+  
+  // Row 3: Sex (merged A3:I3)
+  sheetData.push([`เพศ: ${group.sex}`, '', '', '', '', '', '', '', '']);
+  
+  // Row 4: Data headers
+  sheetData.push([
+    'ลำดับ',
+    'เลขไมโครชิพ',
+    'ชื่อควาย',
+    'วัน/เดือน/ปีเกิด',
+    'อายุ (เดือน)',
+    'พ่อ',
+    'แม่',
+    'ชื่อฟาร์ม',
+    'เบอร์โทรศัพท์'
+  ]);
+  
+  // Row 5+: Buffalo data or "ไม่มีข้อมูล"
+  if (group.buffaloes.length === 0) {
+    sheetData.push(['ไม่มีข้อมูล', '', '', '', '', '', '', '', '']);
+  } else {
+    group.buffaloes.forEach((buffalo, index) => {
+      // Calculate age in months from birthday
+      let ageInMonths = buffalo.buffaloAge || 0;
+      if (buffalo.birthday) {
+        const birthDate = dayjs(buffalo.birthday);
+        const currentDate = dayjs();
+        ageInMonths = currentDate.diff(birthDate, 'months');
+      }
+      
+      sheetData.push([
+        index + 1,
+        buffalo.microchip || '',
+        buffalo.name || '',
+        buffalo.birthday ? dayjs(buffalo.birthday).format('DD/MM/YYYY') : '',
+        ageInMonths,
+        buffalo.father || '',
+        buffalo.mother || '',
+        buffalo.ownerName || '',
+        buffalo.ownerTel || ''
+      ]);
+    });
+  }
+  
+  // Create worksheet
+  const ws = utils.aoa_to_sheet(sheetData);
+  
+  // Apply cell merging for hierarchical headers
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }, // Row 1 (Type)
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } }, // Row 2 (Color)
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 8 } }, // Row 3 (Sex)
+  ];
+  
+  // Apply bold formatting to headers (rows 1-4)
+  // Note: XLSX library has limited styling support
+  // More advanced styling would require xlsx-style or similar
+  
+  return ws;
+};
 
 // Compression utility function
 const createCompressedExport = async (excelBuffer: Buffer, filename: string): Promise<{
@@ -275,34 +415,30 @@ export const sanityRouter = createTRPCRouter({
           };
         }
 
-        // Transform data to Issue #23 format
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-        const exportData: ExportRowData[] = eventData.map((item: any, index: number) => {
-          // Calculate age in months from birthday
-          let ageInMonths = item.buffaloAge || 0;
-          if (item.birthday) {
-            const birthDate = dayjs(item.birthday);
-            const currentDate = dayjs();
-            ageInMonths = currentDate.diff(birthDate, 'months');
-          }
-
-          return {
-            ลำดับ: index + 1,
-            เลขไมโครชิพ: item.microchip || "",
-            ชื่อควาย: item.name || "",
-            "วัน/เดือน/ปีเกิด": item.birthday ? dayjs(item.birthday).format("DD/MM/YYYY") : "",
-            "อายุ (เดือน)": ageInMonths,
-            พ่อ: item.father || "", // Father name from user input
-            แม่: item.mother || "", // Mother name from user input
-            ชื่อฟาร์ม: item.ownerName || "",
-            เบอร์โทรศัพท์: item.ownerTel || "",
-          };
-        });
-
-        // Create Excel file
-        const ws = utils.json_to_sheet(exportData);
+        // Task 4 & 5: Multi-sheet Excel generation
+        // Group data by Type-Color-Sex combinations
+        const groupedData = groupEventData(eventData);
+        
+        // Create workbook
         const wb = utils.book_new();
-        utils.book_append_sheet(wb, ws, "Event Registration Data");
+        
+        // Create one sheet per group
+        groupedData.forEach((group) => {
+          // Generate Thai-only sheet name: [Type]-[AgeRange]-[Color]-[Sex]
+          // Sanitize sheet name (Excel limits sheet names to 31 characters)
+          let sheetName = `${group.type}-${group.ageRange}-${group.color}-${group.sex}`;
+          
+          // Truncate if too long (Excel max is 31 chars)
+          if (sheetName.length > 31) {
+            sheetName = sheetName.substring(0, 31);
+          }
+          
+          // Create hierarchical sheet
+          const ws = createHierarchicalSheet(group);
+          
+          // Add sheet to workbook
+          utils.book_append_sheet(wb, ws, sheetName);
+        });
 
         // Generate filename with event name and timestamp
         const eventName = eventData[0]?.event?.title || "event";
@@ -320,7 +456,8 @@ export const sanityRouter = createTRPCRouter({
           data: {
             buffer: exportResult.buffer.toString('base64'),
             filename: exportResult.filename,
-            recordCount: exportData.length,
+            recordCount: eventData.length,
+            sheetCount: groupedData.length,
             isCompressed: exportResult.isCompressed,
             originalSize: excelBuffer.length,
             compressedSize: exportResult.isCompressed ? exportResult.buffer.length : excelBuffer.length,

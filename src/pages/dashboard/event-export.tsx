@@ -59,9 +59,9 @@ export default function EventExport() {
           const compressedSizeMB = (result.data.compressedSize / (1024 * 1024)).toFixed(1);
           const compressionRatio = ((1 - result.data.compressedSize / result.data.originalSize) * 100).toFixed(0);
           
-          toast.success(`Successfully exported ${result.data.recordCount} records (Compressed: ${originalSizeMB}MB → ${compressedSizeMB}MB, ${compressionRatio}% smaller)`);
+          toast.success(`Successfully exported ${result.data.recordCount} records in ${result.data.sheetCount} sheets (Compressed: ${originalSizeMB}MB → ${compressedSizeMB}MB, ${compressionRatio}% smaller)`);
         } else {
-          toast.success(`Successfully exported ${result.data.recordCount} records`);
+          toast.success(`Successfully exported ${result.data.recordCount} records in ${result.data.sheetCount} sheets`);
         }
       } else {
         toast.error(result.error ?? "Export failed");
@@ -133,7 +133,9 @@ export default function EventExport() {
                 <h3 className="font-medium mb-2">Export Preview</h3>
                 <div className="text-sm text-base-content/70 space-y-1">
                   <p><strong>Event:</strong> {selectedEventTitle}</p>
-                  <p><strong>Format:</strong> Excel (.xlsx) or ZIP (.zip) for large files</p>
+                  <p><strong>Format:</strong> Multi-sheet Excel (.xlsx) with hierarchical headers or ZIP (.zip) for large files</p>
+                  <p><strong>Structure:</strong> Separate sheets per Type-Color-Sex combination</p>
+                  <p><strong>Headers:</strong> 4-level hierarchy (Competition Type → Color → Sex → Data Columns)</p>
                   <p><strong>Compression:</strong> Auto-compressed when file size {'>'} 10MB</p>
                   <p><strong>Columns:</strong> ลำดับ | เลขไมโครชิพ | ชื่อควาย | วัน/เดือน/ปีเกิด | อายุ (เดือน) | พ่อ | แม่ | ชื่อฟาร์ม | เบอร์โทรศัพท์</p>
                 </div>
@@ -173,8 +175,10 @@ export default function EventExport() {
                 <div className="text-sm">
                   <ul className="list-disc list-inside space-y-1 mt-2">
                     <li>Data is exported from Sanity CMS event registration records</li>
-                    <li>Excel file includes all registered buffaloes for the selected event</li>
+                    <li>Excel file includes multiple sheets organized by competition type, color, and sex</li>
+                    <li>Each sheet has 4-level hierarchical headers (Type → Color → Sex → Data)</li>
                     <li>Age is automatically calculated in months from birthday</li>
+                    <li>Empty groups display &quot;ไม่มีข้อมูล&quot; message</li>
                     <li>Files larger than 10MB are automatically compressed to ZIP format</li>
                     <li>Father and mother names come from user input during registration</li>
                     <li>File is downloaded directly to your computer</li>
