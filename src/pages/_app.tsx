@@ -4,6 +4,7 @@ import { api } from "~/utils/api";
 import "~/styles/globals.css";
 import { AuthProvider } from "~/context/auth.context";
 import { BuffaloInfoProvider } from "~/context/buffalo-info.context";
+import { Toaster } from "react-hot-toast";
 
 const MyApp: AppType = ({ Component, pageProps }) => {
   return (
@@ -11,6 +12,7 @@ const MyApp: AppType = ({ Component, pageProps }) => {
       <AuthProvider>
         <BuffaloInfoProvider>
           <Component {...pageProps} />
+          <Toaster position="top-right" />
         </BuffaloInfoProvider>
       </AuthProvider>
     </div>

@@ -3,7 +3,7 @@ import BaseLayout from "~/components/layout/BaseLayout";
 import { useForm } from "react-hook-form";
 import { api } from "~/utils/api";
 import { getRewardUrl, supabase } from "~/server/services/supabase/supabase";
-import { Reward } from "~/interfaces/i-reward";
+import { type Reward } from "~/interfaces/i-reward";
 
 type InputType = {
   rewardImage: FileList;

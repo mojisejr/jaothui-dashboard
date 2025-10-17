@@ -1,5 +1,5 @@
-import { ReactNode, createContext, useContext, useState } from "react";
-import { NewBuffaloInput } from "~/components/new-buffalo-info/NewBuffaloForm";
+import { type ReactNode, createContext, useContext, useState } from "react";
+import { type NewBuffaloInput } from "~/components/new-buffalo-info/NewBuffaloForm";
 
 type buffaloContextType = {
   step: number;

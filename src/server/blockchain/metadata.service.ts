@@ -1,10 +1,10 @@
 import { account, viemPublic, viemWallet } from "./viem";
 import { abi, address } from "./metadata-maneger/abi";
 import { abi as nftAbi, address as nftAddress } from "./nft/abi";
-import { IMetadata, RawMetadata } from "~/interfaces/i-metadata";
+import { type IMetadata, type RawMetadata } from "~/interfaces/i-metadata";
 import { getJsonUrl } from "../services/supabase/supabase";
 import axios from "axios";
-import { JsonMetadata } from "~/interfaces/i-metadata-json";
+import { type JsonMetadata } from "~/interfaces/i-metadata-json";
 import { NewBuffaloInput } from "~/components/new-buffalo-info/NewBuffaloForm";
 import { getByMicrochip } from "../services/buffalo.service";
 import dayjs from "dayjs";

@@ -1,4 +1,4 @@
-import React, { ChangeEvent, useState } from "react";
+import React, { type ChangeEvent, useState } from "react";
 import Image from "next/image";
 import { useBuffaloInfo } from "~/context/buffalo-info.context";
 import { getImageUrl, supabase } from "~/server/services/supabase/supabase";

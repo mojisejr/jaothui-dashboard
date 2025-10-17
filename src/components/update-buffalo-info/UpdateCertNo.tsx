@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { IMetadata } from "~/interfaces/i-metadata";
+import { type IMetadata } from "~/interfaces/i-metadata";
 import { supabase } from "~/server/services/supabase/supabase";
 import { jsonMetadataGenerate } from "~/server/utils/jsonGenerator";
 import { api } from "~/utils/api";

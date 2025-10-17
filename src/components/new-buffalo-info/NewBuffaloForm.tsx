@@ -1,4 +1,4 @@
-import { SubmitHandler, useForm } from "react-hook-form";
+import { type SubmitHandler, useForm } from "react-hook-form";
 import { useBuffaloInfo } from "~/context/buffalo-info.context";
 import { api } from "~/utils/api";
 

@@ -1,6 +1,6 @@
 import React from "react";
 import Image from "next/image";
-import { IMetadata } from "~/interfaces/i-metadata";
+import { type IMetadata } from "~/interfaces/i-metadata";
 import Link from "next/link";
 
 interface PreEditFormProps {
