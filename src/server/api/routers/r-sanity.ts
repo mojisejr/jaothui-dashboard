@@ -422,22 +422,52 @@ export const sanityRouter = createTRPCRouter({
         // Create workbook
         const wb = utils.book_new();
         
+        // Track used sheet names to ensure uniqueness
+        const usedSheetNames = new Set<string>();
+        
         // Create one sheet per group
-        groupedData.forEach((group) => {
+        groupedData.forEach((group, index) => {
           // Generate Thai-only sheet name: [Type]-[AgeRange]-[Color]-[Sex]
-          // Sanitize sheet name (Excel limits sheet names to 31 characters)
-          let sheetName = `${group.type}-${group.ageRange}-${group.color}-${group.sex}`;
+          const baseSheetName = `${group.type}-${group.ageRange}-${group.color}-${group.sex}`;
           
-          // Truncate if too long (Excel max is 31 chars)
+          // Excel limits sheet names to 31 characters
+          let sheetName = baseSheetName;
+          
           if (sheetName.length > 31) {
-            sheetName = sheetName.substring(0, 31);
+            // Smart truncation: prioritize keeping distinguishing parts
+            // Strategy: Keep end parts (ageRange-color-sex) and truncate type
+            const suffix = `-${group.ageRange}-${group.color}-${group.sex}`;
+            const maxTypeLength = 31 - suffix.length;
+            
+            if (maxTypeLength > 0) {
+              const truncatedType = group.type.substring(0, maxTypeLength);
+              sheetName = `${truncatedType}${suffix}`;
+            } else {
+              // If suffix itself is too long, use index-based naming
+              sheetName = `Sheet${index + 1}-${group.ageRange}-${group.color.substring(0, 3)}-${group.sex.substring(0, 3)}`;
+              if (sheetName.length > 31) {
+                sheetName = `Sheet${index + 1}`;
+              }
+            }
           }
+          
+          // Ensure uniqueness by adding numeric suffix if needed
+          let finalSheetName = sheetName;
+          let counter = 1;
+          while (usedSheetNames.has(finalSheetName)) {
+            const suffix = `-${counter}`;
+            const maxLength = 31 - suffix.length;
+            finalSheetName = sheetName.substring(0, maxLength) + suffix;
+            counter++;
+          }
+          
+          usedSheetNames.add(finalSheetName);
           
           // Create hierarchical sheet
           const ws = createHierarchicalSheet(group);
           
           // Add sheet to workbook
-          utils.book_append_sheet(wb, ws, sheetName);
+          utils.book_append_sheet(wb, ws, finalSheetName);
         });
 
         // Generate filename with event name and timestamp
