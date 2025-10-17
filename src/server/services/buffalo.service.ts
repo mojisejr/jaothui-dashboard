@@ -2,8 +2,8 @@ import { uploadImage } from "./supabase/upload-imagefile";
 import { uploadJson } from "./supabase/upload-jsonfile";
 import { getImageUrl, getJsonUrl } from "./supabase/supabase";
 import { db } from "../db";
-import { JsonMetadata } from "~/interfaces/i-metadata-json";
-import { Reward } from "~/interfaces/i-reward";
+import { type JsonMetadata } from "~/interfaces/i-metadata-json";
+import { type Reward } from "~/interfaces/i-reward";
 import { updateDNAOnChain } from "../blockchain/metadata.service";
 
 export const uploadBuffaloJson = async (

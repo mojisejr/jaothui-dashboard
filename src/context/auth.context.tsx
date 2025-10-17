@@ -1,7 +1,7 @@
 import { TRPCClientErrorLike } from "@trpc/client";
 import { useRouter } from "next/router";
 import {
-  ReactNode,
+  type ReactNode,
   createContext,
   useContext,
   useEffect,

@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
-import { IMetadata } from "~/interfaces/i-metadata";
-import { JsonMetadata } from "~/interfaces/i-metadata-json";
+import { type IMetadata } from "~/interfaces/i-metadata";
+import { type JsonMetadata } from "~/interfaces/i-metadata-json";
 
 export const jsonMetadataGenerate = (
   newBuffaloInfo: IMetadata,
