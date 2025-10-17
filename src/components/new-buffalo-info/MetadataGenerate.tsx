@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import Image from "next/image";
 import { useBuffaloInfo } from "~/context/buffalo-info.context";
 import Link from "next/link";
-import { JsonMetadata } from "~/interfaces/i-metadata-json";
+import { type JsonMetadata } from "~/interfaces/i-metadata-json";
 import dayjs from "dayjs";
 import { api } from "~/utils/api";
 

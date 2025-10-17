@@ -28,10 +28,14 @@ export default function EventExport() {
       const result = await exportMutation.mutateAsync({ eventId: selectedEvent });
       
       if (result.success && result.data) {
+        // Determine MIME type based on file extension
+        const isZipFile = result.data.filename.endsWith('.zip');
+        const mimeType = isZipFile 
+          ? 'application/zip'
+          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        
         // Create blob from buffer and trigger download
-        const blob = new Blob([result.data.buffer], { 
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-        });
+        const blob = new Blob([result.data.buffer], { type: mimeType });
         
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -42,7 +46,16 @@ export default function EventExport() {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
 
-        toast.success(`Successfully exported ${result.data.recordCount} records`);
+        // Show compression info if applicable
+        if (result.data.isCompressed) {
+          const originalSizeMB = (result.data.originalSize / (1024 * 1024)).toFixed(1);
+          const compressedSizeMB = (result.data.compressedSize / (1024 * 1024)).toFixed(1);
+          const compressionRatio = ((1 - result.data.compressedSize / result.data.originalSize) * 100).toFixed(0);
+          
+          toast.success(`Successfully exported ${result.data.recordCount} records (Compressed: ${originalSizeMB}MB → ${compressedSizeMB}MB, ${compressionRatio}% smaller)`);
+        } else {
+          toast.success(`Successfully exported ${result.data.recordCount} records`);
+        }
       } else {
         toast.error(result.error ?? "Export failed");
       }
@@ -113,7 +126,8 @@ export default function EventExport() {
                 <h3 className="font-medium mb-2">Export Preview</h3>
                 <div className="text-sm text-base-content/70 space-y-1">
                   <p><strong>Event:</strong> {selectedEventTitle}</p>
-                  <p><strong>Format:</strong> Excel (.xlsx)</p>
+                  <p><strong>Format:</strong> Excel (.xlsx) or ZIP (.zip) for large files</p>
+                  <p><strong>Compression:</strong> Auto-compressed when file size {'>'} 10MB</p>
                   <p><strong>Columns:</strong> ลำดับ | เลขไมโครชิพ | ชื่อควาย | วัน/เดือน/ปีเกิด | อายุ (เดือน) | พ่อ | แม่ | ชื่อฟาร์ม | เบอร์โทรศัพท์</p>
                 </div>
               </div>
@@ -154,6 +168,8 @@ export default function EventExport() {
                     <li>Data is exported from Sanity CMS event registration records</li>
                     <li>Excel file includes all registered buffaloes for the selected event</li>
                     <li>Age is automatically calculated in months from birthday</li>
+                    <li>Files larger than 10MB are automatically compressed to ZIP format</li>
+                    <li>Father and mother names come from user input during registration</li>
                     <li>File is downloaded directly to your computer</li>
                   </ul>
                 </div>

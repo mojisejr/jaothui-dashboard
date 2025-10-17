@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { SubmitHandler, useForm } from "react-hook-form";
+import { type SubmitHandler, useForm } from "react-hook-form";
 import { useAuth } from "~/context/auth.context";
 
 type LoginType = {

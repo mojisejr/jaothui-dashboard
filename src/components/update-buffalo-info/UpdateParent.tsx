@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { IMetadata } from "~/interfaces/i-metadata";
+import { type IMetadata } from "~/interfaces/i-metadata";
 import { api } from "~/utils/api";
 
 interface UpdateParentDialogProps {

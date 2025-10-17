@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React, { type ReactNode } from "react";
 import { useAuth } from "~/context/auth.context";
 import { IoArrowBack } from "react-icons/io5";
 import { useRouter } from "next/router";

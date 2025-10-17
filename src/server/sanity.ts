@@ -14,14 +14,19 @@ export const sanityClient = createClient({
 export interface EventRegister {
   _id: string;
   _type: 'eventRegister';
-  eventName?: string;
-  buffaloName?: string;
-  microchip?: string;
+  event: { _ref: string }; // Relationship to event document
+  ownerName: string;
+  ownerTel: string;
+  microchip: string;
+  name: string;
+  color?: string;
+  sex?: string;
+  buffaloAge?: number;
+  type?: string;
+  level?: string;
   birthday?: string;
-  father?: string;
-  mother?: string;
-  farmName?: string;
-  phoneNumber?: string;
+  father?: string; // Optional user input from registration form
+  mother?: string; // Optional user input from registration form
   createdAt: string;
   updatedAt: string;
 }

@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
 import { z } from "zod";
 import { createTRPCRouter, protectProcedure } from "~/server/api/trpc";
-import { sanityClient, EventRegister } from "~/server/sanity";
+import { sanityClient } from "~/server/sanity";
 import { utils, write } from "xlsx";
 import dayjs from "dayjs";
+import archiver from "archiver";
 
 export interface ExportRowData {
   ลำดับ: number;
@@ -39,28 +40,72 @@ export interface EventRegisterData {
   };
 }
 
+// Compression utility function
+const createCompressedExport = async (excelBuffer: Buffer, filename: string): Promise<{
+  buffer: Buffer;
+  filename: string;
+  isCompressed: boolean;
+}> => {
+  const fileSizeMB = excelBuffer.length / (1024 * 1024);
+  
+  // Return original file if under 10MB
+  if (fileSizeMB <= 10) {
+    return {
+      buffer: excelBuffer,
+      filename: filename,
+      isCompressed: false,
+    };
+  }
+
+  // Create ZIP file for files larger than 10MB
+  return new Promise((resolve, reject) => {
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    const chunks: Buffer[] = [];
+
+    archive.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
+
+    archive.on('end', () => {
+      const zipBuffer = Buffer.concat(chunks);
+      const zipFilename = filename.replace('.xlsx', '.zip');
+      
+      resolve({
+        buffer: zipBuffer,
+        filename: zipFilename,
+        isCompressed: true,
+      });
+    });
+
+    archive.on('error', (error) => {
+      reject(error);
+    });
+
+    archive.append(excelBuffer, { name: filename });
+    void archive.finalize();
+  });
+};
+
 export const sanityRouter = createTRPCRouter({
-  // Get all available events from eventRegister documents
+  // Get all available events from eventRegister documents (deprecated - use getEventsForExport)
   getAvailableEvents: protectProcedure.query(async () => {
     try {
       const query = `*[_type == "eventRegister"] {
         _id,
-        eventName,
-        buffaloName,
+        "event": event->{title, _id},
+        ownerName,
         microchip,
         birthday,
         father,
         mother,
-        farmName,
-        phoneNumber,
         createdAt,
         updatedAt
       } | order(createdAt desc)`;
       
       const result = await sanityClient.fetch(query);
       
-      // Extract unique event names
-      const eventNames = [...new Set(result.map((item: EventRegister) => item.eventName).filter(Boolean))];
+      // Extract unique event names from event
+      const eventNames = [...new Set(result.map((item: any) => item.event?.title).filter(Boolean))];
       
       return {
         success: true,
@@ -78,23 +123,23 @@ export const sanityRouter = createTRPCRouter({
     }
   }),
 
-  // Get event data by event name for export
+  // Get event data by event name for export (deprecated - use exportEventData)
   getEventData: protectProcedure
     .input(z.object({
       eventName: z.string(),
     }))
     .query(async ({ input }) => {
       try {
-        const query = `*[_type == "eventRegister" && eventName == $eventName] {
+        const query = `*[_type == "eventRegister" && event->title == $eventName] {
           _id,
-          eventName,
-          buffaloName,
+          "event": event->{title, _id},
+          ownerName,
+          ownerTel,
           microchip,
-          birthday,
+          name,
           father,
           mother,
-          farmName,
-          phoneNumber,
+          birthday,
           createdAt,
           updatedAt
         } | order(createdAt asc)`;
@@ -127,14 +172,14 @@ export const sanityRouter = createTRPCRouter({
       try {
         const query = `*[_type == "eventRegister"] {
           _id,
-          eventName,
-          buffaloName,
+          "event": event->{title, _id},
+          ownerName,
+          ownerTel,
           microchip,
-          birthday,
+          name,
           father,
           mother,
-          farmName,
-          phoneNumber,
+          birthday,
           createdAt,
           updatedAt
         } | order(createdAt desc) [${input.offset}...${input.offset + input.limit}]`;
@@ -209,14 +254,23 @@ export const sanityRouter = createTRPCRouter({
             type,
             level,
             birthday,
+            father,
+            mother,
             "event": event->{title}
           }`
         );
+
         
+        console.log("Export query result:", { 
+          eventId: input.eventId, 
+          resultCount: eventData.length,
+          sampleData: eventData.slice(0, 2) // Log first 2 results for debugging
+        });
+
         if (eventData.length === 0) {
           return {
             success: false,
-            error: "No event registration data found for this event",
+            error: "No event registration data found for this event. This could be due to: 1) Wrong event ID, 2) No registrations for this event, 3) Field name mismatch in schema.",
             data: null,
           };
         }
@@ -238,8 +292,8 @@ export const sanityRouter = createTRPCRouter({
             ชื่อควาย: item.name || "",
             "วัน/เดือน/ปีเกิด": item.birthday ? dayjs(item.birthday).format("DD/MM/YYYY") : "",
             "อายุ (เดือน)": ageInMonths,
-            พ่อ: "", // Father name not available in eventRegister schema
-            แม่: "", // Mother name not available in eventRegister schema
+            พ่อ: item.father || "", // Father name from user input
+            แม่: item.mother || "", // Mother name from user input
             ชื่อฟาร์ม: item.ownerName || "",
             เบอร์โทรศัพท์: item.ownerTel || "",
           };
@@ -258,19 +312,30 @@ export const sanityRouter = createTRPCRouter({
         // Convert to buffer for download
         const excelBuffer = write(wb, { type: 'buffer', bookType: 'xlsx' });
 
+        // Apply compression if needed
+        const exportResult = await createCompressedExport(excelBuffer, filename);
+
         return {
           success: true,
           data: {
-            buffer: excelBuffer,
-            filename: filename,
+            buffer: exportResult.buffer,
+            filename: exportResult.filename,
             recordCount: exportData.length,
+            isCompressed: exportResult.isCompressed,
+            originalSize: excelBuffer.length,
+            compressedSize: exportResult.isCompressed ? exportResult.buffer.length : excelBuffer.length,
           },
         };
       } catch (error) {
-        console.error("Error exporting event data:", error);
+        console.error("Error exporting event data:", {
+          error: error,
+          eventId: input.eventId,
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          errorStack: error instanceof Error ? error.stack : undefined
+        });
         return {
           success: false,
-          error: "Failed to export event data",
+          error: `Failed to export event data: ${error instanceof Error ? error.message : 'Unknown error'}`,
           data: null,
         };
       }
