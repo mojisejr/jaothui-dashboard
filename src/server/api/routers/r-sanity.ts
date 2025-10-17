@@ -318,7 +318,7 @@ export const sanityRouter = createTRPCRouter({
         return {
           success: true,
           data: {
-            buffer: exportResult.buffer,
+            buffer: exportResult.buffer.toString('base64'),
             filename: exportResult.filename,
             recordCount: exportData.length,
             isCompressed: exportResult.isCompressed,

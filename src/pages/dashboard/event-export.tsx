@@ -34,8 +34,15 @@ export default function EventExport() {
           ? 'application/zip'
           : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
         
-        // Create blob from buffer and trigger download
-        const blob = new Blob([result.data.buffer], { type: mimeType });
+        // Convert base64 back to binary data
+        const base64String = result.data.buffer;
+        const byteCharacters = atob(base64String);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const buffer = new Uint8Array(byteNumbers);
+        const blob = new Blob([buffer], { type: mimeType });
         
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
