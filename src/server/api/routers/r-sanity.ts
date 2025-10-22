@@ -5,6 +5,10 @@ import { sanityClient } from "~/server/sanity";
 import { utils, write } from "xlsx";
 import dayjs from "dayjs";
 import archiver from "archiver";
+import {
+  generateDocxZipBundle,
+  type EventRegisterData as DocxEventRegisterData,
+} from "~/server/services/docx-export.service";
 
 export interface ExportRowData {
   ลำดับ: number;
@@ -503,6 +507,83 @@ export const sanityRouter = createTRPCRouter({
         return {
           success: false,
           error: `Failed to export event data: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          data: null,
+        };
+      }
+    }),
+
+  // Export event data to DOCX (ZIP bundle of individual registration forms)
+  exportEventDataToDocx: protectProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        // Query eventRegister data with event reference (same query as Excel export)
+        const eventData = await sanityClient.fetch(
+          `*[_type == "eventRegister" && event._ref == "${input.eventId}"]{
+            ownerName,
+            ownerTel,
+            microchip,
+            name,
+            color,
+            sex,
+            buffaloAge, 
+            type,
+            level,
+            birthday,
+            father,
+            mother,
+            "event": event->{title}
+          }`
+        );
+
+        console.log("DOCX Export query result:", {
+          eventId: input.eventId,
+          resultCount: eventData.length,
+          sampleData: eventData.slice(0, 2),
+        });
+
+        if (eventData.length === 0) {
+          return {
+            success: false,
+            error:
+              "No event registration data found for this event. This could be due to: 1) Wrong event ID, 2) No registrations for this event, 3) Field name mismatch in schema.",
+            data: null,
+          };
+        }
+
+        // Generate DOCX ZIP bundle
+        const eventName = eventData[0]?.event?.title ?? "event";
+        const zipBuffer = await generateDocxZipBundle(
+          eventData as DocxEventRegisterData[]
+        );
+
+        // Generate filename with event name and timestamp
+        const timestamp = dayjs().format("YYYY-MM-DD_HH-mm-ss");
+        const filename = `${eventName}_registrations_${timestamp}.zip`;
+
+        return {
+          success: true,
+          data: {
+            buffer: zipBuffer.toString("base64"),
+            filename: filename,
+            recordCount: eventData.length,
+            fileCount: eventData.length,
+          },
+        };
+      } catch (error) {
+        console.error("Error exporting event data to DOCX:", {
+          error: error,
+          eventId: input.eventId,
+          errorMessage: error instanceof Error ? error.message : "Unknown error",
+          errorStack: error instanceof Error ? error.stack : undefined,
+        });
+        return {
+          success: false,
+          error: `Failed to export event data to DOCX: ${error instanceof Error ? error.message : "Unknown error"}`,
           data: null,
         };
       }
