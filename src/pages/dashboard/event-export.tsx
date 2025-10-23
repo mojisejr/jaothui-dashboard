@@ -13,9 +13,11 @@ interface SanityEvent {
 export default function EventExport() {
   const [selectedEvent, setSelectedEvent] = useState<string>("");
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingDocx, setIsExportingDocx] = useState(false);
 
   const { data: eventsData, isLoading: eventsLoading, error: eventsError } = api.sanity.getEventsForExport.useQuery();
   const exportMutation = api.sanity.exportEventData.useMutation();
+  const exportDocxMutation = api.sanity.exportEventDataToDocx.useMutation();
 
   const handleExport = async () => {
     if (!selectedEvent) {
@@ -74,6 +76,48 @@ export default function EventExport() {
     }
   };
 
+  const handleExportDocx = async () => {
+    if (!selectedEvent) {
+      toast.error("Please select an event to export");
+      return;
+    }
+
+    setIsExportingDocx(true);
+    try {
+      const result = await exportDocxMutation.mutateAsync({ eventId: selectedEvent });
+      
+      if (result.success && result.data) {
+        // Convert base64 back to binary data for ZIP file
+        const base64String = result.data.buffer;
+        const byteCharacters = atob(base64String);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const buffer = new Uint8Array(byteNumbers);
+        const blob = new Blob([buffer], { type: 'application/zip' });
+        
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = result.data.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        toast.success(`Successfully exported ${result.data.recordCount} buffalo registration forms (${result.data.fileCount} DOCX files in ZIP)`);
+      } else {
+        toast.error(result.error ?? "Export failed");
+      }
+    } catch (error) {
+      console.error("DOCX Export error:", error);
+      toast.error("DOCX export failed. Please try again.");
+    } finally {
+      setIsExportingDocx(false);
+    }
+  };
+
   const selectedEventTitle = eventsData?.data?.find((e: SanityEvent) => e._id === selectedEvent)?.title ?? "";
 
   return (
@@ -84,7 +128,7 @@ export default function EventExport() {
             Event Export
           </h1>
           <p className="text-base-content/70">
-            Export event registration data to Excel file
+            Export event registration data to Excel or DOCX format
           </p>
         </div>
 
@@ -129,24 +173,38 @@ export default function EventExport() {
             </div>
 
             {selectedEvent && (
-              <div className="mt-6 p-4 bg-base-200 rounded-lg">
-                <h3 className="font-medium mb-2">Export Preview</h3>
-                <div className="text-sm text-base-content/70 space-y-1">
-                  <p><strong>Event:</strong> {selectedEventTitle}</p>
-                  <p><strong>Format:</strong> Multi-sheet Excel (.xlsx) with hierarchical headers or ZIP (.zip) for large files</p>
-                  <p><strong>Structure:</strong> Separate sheets per Type-Color-Sex combination</p>
-                  <p><strong>Headers:</strong> 4-level hierarchy (Competition Type → Color → Sex → Data Columns)</p>
-                  <p><strong>Compression:</strong> Auto-compressed when file size {'>'} 10MB</p>
-                  <p><strong>Columns:</strong> ลำดับ | เลขไมโครชิพ | ชื่อควาย | วัน/เดือน/ปีเกิด | อายุ (เดือน) | พ่อ | แม่ | ชื่อฟาร์ม | เบอร์โทรศัพท์</p>
+              <div className="mt-6 space-y-4">
+                <div className="p-4 bg-base-200 rounded-lg">
+                  <h3 className="font-medium mb-2">Excel Export Preview</h3>
+                  <div className="text-sm text-base-content/70 space-y-1">
+                    <p><strong>Event:</strong> {selectedEventTitle}</p>
+                    <p><strong>Format:</strong> Multi-sheet Excel (.xlsx) with hierarchical headers or ZIP (.zip) for large files</p>
+                    <p><strong>Structure:</strong> Separate sheets per Type-Color-Sex combination</p>
+                    <p><strong>Headers:</strong> 4-level hierarchy (Competition Type → Color → Sex → Data Columns)</p>
+                    <p><strong>Compression:</strong> Auto-compressed when file size {'>'} 10MB</p>
+                    <p><strong>Columns:</strong> ลำดับ | เลขไมโครชิพ | ชื่อควาย | วัน/เดือน/ปีเกิด | อายุ (เดือน) | พ่อ | แม่ | ชื่อฟาร์ม | เบอร์โทรศัพท์</p>
+                  </div>
+                </div>
+                
+                <div className="p-4 bg-base-200 rounded-lg">
+                  <h3 className="font-medium mb-2">DOCX Export Preview</h3>
+                  <div className="text-sm text-base-content/70 space-y-1">
+                    <p><strong>Event:</strong> {selectedEventTitle}</p>
+                    <p><strong>Format:</strong> Individual DOCX registration forms bundled in ZIP (.zip)</p>
+                    <p><strong>Structure:</strong> One registration form per buffalo</p>
+                    <p><strong>Layout:</strong> Professional table-based Thai registration form</p>
+                    <p><strong>Sections:</strong> Competition Type | Buffalo Info | Pedigree | Owner Information</p>
+                    <p><strong>Language:</strong> Thai field labels with automatic color/sex translation</p>
+                  </div>
                 </div>
               </div>
             )}
 
-            <div className="card-actions justify-end mt-6">
+            <div className="card-actions justify-end mt-6 gap-3">
               <button
                 className="btn btn-primary"
                 onClick={handleExport}
-                disabled={!selectedEvent || isExporting || exportMutation.isPending}
+                disabled={!selectedEvent || isExporting || exportMutation.isPending || isExportingDocx || exportDocxMutation.isPending}
               >
                 {isExporting || exportMutation.isPending ? (
                   <>
@@ -157,6 +215,24 @@ export default function EventExport() {
                   <>
                     <FiDownload className="w-4 h-4" />
                     Export to Excel
+                  </>
+                )}
+              </button>
+              
+              <button
+                className="btn btn-secondary"
+                onClick={handleExportDocx}
+                disabled={!selectedEvent || isExporting || exportMutation.isPending || isExportingDocx || exportDocxMutation.isPending}
+              >
+                {isExportingDocx || exportDocxMutation.isPending ? (
+                  <>
+                    <FiLoader className="w-4 h-4 animate-spin" />
+                    Exporting DOCX...
+                  </>
+                ) : (
+                  <>
+                    <FiDownload className="w-4 h-4" />
+                    Export to DOCX
                   </>
                 )}
               </button>
@@ -175,13 +251,13 @@ export default function EventExport() {
                 <div className="text-sm">
                   <ul className="list-disc list-inside space-y-1 mt-2">
                     <li>Data is exported from Sanity CMS event registration records</li>
-                    <li>Excel file includes multiple sheets organized by competition type, color, and sex</li>
-                    <li>Each sheet has 4-level hierarchical headers (Type → Color → Sex → Data)</li>
+                    <li><strong>Excel Export:</strong> Multiple sheets organized by competition type, color, and sex with hierarchical headers</li>
+                    <li><strong>DOCX Export:</strong> Individual registration forms (one per buffalo) bundled in a ZIP file</li>
                     <li>Age is automatically calculated in months from birthday</li>
-                    <li>Empty groups display &quot;ไม่มีข้อมูล&quot; message</li>
-                    <li>Files larger than 10MB are automatically compressed to ZIP format</li>
+                    <li>DOCX forms include Thai field labels with automatic color/sex translation (black→ดำ, male→ผู้)</li>
+                    <li>Excel files larger than 10MB are automatically compressed to ZIP format</li>
                     <li>Father and mother names come from user input during registration</li>
-                    <li>File is downloaded directly to your computer</li>
+                    <li>Files are downloaded directly to your computer</li>
                   </ul>
                 </div>
               </div>
