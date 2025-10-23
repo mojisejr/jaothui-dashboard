@@ -556,10 +556,16 @@ export const sanityRouter = createTRPCRouter({
         }
 
         // Generate DOCX ZIP bundle
+        console.log(`Starting DOCX generation for ${eventData.length} buffalo...`);
         const eventName = eventData[0]?.event?.title ?? "event";
+        const startTime = Date.now();
+        
         const zipBuffer = await generateDocxZipBundle(
           eventData as DocxEventRegisterData[]
         );
+        
+        const duration = Date.now() - startTime;
+        console.log(`DOCX ZIP bundle generated successfully in ${duration}ms (${(duration / 1000).toFixed(2)}s)`);
 
         // Generate filename with event name and timestamp
         const timestamp = dayjs().format("YYYY-MM-DD_HH-mm-ss");

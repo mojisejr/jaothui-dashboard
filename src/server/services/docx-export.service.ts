@@ -324,12 +324,14 @@ export const generateBuffaloRegistrationDoc = async (
 
 /**
  * Generate ZIP bundle containing all buffalo registration DOCX files
+ * Optimized for large datasets to avoid timeouts
  */
 export const generateDocxZipBundle = async (
   eventData: EventRegisterData[]
 ): Promise<Buffer> => {
-  return new Promise((resolve, reject) => {
-    const archive = archiver("zip", { zlib: { level: 9 } });
+  return new Promise(async (resolve, reject) => {
+    // Use faster compression for better performance
+    const archive = archiver("zip", { zlib: { level: 6 } });
     const chunks: Buffer[] = [];
 
     archive.on("data", (chunk) => {
@@ -345,19 +347,32 @@ export const generateDocxZipBundle = async (
       reject(error);
     });
 
-    // Generate DOCX for each buffalo and add to archive
-    const generatePromises = eventData.map(async (buffalo, index) => {
-      const docxBuffer = await generateBuffaloRegistrationDoc(buffalo, index);
-      const filename = `${index + 1}_${buffalo.name || buffalo.microchip || "unknown"}.docx`;
-      archive.append(docxBuffer, { name: filename });
-    });
+    try {
+      // Process in batches to avoid memory issues and timeout
+      const batchSize = 50;
+      for (let i = 0; i < eventData.length; i += batchSize) {
+        const batch = eventData.slice(i, i + batchSize);
+        
+        // Generate DOCX files for this batch in parallel
+        const batchPromises = batch.map(async (buffalo, batchIndex) => {
+          const index = i + batchIndex;
+          const docxBuffer = await generateBuffaloRegistrationDoc(buffalo, index);
+          const filename = `${index + 1}_${buffalo.name ?? buffalo.microchip ?? "unknown"}.docx`;
+          return { buffer: docxBuffer, filename };
+        });
 
-    Promise.all(generatePromises)
-      .then(() => {
-        void archive.finalize();
-      })
-      .catch((error) => {
-        reject(error);
-      });
+        const batchResults = await Promise.all(batchPromises);
+        
+        // Append all files from this batch to archive
+        for (const { buffer, filename } of batchResults) {
+          archive.append(buffer, { name: filename });
+        }
+      }
+
+      // Finalize archive after all files are appended
+      await archive.finalize();
+    } catch (error) {
+      reject(error);
+    }
   });
 };
