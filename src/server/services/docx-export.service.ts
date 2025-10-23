@@ -329,7 +329,7 @@ export const generateBuffaloRegistrationDoc = async (
 export const generateDocxZipBundle = async (
   eventData: EventRegisterData[]
 ): Promise<Buffer> => {
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
     // Use faster compression for better performance
     const archive = archiver("zip", { zlib: { level: 6 } });
     const chunks: Buffer[] = [];
@@ -347,32 +347,38 @@ export const generateDocxZipBundle = async (
       reject(error);
     });
 
-    try {
-      // Process in batches to avoid memory issues and timeout
-      const batchSize = 50;
-      for (let i = 0; i < eventData.length; i += batchSize) {
-        const batch = eventData.slice(i, i + batchSize);
-        
-        // Generate DOCX files for this batch in parallel
-        const batchPromises = batch.map(async (buffalo, batchIndex) => {
-          const index = i + batchIndex;
-          const docxBuffer = await generateBuffaloRegistrationDoc(buffalo, index);
-          const filename = `${index + 1}_${buffalo.name ?? buffalo.microchip ?? "unknown"}.docx`;
-          return { buffer: docxBuffer, filename };
-        });
+    // Process batches asynchronously
+    const processBatches = async () => {
+      try {
+        // Process in batches to avoid memory issues and timeout
+        const batchSize = 50;
+        for (let i = 0; i < eventData.length; i += batchSize) {
+          const batch = eventData.slice(i, i + batchSize);
+          
+          // Generate DOCX files for this batch in parallel
+          const batchPromises = batch.map(async (buffalo, batchIndex) => {
+            const index = i + batchIndex;
+            const docxBuffer = await generateBuffaloRegistrationDoc(buffalo, index);
+            const filename = `${index + 1}_${buffalo.name ?? buffalo.microchip ?? "unknown"}.docx`;
+            return { buffer: docxBuffer, filename };
+          });
 
-        const batchResults = await Promise.all(batchPromises);
-        
-        // Append all files from this batch to archive
-        for (const { buffer, filename } of batchResults) {
-          archive.append(buffer, { name: filename });
+          const batchResults = await Promise.all(batchPromises);
+          
+          // Append all files from this batch to archive
+          for (const { buffer, filename } of batchResults) {
+            archive.append(buffer, { name: filename });
+          }
         }
-      }
 
-      // Finalize archive after all files are appended
-      await archive.finalize();
-    } catch (error) {
-      reject(error);
-    }
+        // Finalize archive after all files are appended
+        await archive.finalize();
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    // Start processing
+    void processBatches();
   });
 };
