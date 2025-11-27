@@ -240,8 +240,8 @@ export const sanityRouter = createTRPCRouter({
         ownerName,
         microchip,
         birthday,
-        father,
-        mother,
+        "father": fatherName,
+        "mother": motherName,
         createdAt,
         updatedAt
       } | order(createdAt desc)`;
@@ -281,8 +281,8 @@ export const sanityRouter = createTRPCRouter({
           ownerTel,
           microchip,
           name,
-          father,
-          mother,
+          "father": fatherName,
+          "mother": motherName,
           birthday,
           createdAt,
           updatedAt
@@ -321,8 +321,8 @@ export const sanityRouter = createTRPCRouter({
           ownerTel,
           microchip,
           name,
-          father,
-          mother,
+          "father": fatherName,
+          "mother": motherName,
           birthday,
           createdAt,
           updatedAt
@@ -398,8 +398,8 @@ export const sanityRouter = createTRPCRouter({
             type,
             level,
             birthday,
-            father,
-            mother,
+            "father": fatherName,
+            "mother": motherName,
             "event": event->{title}
           }`
         );
@@ -534,8 +534,8 @@ export const sanityRouter = createTRPCRouter({
             type,
             level,
             birthday,
-            father,
-            mother,
+            "father": fatherName,
+            "mother": motherName,
             "event": event->{title}
           }`
         );
