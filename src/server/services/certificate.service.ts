@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { db } from "../db";
 
 export type CreateCertificateBypassInput = {
@@ -11,156 +12,135 @@ export type CreateCertificateBypassInput = {
 export const createCertificateBypass = async (
   input: CreateCertificateBypassInput,
 ) => {
-  // [PHASE_B_LOG] Start
-  const startTime = Date.now();
-  console.log(`[PHASE_B_LOG] createCertificateBypass START - microchip: ${input.microchip}`);
+  try {
+    const {
+      microchip,
+      slipUrl,
+      bornAt = "N/A",
+      wallet = "0x0D97d89d690B8b692704CaC80bEBA49D9497d582",
+      ownerName = "-",
+    } = input;
 
-  const {
-    microchip,
-    slipUrl,
-    bornAt = "N/A",
-    wallet = "0x0D97d89d690B8b692704CaC80bEBA49D9497d582",
-    ownerName = "-",
-  } = input;
-
-  // 1. Verify Pedigree exists
-  console.log(`[PHASE_B_LOG] Step 1: Checking pedigree...`);
-  const step1Start = Date.now();
-  const pedigree = await db.pedigree.findUnique({ where: { microchip } });
-  console.log(`[PHASE_B_LOG] Step 1 completed in ${Date.now() - step1Start}ms`);
-  if (!pedigree) {
-    console.log(`[PHASE_B_LOG] ERROR: Pedigree not found - Total time: ${Date.now() - startTime}ms`);
-    throw new Error("Pedigree not found. Please register buffalo first.");
-  }
-
-  // 2. Verify Owner User exists
-  console.log(`[PHASE_B_LOG] Step 2: Checking owner user...`);
-  const step2Start = Date.now();
-  const ownerUser = await db.user.findUnique({ where: { wallet } });
-  console.log(`[PHASE_B_LOG] Step 2 completed in ${Date.now() - step2Start}ms`);
-  if (!ownerUser) {
-    console.log(`[PHASE_B_LOG] ERROR: Owner user not found - Total time: ${Date.now() - startTime}ms`);
-    throw new Error(`Owner wallet not found: ${wallet}`);
-  }
-
-  // 3. Verify Approvers exist
-  console.log(`[PHASE_B_LOG] Step 3: Checking approvers...`);
-  const step3Start = Date.now();
-  const approverWallets = [
-    "0xc83Bd471889c986F7D8e0d40C6994d9e5704018c",
-    "0x0D97d89d690B8b692704CaC80bEBA49D9497d582",
-    "0x97584869f231989153d361B7FC64197BdEBA819c",
-  ];
-
-  for (const approverWallet of approverWallets) {
-    const approver = await db.certificateApprover.findUnique({
-      where: { wallet: approverWallet },
-    });
-    if (!approver) {
-      console.log(`[PHASE_B_LOG] ERROR: Approver not found: ${approverWallet} - Total time: ${Date.now() - startTime}ms`);
-      throw new Error(`Approver wallet not found: ${approverWallet}`);
+    // 1. Verify Pedigree exists
+    const pedigree = await db.pedigree.findUnique({ where: { microchip } });
+    if (!pedigree) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Pedigree not found. Please register buffalo first.",
+      });
     }
-  }
-  console.log(`[PHASE_B_LOG] Step 3 completed in ${Date.now() - step3Start}ms`);
 
-  // 4. Check existing Certificate
-  console.log(`[PHASE_B_LOG] Step 4: Checking existing certificate...`);
-  const step4Start = Date.now();
-  const existingCert = await db.certificate.findUnique({
-    where: { microchip },
-    include: { approvers: true },
-  });
-  console.log(`[PHASE_B_LOG] Step 4 completed in ${Date.now() - step4Start}ms - Certificate exists: ${!!existingCert}, Approvers connected: ${existingCert?.approvers.length ?? 0}`);
+    // 2. Verify Owner User exists
+    const ownerUser = await db.user.findUnique({ where: { wallet } });
+    if (!ownerUser) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: `Owner wallet not found: ${wallet}`,
+      });
+    }
 
-  if (existingCert) {
-    if (existingCert.approvers.length > 0) {
-      console.log(`[PHASE_B_LOG] Certificate already approved - Total time: ${Date.now() - startTime}ms`);
+    // 3. Verify Approvers exist (OPTIMIZED: batch query)
+    const approverWallets = [
+      "0xc83Bd471889c986F7D8e0d40C6994d9e5704018c",
+      "0x0D97d89d690B8b692704CaC80bEBA49D9497d582",
+      "0x97584869f231989153d361B7FC64197BdEBA819c",
+    ];
+
+    const approvers = await db.certificateApprover.findMany({
+      where: {
+        wallet: { in: approverWallets },
+      },
+    });
+
+    if (approvers.length !== approverWallets.length) {
+      const missingWallets = approverWallets.filter(
+        (w) => !approvers.some((a) => a.wallet === w),
+      );
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: `Approvers not found: ${missingWallets.join(", ")}`,
+      });
+    }
+
+    // 4. Check existing Certificate
+    const existingCert = await db.certificate.findUnique({
+      where: { microchip },
+      include: { approvers: true },
+    });
+
+    if (existingCert && existingCert.approvers.length > 0) {
       return {
         success: true,
         message: "Certificate already approved.",
         certificate: existingCert,
       };
     }
-    // If exists but not approved, we proceed to update and connect approvers
-  }
 
-  // 5. Create or Update Certificate and Connect Approvers (Transaction)
-  console.log(`[PHASE_B_LOG] Step 5: Starting transaction...`);
-  const step5Start = Date.now();
-  return await db.$transaction(async (tx) => {
-    let cert;
-    console.log(`[PHASE_B_LOG] Step 5a: ${existingCert ? 'Updating' : 'Creating'} certificate...`);
-    const step5aStart = Date.now();
-    if (existingCert) {
-      cert = await tx.certificate.update({
-        where: { microchip },
-        data: {
-          slipUrl,
-          bornAt,
-          ownerName,
-          isActive: true,
-          wallet, // Ensure owner wallet is set
-        },
-      });
-    } else {
-      cert = await tx.certificate.create({
-        data: {
-          microchip,
-          wallet,
-          slipUrl,
-          bornAt,
-          ownerName,
-          isActive: true,
-        },
-      });
-    }
-    console.log(`[PHASE_B_LOG] Step 5a completed in ${Date.now() - step5aStart}ms`);
+    // 5. Create or Update Certificate and Connect Approvers (Transaction)
+    return await db.$transaction(async (tx) => {
+      let cert;
+      if (existingCert) {
+        cert = await tx.certificate.update({
+          where: { microchip },
+          data: {
+            slipUrl,
+            bornAt,
+            ownerName,
+            isActive: true,
+            wallet,
+          },
+        });
+      } else {
+        cert = await tx.certificate.create({
+          data: {
+            microchip,
+            wallet,
+            slipUrl,
+            bornAt,
+            ownerName,
+            isActive: true,
+          },
+        });
+      }
 
-    // Connect approvers
-    console.log(`[PHASE_B_LOG] Step 5b: Connecting approvers (loop)...`);
-    const step5bStart = Date.now();
-    let approverConnectCount = 0;
-    for (const approverWallet of approverWallets) {
-      // Check if already connected to avoid error?
-      // Prisma connect is idempotent for many-to-many if using set, but here we use connect.
-      // However, if we just want to ensure connection, we can try connect.
-      // To be safe and avoid "Record to connect not found" (checked above) or unique constraint issues:
-      // We can just call update with connect. If already connected, Prisma might throw error depending on version/schema.
-      // Safe way: fetch current approvers, filter out existing.
-      // But since we are in transaction and we know existingCert state...
-      // Let's just use connect. If it fails due to already connected, we catch it?
-      // Actually, for many-to-many, `connect` adds to the list. If already there, it might be fine or error.
-      // Let's use `set` to be sure? No, `set` replaces all. We want to add specific ones.
-      // Let's try connect. If it fails, it means something is wrong with data integrity or schema.
-      // Wait, if we use `connect` on an existing relation, it might throw if unique constraint on join table is violated.
-      // Let's check if already connected.
-
-      const isConnected = existingCert?.approvers.some(
-        (a) => a.wallet === approverWallet,
+      // Connect approvers (OPTIMIZED: batch in single update)
+      const approversToConnect = approverWallets.filter(
+        (wallet) => !existingCert?.approvers.some((a) => a.wallet === wallet),
       );
 
-      if (!isConnected) {
-        const connectStart = Date.now();
+      if (approversToConnect.length > 0) {
         await tx.certificate.update({
           where: { microchip },
           data: {
-            approvers: { connect: { wallet: approverWallet } },
+            approvers: {
+              connect: approversToConnect.map((wallet) => ({ wallet })),
+            },
           },
         });
-        approverConnectCount++;
-        console.log(`[PHASE_B_LOG] Step 5b: Connected approver ${approverWallet} in ${Date.now() - connectStart}ms`);
       }
-    }
-    console.log(`[PHASE_B_LOG] Step 5b completed in ${Date.now() - step5bStart}ms - Connected ${approverConnectCount} approvers`);
-    console.log(`[PHASE_B_LOG] Step 5 (transaction) completed in ${Date.now() - step5Start}ms`);
-    console.log(`[PHASE_B_LOG] createCertificateBypass SUCCESS - Total time: ${Date.now() - startTime}ms`);
 
-    return {
-      success: true,
-      message: "Certificate created and approved successfully.",
-      certificate: cert,
-    };
-  });
+      return {
+        success: true,
+        message: "Certificate created and approved successfully.",
+        certificate: cert,
+      };
+    });
+  } catch (error) {
+    if (error instanceof TRPCError) {
+      throw error;
+    }
+    if (error instanceof Error) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: error.message,
+        cause: error,
+      });
+    }
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Unknown error during certificate creation",
+    });
+  }
 };
 
 export const searchAndCheckApprovment = async (microchip: string) => {
