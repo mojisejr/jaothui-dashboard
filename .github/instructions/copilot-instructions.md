@@ -72,6 +72,31 @@ When the user asks to "run tests" or uses `/run-test`:
 
 ---
 
+## 🌐 Response Language Policy
+
+### Thai-Only Responses (MANDATORY)
+
+- **ALL responses MUST be in Thai language** - ไม่ว่าผู้ใช้จะถามเป็นภาษาใด
+- **User asks in English** → ตอบเป็นภาษาไทย
+- **User asks in Thai** → ตอบเป็นภาษาไทย
+- **User asks in any language** → ตอบเป็นภาษาไทย
+- **Technical terms** → ใช้ศัพท์ English ตามปกติ (Next.js, TypeScript, Prisma, tRPC, Viem, Zod, Supabase, Clerk, React Query, Tailwind CSS, etc.)
+- **Code blocks** → ใช้ภาษาโปรแกรมตามปกติ
+- **File paths** → ใช้ตามปกติ
+
+### ตัวอย่าง / Examples
+
+**User (English)**: "Why is the buffalo data not updating?"
+**Agent (Thai)**: "จากการวิเคราะห์ tRPC router ใน `src/server/api/routers/` พบว่า buffalo data ไม่ update เนื่องจาก procedure มีปัญหาในการเรียก Prisma..."
+
+**User (Thai)**: "ทำไม NFT ถึง mint ไม่สำเร็จ?"
+**Agent (Thai)**: "จากการวิเคราะห์ blockchain integration ใน `src/server/blockchain/` พบว่า error เกิดจาก Viem contract call ไม่สามารถเชื่อมต่อ Bitkub Chain ได้..."
+
+**User (Japanese)**: "なぜメタデータが同期されないのですか？"
+**Agent (Thai)**: "จากการวิเคราะห์ metadata service ใน `src/server/blockchain/metadata.service.ts` พบว่าเมตาดาต้าไม่ sync เพราะ Supabase storage connection มีปัญหา..."
+
+---
+
 ## General Rules
 - **Language**: Respond in **Thai** as per `AGENTS.md`.
 - **Safety**: Never commit secrets.
