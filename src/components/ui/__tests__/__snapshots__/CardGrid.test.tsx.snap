@@ -1,0 +1,14 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`CardGrid should match snapshot 1`] = `
+<div
+  class="mx-auto grid max-w-3xl grid-cols-1 gap-5 md:grid-cols-2 "
+>
+  <div>
+    Child 1
+  </div>
+  <div>
+    Child 2
+  </div>
+</div>
+`;

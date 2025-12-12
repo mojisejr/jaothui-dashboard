@@ -1,0 +1,41 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DashboardCard should match snapshot for orange variant 1`] = `
+<button
+  class="glass-card relative overflow-hidden cursor-pointer flex flex-col items-center justify-center gap-4 p-8 min-h-[200px] rounded-2xl transition-all duration-300 ease-out shadow-orange-glow hover:shadow-orange-glow/70"
+  type="button"
+>
+  <div
+    class="text-6xl [text-shadow:0_0_20px_rgba(251,146,60,0.5)] transition-all duration-300"
+  >
+    <span>
+      🐃
+    </span>
+  </div>
+  <h3
+    class="text-center text-xl font-semibold text-white"
+  >
+    Test
+  </h3>
+</button>
+`;
+
+exports[`DashboardCard should match snapshot for purple variant 1`] = `
+<button
+  class="glass-card relative overflow-hidden cursor-pointer flex flex-col items-center justify-center gap-4 p-8 min-h-[200px] rounded-2xl transition-all duration-300 ease-out shadow-purple-glow hover:shadow-purple-glow/70"
+  type="button"
+>
+  <div
+    class="text-6xl [text-shadow:0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300"
+  >
+    <span>
+      ✨
+    </span>
+  </div>
+  <h3
+    class="text-center text-xl font-semibold text-white"
+  >
+    Test
+  </h3>
+</button>
+`;
