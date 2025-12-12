@@ -21,7 +21,7 @@ export default function Header() {
   }
 
   return (
-    <header className="glass-header sticky top-0 z-50 w-full px-6 py-4">
+    <header className="glass-header sticky top-5 z-50 mx-5 w-auto rounded-3xl px-6 py-4">
       <nav className="mx-auto flex max-w-7xl items-center justify-between">
         <div className="flex items-center gap-3">
           <RiUserHeartFill className="text-3xl text-orange-400" aria-hidden="true" />

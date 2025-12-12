@@ -35,10 +35,12 @@ export default function DashboardCard({
 
   const classes = [
     'glass-card',
-    'relative overflow-hidden cursor-pointer',
+    'group relative overflow-hidden cursor-pointer',
     'flex flex-col items-center justify-center gap-4 p-8',
-    'min-h-[200px] rounded-2xl',
-    'transition-all duration-300 ease-out',
+    'h-[140px] md:flex-col md:justify-center md:px-8',
+    'md:h-[140px] h-[100px] flex-row justify-start px-6',
+    'rounded-2xl',
+    'transition-all duration-[400ms] ease-card',
     shadowClasses[variant],
     className,
   ]

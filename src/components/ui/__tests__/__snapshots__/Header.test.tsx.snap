@@ -2,7 +2,7 @@
 
 exports[`Header should match snapshot 1`] = `
 <header
-  class="glass-header sticky top-0 z-50 w-full px-6 py-4"
+  class="glass-header sticky top-5 z-50 mx-5 w-auto rounded-3xl px-6 py-4"
 >
   <nav
     class="mx-auto flex max-w-7xl items-center justify-between"

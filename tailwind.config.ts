@@ -25,9 +25,9 @@ export default {
 
       // Typography Tokens
       fontFamily: {
-        sans: ['Kanit', 'Inter', ...fontFamily.sans],
-        kanit: ['Kanit', 'sans-serif'],
-        inter: ['Inter', 'sans-serif'],
+        sans: ['var(--font-kanit)', 'var(--font-inter)', ...fontFamily.sans],
+        kanit: ['var(--font-kanit)', 'sans-serif'],
+        inter: ['var(--font-inter)', 'sans-serif'],
       },
 
       // Shadow Tokens
@@ -74,10 +74,22 @@ export default {
         card: 'cubic-bezier(0.25, 0.8, 0.25, 1)',
         icon: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
       },
+      transitionDuration: {
+        '400': '400ms',
+      },
     },
   },
   daisyui: {
-    themes: ["halloween"],
+    themes: [
+      {
+        halloween: {
+          ...require("daisyui/src/theming/themes")["halloween"],
+          "base-100": "#0f0f11",  // Override background to match design
+          "primary": "#FF8C00",    // Override primary orange
+          "secondary": "#9D00FF",  // Override secondary purple
+        },
+      },
+    ],
   },
   plugins: [require("daisyui")],
 } satisfies Config;

@@ -96,7 +96,8 @@ describe('Icon', () => {
     )
     
     const icon = container.firstChild as HTMLElement
-    expect(icon.className).toContain('[text-shadow:0_0_20px_rgba(251,146,60,0.5)]')
+    expect(icon.className).toContain('[text-shadow:0_0_15px_rgba(255,140,0,0.5)]')
+    expect(icon.className).toContain('text-primary-orange-glow')
   })
 
   it('should support purple glow effect', () => {
@@ -107,7 +108,8 @@ describe('Icon', () => {
     )
     
     const icon = container.firstChild as HTMLElement
-    expect(icon.className).toContain('[text-shadow:0_0_20px_rgba(168,85,247,0.5)]')
+    expect(icon.className).toContain('[text-shadow:0_0_15px_rgba(157,0,255,0.5)]')
+    expect(icon.className).toContain('text-accent-purple-glow')
   })
 
   it('should accept custom className', () => {
