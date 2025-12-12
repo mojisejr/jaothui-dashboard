@@ -114,6 +114,18 @@
     animation: float 10s ease-in-out infinite alternate;
     animation-delay: -5s;
   }
+
+  /* Ripple Span Element */
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    width: 20px;
+    height: 20px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    animation: ripple 600ms ease-out;
+  }
 }
 
 /* ===================================
