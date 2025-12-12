@@ -59,6 +59,12 @@ When the user asks to "implement" a feature or uses `/impl`, follow the **TDD Re
 
 **Rule**: Always work on `staging` or feature branches.
 
+**MANDATORY: DO NOT IMPLEMENT WITHOUT /impl**: Under no circumstances should the agent implement or change source code, add/modify production logic, or push commits unless the user explicitly:
+- Uses the `/impl` command, or
+- Directly and explicitly asks the agent to perform an implementation in a follow-up message.
+
+This is intentional to ensure the user authorizes actual implementation work.
+
 ---
 
 ## 🧪 Command: /run-test (Test Agent)
@@ -101,3 +107,5 @@ When the user asks to "run tests" or uses `/run-test`:
 - **Language**: Respond in **Thai** as per `AGENTS.md`.
 - **Safety**: Never commit secrets.
 - **Context**: Use `AGENTS.md` for project-specific context.
+
+- **No Implementation Without Authorization**: Do **not** implement, modify production code, or create commits unless the user has issued the `/impl` command or explicitly asks for actual implementation changes. If a user requests a code change but doesn't provide `/impl`, propose a plan and wait for confirmation.
