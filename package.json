@@ -12,7 +12,10 @@
     "dev": "next dev",
     "postinstall": "prisma generate",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@clerk/nextjs": "^5.2.4",
@@ -46,7 +49,11 @@
     "zod": "^3.23.3"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/eslint": "^8.56.10",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
@@ -55,11 +62,14 @@
     "daisyui": "^4.12.10",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.4",
+    "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.2.0",
     "postcss": "^8.4.39",
     "prettier": "^3.3.2",
     "prettier-plugin-tailwindcss": "^0.6.5",
     "prisma": "^5.14.0",
     "tailwindcss": "^3.4.3",
+    "ts-jest": "^29.4.6",
     "typescript": "^5.5.3"
   },
   "ct3aMetadata": {
