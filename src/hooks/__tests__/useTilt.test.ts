@@ -3,6 +3,11 @@
  * 
  * Tests for 3D tilt effect hook (mousemove-based)
  */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-empty-function */
 
 import { renderHook, act } from '@testing-library/react'
 import { useTilt } from '../useTilt'

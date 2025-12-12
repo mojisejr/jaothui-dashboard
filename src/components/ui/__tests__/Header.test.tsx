@@ -29,13 +29,13 @@ describe('Header', () => {
 
   it('should have glass-header class', () => {
     const { container } = render(<Header />)
-    const header = container.querySelector('header') || container.querySelector('.glass-header')
+    const header = container.querySelector('header') ?? container.querySelector('.glass-header')
     expect(header).toHaveClass('glass-header')
   })
 
   it('should render logout button', () => {
     render(<Header />)
-    const logoutButton = screen.getByRole('button', { name: /logout/i })
+    const logoutButton = screen.getByRole('button', { name: /logout/i }) ?? null
     expect(logoutButton).toBeInTheDocument()
   })
 
@@ -60,7 +60,7 @@ describe('Header', () => {
 
   it('should have sticky positioning', () => {
     const { container } = render(<Header />)
-    const header = container.querySelector('header') || container.querySelector('.glass-header')
+    const header = container.querySelector('header') ?? container.querySelector('.glass-header')
     
     expect(header).toHaveClass('sticky')
   })

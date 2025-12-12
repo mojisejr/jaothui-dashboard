@@ -4,9 +4,11 @@
  * Tests for ripple effect hook that creates click animation
  * Expected to FAIL until implementation is complete
  */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/non-nullable-type-assertion-style */
 
 import { renderHook, act } from '@testing-library/react'
-import { fireEvent } from '@testing-library/react'
 import { useRipple } from '../useRipple'
 
 describe('useRipple', () => {
@@ -70,9 +72,11 @@ describe('useRipple', () => {
       result.current.createRipple(mockEvent as any)
     })
 
-    const ripple = container.querySelector('.ripple') as HTMLElement
+    const ripple = container.querySelector('.ripple')!
     expect(ripple).toBeInTheDocument()
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     expect(ripple.style.left).toBeTruthy()
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     expect(ripple.style.top).toBeTruthy()
   })
 
@@ -147,9 +151,13 @@ describe('useRipple', () => {
       result.current.createRipple(mockEvent as any)
     })
 
-    const ripple = container.querySelector('.ripple') as HTMLElement
+    const ripple = container.querySelector('.ripple')!
     expect(ripple).toBeInTheDocument()
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     expect(ripple.style.left).toBeTruthy()
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     expect(ripple.style.top).toBeTruthy()
   })
 })

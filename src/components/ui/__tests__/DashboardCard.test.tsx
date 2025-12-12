@@ -93,7 +93,8 @@ describe('DashboardCard', () => {
   })
 
   it('should create ripple on click', () => {
-    const { container } = render(<DashboardCard title="Test" icon={<TestIcon />} onClick={() => {}} />)
+    const handleClick = jest.fn()
+    const { container } = render(<DashboardCard title="Test" icon={<TestIcon />} onClick={handleClick} />)
     const card = screen.getByRole('button')
     
     fireEvent.click(card)
