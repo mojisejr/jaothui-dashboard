@@ -75,9 +75,9 @@ describe('useRipple', () => {
     const ripple = container.querySelector('.ripple')!
     expect(ripple).toBeInTheDocument()
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    expect(ripple.style.left).toBeTruthy()
+    expect((ripple as HTMLElement).style.left).toBeTruthy()
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    expect(ripple.style.top).toBeTruthy()
+    expect((ripple as HTMLElement).style.top).toBeTruthy()
   })
 
   it('should remove existing ripple before creating new one', () => {
@@ -155,9 +155,9 @@ describe('useRipple', () => {
     expect(ripple).toBeInTheDocument()
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    expect(ripple.style.left).toBeTruthy()
+    expect((ripple as HTMLElement).style.left).toBeTruthy()
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    expect(ripple.style.top).toBeTruthy()
+    expect((ripple as HTMLElement).style.top).toBeTruthy()
   })
 })

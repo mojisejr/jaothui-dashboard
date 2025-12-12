@@ -17,19 +17,19 @@ export default function Icon({ children, size = 'md', color, glow, className = '
     sm: 'text-2xl',
     md: 'text-4xl',
     lg: 'text-5xl',
-    xl: 'text-6xl',
+    xl: 'text-6xl md:text-6xl text-5xl',  // Responsive: 2rem mobile, 2.5rem desktop
   }
 
   const glowClasses = {
-    orange: '[text-shadow:0_0_20px_rgba(251,146,60,0.5)]',
-    purple: '[text-shadow:0_0_20px_rgba(168,85,247,0.5)]',
+    orange: 'text-primary-orange-glow [text-shadow:0_0_15px_rgba(255,140,0,0.5)]',
+    purple: 'text-accent-purple-glow [text-shadow:0_0_15px_rgba(157,0,255,0.5)]',
   }
 
   const classes = [
     sizeClasses[size],
-    color,
-    glow ? glowClasses[glow] : '',
-    'transition-all duration-300',
+    glow ? glowClasses[glow] : color,
+    'transition-all duration-300 ease-icon group-hover:scale-120 group-hover:rotate-[5deg]',
+    'md:mb-0',  // Remove bottom margin on mobile
     className,
   ]
     .filter(Boolean)

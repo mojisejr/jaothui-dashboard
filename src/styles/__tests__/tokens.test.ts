@@ -157,15 +157,15 @@ describe('Design Tokens - Tailwind Config', () => {
 
   describe('Typography', () => {
     it('should define Kanit font family', () => {
-      expect(tailwindConfig).toContain("kanit: ['Kanit'")
+      expect(tailwindConfig).toContain("kanit: ['var(--font-kanit)'")
     })
 
     it('should define Inter font family', () => {
-      expect(tailwindConfig).toContain("inter: ['Inter'")
+      expect(tailwindConfig).toContain("inter: ['var(--font-inter)'")
     })
 
     it('should update sans font family with Kanit', () => {
-      expect(tailwindConfig).toContain("sans: ['Kanit', 'Inter'")
+      expect(tailwindConfig).toContain("sans: ['var(--font-kanit)', 'var(--font-inter)'")
     })
   })
 
