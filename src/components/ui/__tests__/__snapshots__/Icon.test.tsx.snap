@@ -1,0 +1,25 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Icon should match snapshot with all props 1`] = `
+<div
+  class="text-5xl text-primary-orange-glow [text-shadow:0_0_15px_rgba(255,140,0,0.5)] transition-all duration-300 ease-icon group-hover:scale-120 group-hover:rotate-[5deg] md:mb-0 custom"
+>
+  <svg
+    data-testid="test-svg"
+  >
+    <path />
+  </svg>
+</div>
+`;
+
+exports[`Icon should match snapshot with default props 1`] = `
+<div
+  class="text-4xl transition-all duration-300 ease-icon group-hover:scale-120 group-hover:rotate-[5deg] md:mb-0"
+>
+  <svg
+    data-testid="test-svg"
+  >
+    <path />
+  </svg>
+</div>
+`;

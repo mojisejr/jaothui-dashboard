@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buffalo Management Dashboard</title>
+    
+    <!-- Google Fonts for modern typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons (Lightweight icon library) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <style>
+        :root {
+            --primary-orange: #FF8C00;
+            --primary-orange-glow: #FFA500;
+            --accent-purple: #9D00FF;
+            --accent-purple-glow: #B847FF;
+            --bg-dark: #0f0f11;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-highlight: rgba(255, 255, 255, 0.15);
+            --text-main: #ffffff;
+            --text-muted: rgba(255, 255, 255, 0.6);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Kanit', 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            min-height: 100vh;
+            color: var(--text-main);
+            overflow-x: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Ambient Background Lights (The "Liquid" behind the glass) --- */
+        .ambient-light {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(100px);
+            z-index: -1;
+            opacity: 0.6;
+            animation: float 10s ease-in-out infinite alternate;
+        }
+
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, var(--primary-orange), transparent);
+            top: -100px;
+            left: -100px;
+        }
+
+        .orb-2 {
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, var(--accent-purple), transparent);
+            bottom: -50px;
+            right: -50px;
+            animation-delay: -5s;
+        }
+
+        .orb-3 {
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, #ff4500, transparent);
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.3;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(30px, 50px); }
+        }
+
+        /* --- Glass Header --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.2rem 2rem;
+            position: sticky;
+            top: 20px;
+            margin: 0 20px;
+            border-radius: 24px;
+            z-index: 100;
+            
+            /* Glassmorphism */
+            background: rgba(20, 20, 20, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .brand {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(90deg, #fff, #ccc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logout-btn {
+            background: rgba(255, 59, 48, 0.15);
+            color: #ff453a;
+            border: 1px solid rgba(255, 59, 48, 0.3);
+            padding: 10px 24px;
+            border-radius: 100px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 59, 48, 0.3);
+            box-shadow: 0 0 15px rgba(255, 59, 48, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* --- Main Content --- */
+        main {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        /* --- Liquid Glass Cards --- */
+        .card {
+            position: relative;
+            height: 140px;
+            border-radius: 24px;
+            cursor: pointer;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            
+            /* Glass Base */
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* Specific Colors based on image */
+        .card.orange {
+            box-shadow: inset 0 0 0 1px rgba(255, 140, 0, 0.1);
+        }
+        
+        .card.purple {
+            box-shadow: inset 0 0 0 1px rgba(157, 0, 255, 0.1);
+        }
+
+        /* Liquid Glow Effect inside card */
+        .card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            pointer-events: none;
+        }
+
+        /* Colored Ambient Glow on Hover */
+        .card.orange::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at center, rgba(255, 140, 0, 0.2), transparent 80%);
+            opacity: 0.3;
+            transition: opacity 0.4s;
+            z-index: -1;
+        }
+
+        .card.purple::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at center, rgba(157, 0, 255, 0.2), transparent 80%);
+            opacity: 0.3;
+            transition: opacity 0.4s;
+            z-index: -1;
+        }
+
+        /* Hover States */
+        .card:hover {
+            transform: translateY(-8px) scale(1.02);
+            border-color: rgba(255,255,255,0.3);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        .card.orange:hover {
+            box-shadow: 0 20px 40px rgba(255, 140, 0, 0.15), inset 0 0 20px rgba(255, 140, 0, 0.1);
+        }
+
+        .card.purple:hover {
+            box-shadow: 0 20px 40px rgba(157, 0, 255, 0.15), inset 0 0 20px rgba(157, 0, 255, 0.1);
+        }
+
+        /* Card Content */
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .card.orange .card-icon { color: var(--primary-orange-glow); text-shadow: 0 0 15px rgba(255, 140, 0, 0.5); }
+        .card.purple .card-icon { color: var(--accent-purple-glow); text-shadow: 0 0 15px rgba(157, 0, 255, 0.5); }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            color: #eee;
+        }
+
+        .card:hover .card-icon {
+            transform: scale(1.2) rotate(5deg);
+        }
+
+        /* Ripple Effect */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(0);
+            animation: ripple 0.6s linear;
+            pointer-events: none;
+        }
+
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+            .card {
+                height: 100px;
+                flex-direction: row;
+                justify-content: start;
+                padding-left: 30px;
+                gap: 20px;
+            }
+            .card-icon {
+                margin-bottom: 0;
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Background Orbs -->
+    <div class="ambient-light orb-1"></div>
+    <div class="ambient-light orb-2"></div>
+    <div class="ambient-light orb-3"></div>
+
+    <!-- Header -->
+    <header>
+        <div class="brand">
+            <i class="ph-fill ph-squares-four"></i>
+            Dashboard
+        </div>
+        <button class="logout-btn" onclick="logout()">
+            <i class="ph-bold ph-sign-out"></i>
+            Logout
+        </button>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <div class="grid-container">
+            
+            <!-- Row 1 -->
+            <!-- Add Buffalo -->
+            <div class="card orange" onclick="handleClick(this)">
+                <i class="ph-duotone ph-cow card-icon"></i>
+                <div class="card-title">เพิ่มข้อมูลควาย</div>
+            </div>
+
+            <!-- Edit Buffalo (Purple) -->
+            <div class="card purple" onclick="handleClick(this)">
+                <i class="ph-duotone ph-pencil-simple-line card-icon"></i>
+                <div class="card-title">แก้ไขข้อมูลควาย</div>
+            </div>
+
+            <!-- Row 2 -->
+            <!-- Update Wallet -->
+            <div class="card orange" onclick="handleClick(this)">
+                <i class="ph-duotone ph-wallet card-icon"></i>
+                <div class="card-title">อัพเดต wallet</div>
+            </div>
+
+            <!-- Add Reward -->
+            <div class="card orange" onclick="handleClick(this)">
+                <i class="ph-duotone ph-trophy card-icon"></i>
+                <div class="card-title">เพิ่มข้อมูลรางวัล</div>
+            </div>
+
+            <!-- Row 3 -->
+            <!-- Update DNA -->
+            <div class="card orange" onclick="handleClick(this)">
+                <i class="ph-duotone ph-dna card-icon"></i>
+                <div class="card-title">อัพเดตข้อมูล DNA</div>
+            </div>
+
+            <!-- Export Event -->
+            <div class="card orange" onclick="handleClick(this)">
+                <i class="ph-duotone ph-export card-icon"></i>
+                <div class="card-title">ส่งออกข้อมูลอีเวนต์</div>
+            </div>
+
+            <!-- Row 4 -->
+            <!-- By Pass Pedigree -->
+            <div class="card orange" onclick="handleClick(this)">
+                <i class="ph-duotone ph-file-lock card-icon"></i>
+                <div class="card-title">By Pass ใบเพ็ด</div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // Ripple Effect Function
+        function createRipple(event) {
+            const button = event.currentTarget;
+            const circle = document.createElement("span");
+            const diameter = Math.max(button.clientWidth, button.clientHeight);
+            const radius = diameter / 2;
+
+            circle.style.width = circle.style.height = `${diameter}px`;
+            circle.style.left = `${event.clientX - button.getBoundingClientRect().left - radius}px`;
+            circle.style.top = `${event.clientY - button.getBoundingClientRect().top - radius}px`;
+            circle.classList.add("ripple");
+
+            const ripple = button.getElementsByClassName("ripple")[0];
+
+            if (ripple) {
+                ripple.remove();
+            }
+
+            button.appendChild(circle);
+        }
+
+        // Click Handler
+        function handleClick(element) {
+            // Trigger Ripple
+            const event = window.event;
+            createRipple(event);
+
+            // Simple Interaction Feedback
+            const title = element.querySelector('.card-title').innerText;
+            console.log(`Clicked: ${title}`);
+            
+            // Optional: Simulate loading or navigation
+            element.style.transform = "scale(0.95)";
+            setTimeout(() => {
+                element.style.transform = "";
+            }, 150);
+        }
+
+        function logout() {
+            if(confirm("ต้องการออกจากระบบใช่หรือไม่?")) {
+                alert("Logged out successfully");
+                // window.location.href = '/login';
+            }
+        }
+
+        // Add 3D Tilt Effect (Optional sleekness)
+        const cards = document.querySelectorAll('.card');
+        
+        cards.forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Calculate percentage
+                const xPct = x / rect.width;
+                const yPct = y / rect.height;
+
+                // Subtle Tilt
+                const xTilt = (0.5 - yPct) * 10; // Tilt along X axis based on Y pos
+                const yTilt = (xPct - 0.5) * 10; // Tilt along Y axis based on X pos
+
+                card.style.transform = `perspective(1000px) rotateX(${xTilt}deg) rotateY(${yTilt}deg) scale(1.02)`;
+            });
+
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale(1)';
+            });
+        });
+
+    </script>
+</body>
+</html>

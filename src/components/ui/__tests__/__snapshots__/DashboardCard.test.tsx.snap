@@ -1,0 +1,41 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DashboardCard should match snapshot for orange variant 1`] = `
+<button
+  class="glass-card group relative overflow-hidden cursor-pointer flex flex-col items-center justify-center gap-4 p-8 h-[140px] md:flex-col md:justify-center md:px-8 md:h-[140px] h-[100px] flex-row justify-start px-6 rounded-2xl transition-all duration-[400ms] ease-card shadow-orange-glow hover:shadow-orange-glow/70"
+  type="button"
+>
+  <div
+    class="text-6xl md:text-6xl text-5xl text-primary-orange-glow [text-shadow:0_0_15px_rgba(255,140,0,0.5)] transition-all duration-300 ease-icon group-hover:scale-120 group-hover:rotate-[5deg] md:mb-0"
+  >
+    <span>
+      🐃
+    </span>
+  </div>
+  <h3
+    class="text-center text-xl font-semibold text-white"
+  >
+    Test
+  </h3>
+</button>
+`;
+
+exports[`DashboardCard should match snapshot for purple variant 1`] = `
+<button
+  class="glass-card group relative overflow-hidden cursor-pointer flex flex-col items-center justify-center gap-4 p-8 h-[140px] md:flex-col md:justify-center md:px-8 md:h-[140px] h-[100px] flex-row justify-start px-6 rounded-2xl transition-all duration-[400ms] ease-card shadow-purple-glow hover:shadow-purple-glow/70"
+  type="button"
+>
+  <div
+    class="text-6xl md:text-6xl text-5xl text-accent-purple-glow [text-shadow:0_0_15px_rgba(157,0,255,0.5)] transition-all duration-300 ease-icon group-hover:scale-120 group-hover:rotate-[5deg] md:mb-0"
+  >
+    <span>
+      ✨
+    </span>
+  </div>
+  <h3
+    class="text-center text-xl font-semibold text-white"
+  >
+    Test
+  </h3>
+</button>
+`;

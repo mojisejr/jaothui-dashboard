@@ -1,3 +1,156 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ===================================
+   🎨 Design Tokens - CSS Variables
+   =================================== */
+
+@layer base {
+  :root {
+    /* Color Tokens */
+    --primary-orange: #FF8C00;
+    --primary-orange-glow: #FFA500;
+    --accent-purple: #9D00FF;
+    --accent-purple-glow: #B847FF;
+    --bg-dark: #0f0f11;
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-highlight: rgba(255, 255, 255, 0.15);
+    --text-main: #ffffff;
+    --text-muted: rgba(255, 255, 255, 0.6);
+  }
+
+  /* Global Typography */
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-dark text-text-main;
+    font-family: 'Kanit', 'Inter', sans-serif;
+  }
+}
+
+/* ===================================
+   🌟 Glassmorphism Utility Classes
+   =================================== */
+
+@layer components {
+  /* Glass Card */
+  .glass-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Glass Header */
+  .glass-header {
+    background: rgba(20, 20, 20, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  }
+
+  /* Ambient Orb Background */
+  .ambient-orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(100px);
+    z-index: -1;
+    opacity: 0.6;
+    animation: float 10s ease-in-out infinite alternate;
+  }
+
+  /* Orange Orb */
+  .ambient-orb-orange {
+    @apply ambient-orb;
+    background: radial-gradient(circle, var(--primary-orange), transparent);
+  }
+
+  /* Purple Orb */
+  .ambient-orb-purple {
+    @apply ambient-orb;
+    background: radial-gradient(circle, var(--accent-purple), transparent);
+  }
+
+  /* Red Orb (Accent) */
+  .ambient-orb-red {
+    @apply ambient-orb;
+    background: radial-gradient(circle, #ff4500, transparent);
+    opacity: 0.3;
+  }
+}
+
+/* ===================================
+   🎬 Animations & Keyframes
+   =================================== */
+
+@layer utilities {
+  /* Float Animation */
+  @keyframes float {
+    0% {
+      transform: translate(0, 0);
+    }
+    100% {
+      transform: translate(30px, 50px);
+    }
+  }
+
+  /* Ripple Effect */
+  @keyframes ripple {
+    to {
+      transform: scale(4);
+      opacity: 0;
+    }
+  }
+
+  /* Delayed Float Animation (for orb-2) */
+  .animate-float-delayed {
+    animation: float 10s ease-in-out infinite alternate;
+    animation-delay: -5s;
+  }
+
+  /* Ripple Span Element */
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    width: 20px;
+    height: 20px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    animation: ripple 600ms ease-out;
+  }
+}
+
+/* ===================================
+   🔧 Custom Utilities
+   =================================== */
+
+@layer utilities {
+  /* Text Shadow for Icon Glow */
+  .text-shadow-orange {
+    text-shadow: 0 0 15px rgba(255, 140, 0, 0.5);
+  }
+
+  .text-shadow-purple {
+    text-shadow: 0 0 15px rgba(157, 0, 255, 0.5);
+  }
+
+  /* 3D Perspective Container */
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  /* Smooth Font Rendering */
+  .font-smooth {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+

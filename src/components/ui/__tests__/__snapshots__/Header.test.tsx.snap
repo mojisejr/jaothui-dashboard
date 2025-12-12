@@ -1,0 +1,59 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Header should match snapshot 1`] = `
+<header
+  class="glass-header sticky top-5 z-50 mx-5 w-auto rounded-3xl px-6 py-4"
+>
+  <nav
+    class="mx-auto flex max-w-7xl items-center justify-between"
+  >
+    <div
+      class="flex items-center gap-3"
+    >
+      <svg
+        aria-hidden="true"
+        class="text-3xl text-orange-400"
+        fill="currentColor"
+        height="1em"
+        stroke="currentColor"
+        stroke-width="0"
+        viewBox="0 0 24 24"
+        width="1em"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M17.841 15.659L18.017 15.836L18.1945 15.659C19.0732 14.7803 20.4978 14.7803 21.3765 15.659C22.2552 16.5377 22.2552 17.9623 21.3765 18.841L18.0178 22.1997L14.659 18.841C13.7803 17.9623 13.7803 16.5377 14.659 15.659C15.5377 14.7803 16.9623 14.7803 17.841 15.659ZM12 14V22H4C4 17.6651 7.44784 14.1355 11.7508 14.0038L12 14ZM12 1C15.315 1 18 3.685 18 7C18 10.315 15.315 13 12 13C8.685 13 6 10.315 6 7C6 3.685 8.685 1 12 1Z"
+        />
+      </svg>
+      <h1
+        class="text-xl font-bold text-white"
+      >
+        Jaothui Dashboard
+      </h1>
+    </div>
+    <button
+      class="flex items-center gap-2 rounded-xl bg-red-500/20 px-4 py-2 text-white transition-all duration-300 hover:bg-red-500/30 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-500/50"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        class="text-xl"
+        fill="currentColor"
+        height="1em"
+        stroke="currentColor"
+        stroke-width="0"
+        viewBox="0 0 512 512"
+        width="1em"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M160 256a16 16 0 0 1 16-16h144V136c0-32-33.79-56-64-56H104a56.06 56.06 0 0 0-56 56v240a56.06 56.06 0 0 0 56 56h160a56.06 56.06 0 0 0 56-56V272H176a16 16 0 0 1-16-16zm299.31-11.31-80-80a16 16 0 0 0-22.62 22.62L409.37 240H320v32h89.37l-52.68 52.69a16 16 0 1 0 22.62 22.62l80-80a16 16 0 0 0 0-22.62z"
+        />
+      </svg>
+      <span>
+        Logout
+      </span>
+    </button>
+  </nav>
+</header>
+`;
