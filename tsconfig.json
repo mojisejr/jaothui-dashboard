@@ -36,7 +36,14 @@
     "**/*.tsx",
     "**/*.cjs",
     "**/*.js",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "**/__tests__/**/*.ts",
+    "**/__tests__/**/*.tsx",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "__tests__/**/*"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "coverage", ".next", "jest.config.cjs", "jest.setup.cjs"]
 }
