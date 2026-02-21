@@ -5,6 +5,7 @@ import { sanityClient } from "~/server/sanity";
 import { utils, write } from "xlsx";
 import dayjs from "dayjs";
 import archiver from "archiver";
+import { calculateAgeInMonthsCeiling } from "~/utils/age-calculator";
 import {
   generateDocxZipBundle,
   type EventRegisterData as DocxEventRegisterData,
@@ -43,6 +44,7 @@ export interface EventRegisterData {
   mother: string;
   event: {
     title: string;
+    eventAt?: string;
   };
 }
 
@@ -115,7 +117,10 @@ const groupEventData = (eventData: EventRegisterData[]): GroupedData[] => {
 };
 
 // Task 3: Hierarchical sheet creation function
-const createHierarchicalSheet = (group: GroupedData) => {
+const createHierarchicalSheet = (
+  group: GroupedData,
+  exportReferenceDate?: string,
+) => {
   const sheetData: any[] = [];
   
   // Row 1: Competition Type (merged A1:I1)
@@ -145,13 +150,12 @@ const createHierarchicalSheet = (group: GroupedData) => {
     sheetData.push(['ไม่มีข้อมูล', '', '', '', '', '', '', '', '']);
   } else {
     group.buffaloes.forEach((buffalo, index) => {
-      // Calculate age in months from birthday
-      let ageInMonths = buffalo.buffaloAge || 0;
-      if (buffalo.birthday) {
-        const birthDate = dayjs(buffalo.birthday);
-        const currentDate = dayjs();
-        ageInMonths = currentDate.diff(birthDate, 'months');
-      }
+      // Priority: locked registration age from data source (prevents floating age).
+      // Fallback: calculate with ceiling logic using event reference date.
+      const ageInMonths =
+        buffalo.buffaloAge > 0
+          ? buffalo.buffaloAge
+          : calculateAgeInMonthsCeiling(buffalo.birthday, exportReferenceDate);
       
       sheetData.push([
         index + 1,
@@ -400,7 +404,7 @@ export const sanityRouter = createTRPCRouter({
             birthday,
             "father": fatherName,
             "mother": motherName,
-            "event": event->{title}
+            "event": event->{title, eventAt}
           }`
         );
 
@@ -418,6 +422,8 @@ export const sanityRouter = createTRPCRouter({
             data: null,
           };
         }
+
+        const exportReferenceDate = eventData[0]?.event?.eventAt;
 
         // Task 4 & 5: Multi-sheet Excel generation
         // Group data by Type-Color-Sex combinations
@@ -468,7 +474,7 @@ export const sanityRouter = createTRPCRouter({
           usedSheetNames.add(finalSheetName);
           
           // Create hierarchical sheet
-          const ws = createHierarchicalSheet(group);
+          const ws = createHierarchicalSheet(group, exportReferenceDate);
           
           // Add sheet to workbook
           utils.book_append_sheet(wb, ws, finalSheetName);
@@ -536,7 +542,7 @@ export const sanityRouter = createTRPCRouter({
             birthday,
             "father": fatherName,
             "mother": motherName,
-            "event": event->{title}
+            "event": event->{title, eventAt}
           }`
         );
 

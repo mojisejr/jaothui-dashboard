@@ -1,38 +1,73 @@
+const toValidDate = (dateInput: string | Date | undefined): Date | null => {
+  if (!dateInput) return null;
+
+  const parsedDate = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (isNaN(parsedDate.getTime())) {
+    console.warn("Invalid date input:", dateInput);
+    return null;
+  }
+
+  return parsedDate;
+};
+
 /**
- * Calculate age in months from a birthday string
- * @param birthday - Birthday string in format that can be parsed by Date constructor
+ * Calculate age in months from birthday (rounded down / full months only).
+ * @param birthday - Birthday in date-like string format
+ * @param referenceDateInput - Optional reference date (default: now)
  * @returns Age in months (rounded down)
  */
-export const calculateAgeInMonths = (birthday: string | undefined): number => {
-  if (!birthday) return 0;
+export const calculateAgeInMonths = (
+  birthday: string | undefined,
+  referenceDateInput?: string | Date,
+): number => {
+  const birthDate = toValidDate(birthday);
+  const referenceDate = toValidDate(referenceDateInput ?? new Date());
 
-  try {
-    const birthDate = new Date(birthday);
-    const today = new Date();
-    
-    // Check if the date is valid
-    if (isNaN(birthDate.getTime())) {
-      console.warn("Invalid birthday date:", birthday);
-      return 0;
-    }
+  if (!birthDate || !referenceDate) return 0;
 
-    const years = today.getFullYear() - birthDate.getFullYear();
-    const months = today.getMonth() - birthDate.getMonth();
-    
-    // Total months = (years * 12) + months difference
-    let totalMonths = years * 12 + months;
-    
-    // Adjust for day difference if current day is before birthday day in the month
-    if (today.getDate() < birthDate.getDate()) {
-      totalMonths -= 1;
-    }
-    
-    // Ensure we don't return negative age
-    return Math.max(0, totalMonths);
-  } catch (error) {
-    console.error("Error calculating age:", error);
-    return 0;
+  const years = referenceDate.getFullYear() - birthDate.getFullYear();
+  const months = referenceDate.getMonth() - birthDate.getMonth();
+
+  // Total months = (years * 12) + months difference
+  let totalMonths = years * 12 + months;
+
+  // Adjust for day difference if reference day is before birthday day in the month
+  if (referenceDate.getDate() < birthDate.getDate()) {
+    totalMonths -= 1;
   }
+
+  // Ensure non-negative age
+  return Math.max(0, totalMonths);
+};
+
+/**
+ * Calculate age in months from birthday (rounded up when there are remainder days).
+ * This mirrors FormV3 behavior in registration flow:
+ * - full months + 0 day remainder => keep value
+ * - full months + 1+ day remainder => +1 month
+ * @param birthday - Birthday in date-like string format
+ * @param referenceDateInput - Optional reference date (default: now)
+ * @returns Age in months (ceiling behavior)
+ */
+export const calculateAgeInMonthsCeiling = (
+  birthday: string | undefined,
+  referenceDateInput?: string | Date,
+): number => {
+  const birthDate = toValidDate(birthday);
+  const referenceDate = toValidDate(referenceDateInput ?? new Date());
+
+  if (!birthDate || !referenceDate) return 0;
+
+  const floorMonths = calculateAgeInMonths(birthday, referenceDate);
+
+  const monthAnchor = new Date(birthDate);
+  monthAnchor.setMonth(monthAnchor.getMonth() + floorMonths);
+
+  if (referenceDate.getTime() > monthAnchor.getTime()) {
+    return floorMonths + 1;
+  }
+
+  return floorMonths;
 };
 
 /**
