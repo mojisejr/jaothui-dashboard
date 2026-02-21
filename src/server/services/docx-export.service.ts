@@ -14,6 +14,7 @@ import {
 } from "docx";
 import archiver from "archiver";
 import dayjs from "dayjs";
+import { calculateAgeInMonthsCeiling } from "~/utils/age-calculator";
 
 /**
  * Interface for event registration data used in DOCX export
@@ -33,6 +34,7 @@ export interface EventRegisterData {
   mother: string;
   event: {
     title: string;
+    eventAt?: string;
   };
 }
 
@@ -67,18 +69,6 @@ const mapColorToThai = (color: string): string => {
 const mapSexToThai = (sex: string): string => {
   const lowerSex = sex.toLowerCase();
   return thaiFieldMapping.sex[lowerSex as keyof typeof thaiFieldMapping.sex] ?? sex;
-};
-
-/**
- * Calculate age in months from birthday
- */
-const calculateAgeInMonths = (birthday: string, buffaloAge?: number): number => {
-  if (birthday) {
-    const birthDate = dayjs(birthday);
-    const currentDate = dayjs();
-    return currentDate.diff(birthDate, "months");
-  }
-  return buffaloAge ?? 0;
 };
 
 /**
@@ -122,7 +112,10 @@ export const generateBuffaloRegistrationDoc = async (
   // Map fields to Thai
   const colorThai = mapColorToThai(data.color);
   const sexThai = mapSexToThai(data.sex);
-  const ageInMonths = calculateAgeInMonths(data.birthday, data.buffaloAge);
+  const ageInMonths =
+    data.buffaloAge && data.buffaloAge > 0
+      ? data.buffaloAge
+      : calculateAgeInMonthsCeiling(data.birthday, data.event?.eventAt);
   const birthdayFormatted = data.birthday
     ? dayjs(data.birthday).format("DD/MM/YYYY")
     : "-";
