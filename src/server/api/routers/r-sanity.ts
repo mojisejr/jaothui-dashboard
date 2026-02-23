@@ -20,6 +20,7 @@ export interface ExportRowData {
   พ่อ: string;
   แม่: string;
   ชื่อฟาร์ม: string;
+  ชื่อเจ้าของ: string;
   เบอร์โทรศัพท์: string;
 }
 
@@ -31,6 +32,7 @@ export interface SanityEvent {
 
 export interface EventRegisterData {
   ownerName: string;
+  farmName: string;
   ownerTel: string;
   microchip: string;
   name: string;
@@ -123,14 +125,14 @@ const createHierarchicalSheet = (
 ) => {
   const sheetData: any[] = [];
   
-  // Row 1: Competition Type (merged A1:I1)
-  sheetData.push([`ประเภทการแข่งขัน: ${group.type}`, '', '', '', '', '', '', '', '']);
+  // Row 1: Competition Type (merged A1:J1)
+  sheetData.push([`ประเภทการแข่งขัน: ${group.type}`, '', '', '', '', '', '', '', '', '']);
   
-  // Row 2: Buffalo Color (merged A2:I2)
-  sheetData.push([`สีควาย: ${group.color}`, '', '', '', '', '', '', '', '']);
+  // Row 2: Buffalo Color (merged A2:J2)
+  sheetData.push([`สีควาย: ${group.color}`, '', '', '', '', '', '', '', '', '']);
   
-  // Row 3: Sex (merged A3:I3)
-  sheetData.push([`เพศ: ${group.sex}`, '', '', '', '', '', '', '', '']);
+  // Row 3: Sex (merged A3:J3)
+  sheetData.push([`เพศ: ${group.sex}`, '', '', '', '', '', '', '', '', '']);
   
   // Row 4: Data headers
   sheetData.push([
@@ -142,12 +144,13 @@ const createHierarchicalSheet = (
     'พ่อ',
     'แม่',
     'ชื่อฟาร์ม',
+    'ชื่อเจ้าของ',
     'เบอร์โทรศัพท์'
   ]);
   
   // Row 5+: Buffalo data or "ไม่มีข้อมูล"
   if (group.buffaloes.length === 0) {
-    sheetData.push(['ไม่มีข้อมูล', '', '', '', '', '', '', '', '']);
+    sheetData.push(['ไม่มีข้อมูล', '', '', '', '', '', '', '', '', '']);
   } else {
     group.buffaloes.forEach((buffalo, index) => {
       // Priority: locked registration age from data source (prevents floating age).
@@ -165,6 +168,7 @@ const createHierarchicalSheet = (
         ageInMonths,
         buffalo.father || '',
         buffalo.mother || '',
+        buffalo.farmName || '',
         buffalo.ownerName || '',
         buffalo.ownerTel || ''
       ]);
@@ -176,9 +180,9 @@ const createHierarchicalSheet = (
   
   // Apply cell merging for hierarchical headers
   ws['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }, // Row 1 (Type)
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } }, // Row 2 (Color)
-    { s: { r: 2, c: 0 }, e: { r: 2, c: 8 } }, // Row 3 (Sex)
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } }, // Row 1 (Type)
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } }, // Row 2 (Color)
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 9 } }, // Row 3 (Sex)
   ];
   
   // Apply bold formatting to headers (rows 1-4)
@@ -393,6 +397,7 @@ export const sanityRouter = createTRPCRouter({
         const eventData = await sanityClient.fetch(
           `*[_type == "eventRegister" && event._ref == "${input.eventId}"]{
             ownerName,
+            farmName,
             ownerTel,
             microchip,
             name,
