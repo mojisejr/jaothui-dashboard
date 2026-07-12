@@ -14,6 +14,8 @@ export const env = createEnv({
     SANITY_PROJECT_ID: z.string().optional(),
     SANITY_DATASET: z.string().default("production"),
     SANITY_API_TOKEN: z.string().optional(),
+    JAOTHUI_NEWS_ADMIN_API_BASE_URL: z.string().url().optional(),
+    JAOTHUI_NEWS_ADMIN_API_KEY: z.string().optional(),
   },
 
   /**
@@ -35,6 +37,9 @@ export const env = createEnv({
     SANITY_PROJECT_ID: process.env.SANITY_PROJECT_ID,
     SANITY_DATASET: process.env.SANITY_DATASET,
     SANITY_API_TOKEN: process.env.SANITY_API_TOKEN,
+    JAOTHUI_NEWS_ADMIN_API_BASE_URL:
+      process.env.JAOTHUI_NEWS_ADMIN_API_BASE_URL,
+    JAOTHUI_NEWS_ADMIN_API_KEY: process.env.JAOTHUI_NEWS_ADMIN_API_KEY,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },
   /**

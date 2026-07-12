@@ -6,7 +6,8 @@ import {
   Trophy,
   Dna,
   Export,
-  FileLock
+  FileLock,
+  NewspaperClipping
 } from "@phosphor-icons/react";
 import Header from "~/components/ui/Header";
 import DashboardCard from "~/components/ui/DashboardCard";
@@ -67,6 +68,12 @@ const Dashboard = () => {
               icon={<FileLock weight="duotone" />}
               href="/dashboard/certificate-approvment"
               variant="orange"
+            />
+            <DashboardCard
+              title="จัดการข่าวสาร"
+              icon={<NewspaperClipping weight="duotone" />}
+              href="/dashboard/news-events"
+              variant="purple"
             />
           </CardGrid>
         </div>
