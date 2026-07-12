@@ -8,6 +8,7 @@ import { rewardRouter } from "./routers/r-reward";
 import { dnaRouter } from "./routers/r-dna";
 import { certRouter } from "./routers/r-certificate";
 import { sanityRouter } from "./routers/r-sanity";
+import { newsEventsRouter } from "./routers/r-news-events";
 
 /**
  * This is the primary router for your server.
@@ -24,6 +25,7 @@ export const appRouter = createTRPCRouter({
   dna: dnaRouter,
   cert: certRouter,
   sanity: sanityRouter,
+  newsEvents: newsEventsRouter,
 });
 
 // export type definition of API
