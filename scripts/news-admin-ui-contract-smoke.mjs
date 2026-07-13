@@ -12,6 +12,10 @@ const dashboardSource = fs.readFileSync(
 );
 const pagePath = path.join(root, "src/pages/dashboard/news-events/index.tsx");
 const pageSource = fs.readFileSync(pagePath, "utf8");
+const trpcRouteSource = fs.readFileSync(
+  path.join(root, "src/pages/api/trpc/[trpc].ts"),
+  "utf8"
+);
 
 assert.match(
   dashboardSource,
@@ -50,6 +54,17 @@ for (const control of [
 ]) {
   assert.match(pageSource, new RegExp(control), `missing UI control: ${control}`);
 }
+
+assert.match(
+  pageSource,
+  /MAX_COVER_UPLOAD_BYTES\s*=\s*4\s*\*\s*1024\s*\*\s*1024/,
+  "news/events page must guard cover uploads at 4MB before base64 conversion"
+);
+assert.match(
+  trpcRouteSource,
+  /sizeLimit:\s*"8mb"/,
+  "tRPC route must allow base64 cover uploads above Next.js default 1MB body limit"
+);
 
 assert.doesNotMatch(
   pageSource,
