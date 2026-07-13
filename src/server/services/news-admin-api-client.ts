@@ -74,10 +74,20 @@ const newsEventAdminUploadCoverResponseSchema = z.object({
   }),
 });
 
+const MAX_NEWS_EVENT_COVER_BYTES = 4 * 1024 * 1024;
+const MAX_NEWS_EVENT_COVER_BASE64_LENGTH =
+  Math.ceil(MAX_NEWS_EVENT_COVER_BYTES / 3) * 4;
+
 export const uploadNewsEventCoverInputSchema = z.object({
   filename: z.string().min(1).max(180),
   contentType: z.string().startsWith("image/"),
-  base64: z.string().min(1),
+  base64: z
+    .string()
+    .min(1)
+    .max(
+      MAX_NEWS_EVENT_COVER_BASE64_LENGTH,
+      "Cover image must be 4MB or smaller",
+    ),
 });
 
 export type NewsEventAdminItem = z.infer<typeof newsEventAdminItemSchema>;

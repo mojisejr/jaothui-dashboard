@@ -24,6 +24,8 @@ type NewsEventFormInput = RouterInputs["newsEvents"]["create"];
 type StatusFilter = "all" | NewsEventItem["status"];
 type TypeFilter = "all" | NewsEventItem["type"];
 
+const MAX_COVER_UPLOAD_BYTES = 4 * 1024 * 1024;
+
 interface FormState {
   id?: string;
   title: string;
@@ -281,6 +283,12 @@ export default function NewsEventsAdminPage() {
 
   const handleCoverUpload = async (file: File | undefined) => {
     if (!file) return;
+
+    if (file.size > MAX_COVER_UPLOAD_BYTES) {
+      toast.error("รูปปกต้องไม่เกิน 4MB");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
     try {
       const base64 = await readFileAsBase64(file);
