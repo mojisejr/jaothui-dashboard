@@ -14,6 +14,8 @@ export const env = createEnv({
     SANITY_PROJECT_ID: z.string().optional(),
     SANITY_DATASET: z.string().default("production"),
     SANITY_API_TOKEN: z.string().optional(),
+    JAOTHUI_COMPETITION_ADMIN_API_BASE_URL: z.string().url().optional(),
+    JAOTHUI_COMPETITION_ADMIN_API_KEY: z.string().optional(),
     JAOTHUI_NEWS_ADMIN_API_BASE_URL: z.string().url().optional(),
     JAOTHUI_NEWS_ADMIN_API_KEY: z.string().optional(),
   },
@@ -32,6 +34,8 @@ export const env = createEnv({
    * middlewares) or client-side so we need to destruct manually.
    */
   runtimeEnv: {
+    JAOTHUI_COMPETITION_ADMIN_API_BASE_URL: process.env.JAOTHUI_COMPETITION_ADMIN_API_BASE_URL,
+    JAOTHUI_COMPETITION_ADMIN_API_KEY: process.env.JAOTHUI_COMPETITION_ADMIN_API_KEY,
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
     SANITY_PROJECT_ID: process.env.SANITY_PROJECT_ID,

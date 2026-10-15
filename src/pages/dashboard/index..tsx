@@ -27,6 +27,7 @@ const Dashboard = () => {
           </h2>
           
           <CardGrid>
+            <DashboardCard title="จัดการการแข่งขัน" icon={<Trophy weight="duotone" />} href="/dashboard/competitions" variant="orange" />
             <DashboardCard
               title="เพิ่มข้อมูลควาย"
               icon={<Cow weight="duotone" />}

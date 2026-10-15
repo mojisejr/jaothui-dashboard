@@ -366,7 +366,7 @@ export const sanityRouter = createTRPCRouter({
   getEventsForExport: protectProcedure.query(async () => {
     try {
       const events = await sanityClient.fetch(
-        `*[_type == "event"]{
+        `*[_type == "event" && !(_id in path("drafts.**")) && (!defined(competitionState) || competitionState != "draft")]{
           _id,
           title,
           _type
