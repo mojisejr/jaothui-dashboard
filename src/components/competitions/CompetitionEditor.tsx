@@ -14,7 +14,7 @@ import {
   type CompetitionInput,
   type Impact,
 } from "~/lib/competitions";
-import { Status, Alert, button, primary, control } from "./Workspace";
+import { Status, Alert, button, primary, control, EventNav } from "./Workspace";
 import { ClassCatalogEditor } from "./ClassCatalogEditor";
 import { ClassAgeTester } from "./ClassAgeTester";
 import { validateCompetitionCatalog } from "~/lib/competition-classes";
@@ -401,6 +401,7 @@ export function CompetitionEditor({ existing }: { existing?: Competition }) {
   }
   return (
     <div className="space-y-6">
+      {event ? <EventNav event={event} active="settings" /> : null}
       <div className="flex flex-wrap gap-3">
         <Link className={button} href="/dashboard/competitions">
           กลับรายการงาน

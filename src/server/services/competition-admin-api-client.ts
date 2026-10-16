@@ -8,6 +8,14 @@ import {
   type CompetitionInput,
   type CompetitionFilters,
 } from "~/lib/competitions";
+import {
+  applicationSchema,
+  applicationsResponseSchema,
+  metadataSchema,
+  exportDataSchema,
+  type ApplicationFilters,
+  type OnsiteRegistration,
+} from "~/lib/competition-applications";
 export class CompetitionApiError extends Error {
   constructor(
     public status: number,
@@ -19,7 +27,7 @@ export class CompetitionApiError extends Error {
 }
 export function toCompetitionTRPCError(error: unknown): TRPCError {
   if (error instanceof TRPCError) return error;
-  const e = error as { status?: number; message?: string };
+  const e = error as { status?: number; code?: string; message?: string };
   const code =
     e.status === 409
       ? "CONFLICT"
@@ -33,9 +41,9 @@ export function toCompetitionTRPCError(error: unknown): TRPCError {
   return new TRPCError({
     code,
     message:
-      code === "CONFLICT"
+      code === "CONFLICT" && (!e.code || e.code === "REVISION_CONFLICT")
         ? "ข้อมูลถูกแก้ไขแล้ว กรุณาโหลดข้อมูลล่าสุดก่อนลองใหม่"
-        : code === "BAD_GATEWAY"
+        : code === "BAD_GATEWAY" && e.code !== "NOTIFICATION_DISABLED"
           ? "ติดต่อระบบการแข่งขันไม่สำเร็จ กรุณาลองอีกครั้ง"
           : (e.message ?? "ดำเนินการไม่สำเร็จ"),
   });
@@ -44,7 +52,7 @@ async function request<T>(
   path: string,
   schema: z.ZodType<T, z.ZodTypeDef, unknown>,
   init: RequestInit = {},
-  query?: CompetitionFilters,
+  query?: Record<string, string | number | undefined>,
 ): Promise<T> {
   if (
     !env.JAOTHUI_COMPETITION_ADMIN_API_BASE_URL ||
@@ -136,6 +144,65 @@ export const competitionAdminApiClient = {
       competitionSchema,
       json("POST", body),
     ),
+  applications: (id: string, query: ApplicationFilters) =>
+    request(
+      `/${encodeURIComponent(id)}/applications`,
+      applicationsResponseSchema,
+      {},
+      query,
+    ),
+  application: (id: string, registrationId: string) =>
+    request(
+      `/${encodeURIComponent(id)}/applications/${encodeURIComponent(registrationId)}`,
+      applicationSchema,
+    ),
+  approval: (
+    id: string,
+    registrationId: string,
+    body: {
+      operationId: string;
+      expectedRevision: string;
+      result: boolean;
+      comment: string;
+    },
+  ) =>
+    request(
+      `/${encodeURIComponent(id)}/applications/${encodeURIComponent(registrationId)}/approval`,
+      applicationSchema,
+      json("POST", body),
+    ),
+  retryNotification: (
+    id: string,
+    registrationId: string,
+    body: { operationId: string; expectedRevision: string },
+  ) =>
+    request(
+      `/${encodeURIComponent(id)}/applications/${encodeURIComponent(registrationId)}/retry-notification`,
+      applicationSchema,
+      json("POST", body),
+    ),
+  metadata: (id: string, microchip: string) =>
+    request(
+      `/${encodeURIComponent(id)}/metadata`,
+      metadataSchema,
+      {},
+      { microchip },
+    ),
+  onsite: (
+    id: string,
+    body: {
+      operationId: string;
+      expectedRevision: string;
+      registration: OnsiteRegistration;
+    },
+  ) =>
+    request(
+      `/${encodeURIComponent(id)}/onsite`,
+      applicationSchema,
+      json("POST", body),
+    ),
+  exportData: (id: string) =>
+    request(`/${encodeURIComponent(id)}/export`, exportDataSchema),
   upload: (bytes: Buffer, type: string, name: string) =>
     request("/cover", z.object({ assetId: z.string(), url: z.string() }), {
       method: "POST",

@@ -20,14 +20,12 @@ afterEach(() => {
   global.fetch = originalFetch;
 });
 it("composes list filters and authenticates only with the server key", async () => {
-  const mock = jest
-    .fn()
-    .mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        data: { items: [], total: 0, page: 2, pageSize: 20, counts: {} },
-      }),
-    });
+  const mock = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      data: { items: [], total: 0, page: 2, pageSize: 20, counts: {} },
+    }),
+  });
   global.fetch = mock as unknown as typeof fetch;
   await competitionAdminApiClient.list({
     search: "งาน",
@@ -45,15 +43,13 @@ it("composes list filters and authenticates only with the server key", async () 
   );
 });
 it("preserves operation ID and expected revision when retrying a write", async () => {
-  const mock = jest
-    .fn()
-    .mockResolvedValue({
-      ok: false,
-      status: 409,
-      json: async () => ({
-        error: { code: "REVISION_CONFLICT", message: "ข้อมูลเปลี่ยนแล้ว" },
-      }),
-    });
+  const mock = jest.fn().mockResolvedValue({
+    ok: false,
+    status: 409,
+    json: async () => ({
+      error: { code: "REVISION_CONFLICT", message: "ข้อมูลเปลี่ยนแล้ว" },
+    }),
+  });
   global.fetch = mock as unknown as typeof fetch;
   await expect(
     competitionAdminApiClient.action("event.one", "publish", {
@@ -71,4 +67,80 @@ it("maps conflicts to actionable safe errors", () => {
   expect(toCompetitionTRPCError({ status: 409, message: "ใหม่" }).code).toBe(
     "CONFLICT",
   );
+});
+it("composes event-scoped application filters without dropping status or level", async () => {
+  const mock = jest
+    .fn()
+    .mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          items: [],
+          total: 0,
+          page: 2,
+          pageSize: 20,
+          counts: { total: 4, pending: 2, accepted: 1, rejected: 1 },
+          facets: { types: [], levels: [], sexes: [], colors: [] },
+        },
+      }),
+    });
+  global.fetch = mock as unknown as typeof fetch;
+  await competitionAdminApiClient.applications("event.one", {
+    search: "เจ้าทุย",
+    status: "pending",
+    type: "รุ่นพิเศษ",
+    level: "province",
+    sex: "ผู้",
+    color: "ดำ",
+    page: 2,
+    pageSize: 20,
+  });
+  const [url, init] = mock.mock.calls[0] as [URL, RequestInit];
+  expect(url.pathname).toBe("/api/admin/competitions/event.one/applications");
+  expect(Object.fromEntries(url.searchParams)).toEqual({
+    search: "เจ้าทุย",
+    status: "pending",
+    type: "รุ่นพิเศษ",
+    level: "province",
+    sex: "ผู้",
+    color: "ดำ",
+    page: "2",
+    pageSize: "20",
+  });
+  expect(new Headers(init.headers).get("Authorization")).toBe(
+    "Bearer server-only",
+  );
+});
+it("forwards notification retry with approval revision and does not call approval endpoint", async () => {
+  const mock = jest
+    .fn()
+    .mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { _id: "entry1", _rev: "entry-rev" } }),
+    });
+  global.fetch = mock as unknown as typeof fetch;
+  const body = {
+    operationId: "09e811fa-e610-43a1-bfca-43294bfd33d7",
+    expectedRevision: "approval-rev",
+  };
+  await competitionAdminApiClient.retryNotification(
+    "event.one",
+    "entry1",
+    body,
+  );
+  const [url, init] = mock.mock.calls[0] as [URL, RequestInit];
+  expect(url.pathname).toBe(
+    "/api/admin/competitions/event.one/applications/entry1/retry-notification",
+  );
+  expect(JSON.parse(init.body as string)).toEqual(body);
+  expect(mock).toHaveBeenCalledTimes(1);
+});
+it("retains a useful duplicate warning rather than reporting every conflict as a stale revision", () => {
+  expect(
+    toCompetitionTRPCError({
+      status: 409,
+      code: "DUPLICATE_MICROCHIP",
+      message: "มีเลขไมโครชิพนี้แล้ว ต้องระบุเหตุผลการลงทะเบียนซ้ำ",
+    }).message,
+  ).toContain("ไมโครชิพ");
 });

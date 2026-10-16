@@ -76,3 +76,39 @@ export function Alert({
     </p>
   );
 }
+
+export function EventNav({
+  event,
+  active,
+}: {
+  event: Competition;
+  active: "settings" | "applications" | "onsite" | "export";
+}) {
+  const base = `/dashboard/competitions/${encodeURIComponent(event._id)}`;
+  const links = [
+    { key: "settings", title: "ตั้งค่างาน", href: base },
+    { key: "applications", title: "ใบสมัคร", href: `${base}/applications` },
+    { key: "onsite", title: "ลงทะเบียนหน้างาน", href: `${base}/onsite` },
+    { key: "export", title: "ส่งออกข้อมูล", href: `${base}/export` },
+  ];
+  return (
+    <section className="glass-card min-w-0 space-y-4 rounded-3xl p-5">
+      <h2 className="break-words text-xl font-semibold">{event.title}</h2>
+      <nav aria-label="เมนูงานแข่งขัน" className="flex flex-wrap gap-3">
+        {links.map((link) => (
+          <Link
+            key={link.key}
+            href={link.href}
+            aria-current={active === link.key ? "page" : undefined}
+            className={active === link.key ? primary : button}
+          >
+            {link.title}
+          </Link>
+        ))}
+      </nav>
+      <p className="text-sm text-text-muted">
+        บัญชีทีมงานร่วม • ใบสมัคร {event.registrationCount} รายการ
+      </p>
+    </section>
+  );
+}
