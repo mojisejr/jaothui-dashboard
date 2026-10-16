@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { validateCompetitionCatalog } from "./competition-classes";
 const day = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -6,10 +7,7 @@ const day = z
     const d = new Date(`${v}T00:00:00Z`);
     return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === v;
   }, "วันที่ไม่ถูกต้อง");
-const catalog = z
-  .array(z.string().trim().min(1).max(300))
-  .max(200)
-  .refine((v) => new Set(v).size === v.length, "มีชื่อรุ่นซ้ำ");
+const catalog = z.array(z.string().min(1).max(2000)).max(200);
 export const competitionInputSchema = z
   .object({
     title: z.string().trim().min(1, "กรุณาระบุชื่องาน").max(300),
@@ -52,6 +50,20 @@ export const competitionInputSchema = z
         message: "วันปิดรับสมัครต้องไม่หลังวันจบงาน",
       });
   });
+// Updates preserve untouched legacy strings; source authority validates changed arrays.
+export const competitionCreateInputSchema = competitionInputSchema.superRefine(
+  (input, context) => {
+    for (const level of ["national", "province"] as const) {
+      for (const message of validateCompetitionCatalog(input.catalogs[level])) {
+        context.addIssue({
+          code: "custom",
+          path: ["catalogs", level],
+          message,
+        });
+      }
+    }
+  },
+);
 export const listSchema = z.object({
   search: z.string().max(300).default(""),
   startFrom: day.optional(),

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectProcedure } from "~/server/api/trpc";
 import {
   competitionInputSchema,
+  competitionCreateInputSchema,
   listSchema,
   mutationSchema,
   reviewSchema,
@@ -33,7 +34,7 @@ export const competitionsRouter = createTRPCRouter({
     .input(
       z.object({
         operationId: z.string().uuid(),
-        input: competitionInputSchema,
+        input: competitionCreateInputSchema,
       }),
     )
     .mutation(({ input }) => safe(() => client.create(input))),

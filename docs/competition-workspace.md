@@ -13,7 +13,7 @@ identify individual staff or authenticate a named rule reviewer.
   Event status and registration status are separate; inspect historical-data
   warnings before editing an older event.
 - Create a draft, upload a cover, enter event details and dates, and copy/edit
-  national or provincial class catalogs. Save the draft before publishing.
+  the class list using one row per class. New events use the single “รุ่นแข่งขัน” list (national-backed storage); provincial rows appear only when older data already has them. Save the draft before publishing.
   Copying an event copies configuration and classes, not applicants.
 - Publishing makes a valid event visible in the public app. Manual registration
   closure stops public applications while staff eligibility continues until the
@@ -29,6 +29,33 @@ identify individual staff or authenticate a named rule reviewer.
 - If another write changed the event, reload the latest data and review the
   changes before retrying. Failed validation preserves entered values. Confirm
   leaving a page with unsaved edits only when those edits can be discarded.
+
+## Build competition classes
+
+Use “เพิ่มรุ่น”, select an optional group, and choose age or special eligibility.
+Set minimum and/or inclusive maximum in months. The minimum can mean “ตั้งแต่”
+(inclusive) or “มากกว่า” (exclusive). Age classes require at least one bound;
+special classes can omit both. Generated names follow the group and range;
+choose a custom display name for teeth categories or other organizer wording.
+Copy a row to create the next range, then change its name/rules: duplicate display
+names are blocked even when the underlying rules differ. Delete unwanted rows.
+
+Use the birthday tester after selecting the event's buffalo age cutoff. It uses
+the existing ceiling-month convention: 9 months 1 day means 10 months; 12 months
+exactly does not qualify for a >12 range. Younger buffalo cannot enter a higher
+range. Royal albino keeps its existing one-day birthday adjustment, shown in
+the tester. Neither registration closing date nor today's date sets age.
+
+For special classes, optional age bounds still apply automatically. Teeth,
+mother-with-calf and other non-age criteria remain staff checks; a calf's age is
+not the mother's age. Staff enter a readable name/criteria, never JSON or `[SP]`.
+
+Sanity schemas remain unchanged. Versioned rules live in the existing string
+arrays, while public choices and stored application types contain readable names.
+Unedited legacy rows retain their exact stored strings; unclear old age text
+shows a review warning and is not silently converted. Editing those rows requires
+clear rules before saving. General edits can preserve untouched legacy arrays.
+Existing provincial rows are not merged, migrated, or deleted automatically.
 
 ## Server configuration
 

@@ -15,6 +15,9 @@ import {
   type Impact,
 } from "~/lib/competitions";
 import { Status, Alert, button, primary, control } from "./Workspace";
+import { ClassCatalogEditor } from "./ClassCatalogEditor";
+import { ClassAgeTester } from "./ClassAgeTester";
+import { validateCompetitionCatalog } from "~/lib/competition-classes";
 type Action =
   | "publish"
   | "close-registration"
@@ -38,8 +41,8 @@ const fieldLabels: Record<string, string> = {
   buffaloAgeDeadline: "วันที่ใช้ตัดอายุควาย",
   eventType: "ประเภทฟอร์มสมัคร",
   imageAssetId: "รูปปก",
-  national: "รุ่นระดับประเทศ",
-  province: "รุ่นระดับจังหวัด",
+  national: "รุ่นแข่งขัน",
+  province: "รุ่นจังหวัดจากข้อมูลเดิม",
 };
 function validationMessage(issue: ZodIssue) {
   const field = String(
@@ -59,15 +62,6 @@ function validationMessage(issue: ZodIssue) {
   else if (field === "eventType") guidance = "กรุณาเลือกประเภทฟอร์มจากรายการ";
   else if (field === "imageAssetId") guidance = "กรุณาอัปโหลดรูปปกอีกครั้ง";
   return `${label}: ${guidance}`;
-}
-function cleaned(input: CompetitionInput): CompetitionInput {
-  return {
-    ...input,
-    catalogs: {
-      national: input.catalogs.national.map((v) => v.trim()).filter(Boolean),
-      province: input.catalogs.province.map((v) => v.trim()).filter(Boolean),
-    },
-  };
 }
 export function CompetitionEditor({ existing }: { existing?: Competition }) {
   const router = useRouter();
@@ -198,9 +192,26 @@ export function CompetitionEditor({ existing }: { existing?: Competition }) {
     void utils.competitions.get.invalidate();
   };
   const validate = () => {
-    const parsed = competitionInputSchema.safeParse(cleaned(form));
+    const parsed = competitionInputSchema.safeParse(form);
     if (!parsed.success) {
       setFailure(parsed.error.issues.map(validationMessage).join(" • "));
+      return;
+    }
+    const catalogErrors = (["national", "province"] as const).flatMap(
+      (level) => {
+        if (
+          event &&
+          JSON.stringify(form.catalogs[level]) ===
+            JSON.stringify(event.catalogs[level])
+        )
+          return [];
+        return validateCompetitionCatalog(form.catalogs[level]).map(
+          (error) => `${fieldLabels[level]}: ${error}`,
+        );
+      },
+    );
+    if (catalogErrors.length) {
+      setFailure(catalogErrors.join(" • "));
       return;
     }
     return parsed.data;
@@ -726,31 +737,44 @@ export function CompetitionEditor({ existing }: { existing?: Competition }) {
               ไม่คัดลอกใบสมัคร
             </p>
           </div>
-          {(["national", "province"] as const).map((level) => (
-            <label key={level} className="space-y-2 text-sm">
-              {level === "national" ? "รุ่นระดับประเทศ" : "รุ่นระดับจังหวัด"}
-              <textarea
-                aria-label={
-                  level === "national" ? "รุ่นระดับประเทศ" : "รุ่นระดับจังหวัด"
-                }
-                rows={7}
-                className={control}
-                placeholder="หนึ่งรุ่นต่อบรรทัด"
-                value={form.catalogs[level].join("\n")}
-                onChange={(e) =>
-                  change("catalogs", {
-                    ...form.catalogs,
-                    [level]: e.target.value.split("\n"),
-                  })
+          <div className="min-w-0 md:col-span-2">
+            <ClassCatalogEditor
+              title="รุ่นแข่งขัน"
+              values={form.catalogs.national}
+              disabled={busy || (locked && !exception)}
+              onChange={(national) =>
+                change("catalogs", { ...form.catalogs, national })
+              }
+            />
+          </div>
+          {form.catalogs.province.length > 0 ? (
+            <div className="min-w-0 space-y-3 md:col-span-2">
+              <p className="text-sm text-orange-100">
+                งานเดิมมีรุ่นจังหวัด จึงแสดงเพื่อรักษาข้อมูลเดิม
+                ไม่มีการย้ายหรือรวมรุ่นอัตโนมัติ
+              </p>
+              <ClassCatalogEditor
+                title="รุ่นจังหวัดจากข้อมูลเดิม"
+                values={form.catalogs.province}
+                disabled={busy || (locked && !exception)}
+                onChange={(province) =>
+                  change("catalogs", { ...form.catalogs, province })
                 }
               />
-            </label>
-          ))}
+            </div>
+          ) : null}
           <p className="text-sm text-text-muted md:col-span-2">
-            หนึ่งรุ่นต่อบรรทัด ใช้ชื่อและช่วงอายุรูปแบบเดิม เช่น “มากกว่า 12
-            เดือน ถึง 15 เดือน” หรือรุ่นพิเศษ [SP] ระบบตรวจความพร้อมก่อนเผยแพร่
+            กำหนดช่วงอายุเป็นเดือน
+            ระบบปัดเศษวันขึ้นเป็นเดือนถัดไปและไม่ให้ลงข้ามช่วง
+            รุ่นพิเศษเว้นอายุได้หากไม่มีข้อจำกัด
+            เงื่อนไขฟันและคุณสมบัติอื่นให้เจ้าหน้าที่ตรวจ
           </p>
         </fieldset>
+        <ClassAgeTester
+          cutoff={form.buffaloAgeDeadline}
+          royal={form.eventType === "royal"}
+          values={[...form.catalogs.national, ...form.catalogs.province]}
+        />
         {exception ? (
           <section className="glass-card space-y-4 rounded-3xl p-5">
             <h2 className="text-xl font-semibold">ตรวจผลกระทบก่อนแก้กติกา</h2>

@@ -139,7 +139,7 @@ it("keeps dirty editor state when back is cancelled and allows confirmed back", 
 it("locks rules after applications while leaving signup deadline editable", () => {
   render(<CompetitionEditor existing={event} />);
   expect(screen.getByLabelText("วันที่ใช้ตัดอายุควาย")).toBeDisabled();
-  expect(screen.getByLabelText("รุ่นระดับประเทศ")).toBeDisabled();
+  expect(screen.getByLabelText("ชื่อรุ่น")).toBeDisabled();
   expect(screen.getByLabelText("วันปิดรับสมัคร")).toBeEnabled();
   fireEvent.click(
     screen.getByRole("button", { name: "เตรียมเสนอแก้กติกาเป็นกรณีพิเศษ" }),
@@ -188,13 +188,13 @@ it("explains duplicate catalogs in Thai and preserves the entered classes", asyn
   fireEvent.change(screen.getByRole("textbox", { name: /ชื่องาน/ }), {
     target: { value: "งานทดสอบรุ่นซ้ำ" },
   });
-  const catalog = screen.getByLabelText("รุ่นระดับประเทศ");
-  fireEvent.change(catalog, { target: { value: "รุ่นเดิม\nรุ่นเดิม" } });
+  fireEvent.click(screen.getByRole("button", { name: "เพิ่มรุ่น" }));
+  fireEvent.click(screen.getByRole("button", { name: "คัดลอกรุ่นที่ 1" }));
   fireEvent.click(screen.getByRole("button", { name: "บันทึกงานร่าง" }));
   const error = await screen.findByRole("alert");
-  expect(error).toHaveTextContent("รุ่นระดับประเทศ: มีชื่อรุ่นซ้ำ");
+  expect(error).toHaveTextContent("ชื่อรุ่นซ้ำ");
   expect(error).not.toHaveTextContent("catalogs.national");
-  expect(catalog).toHaveValue("รุ่นเดิม\nรุ่นเดิม");
+  expect(screen.getAllByLabelText("ชื่อรุ่น")).toHaveLength(2);
   expect(mockCreate).not.toHaveBeenCalled();
 });
 
@@ -275,7 +275,7 @@ it("cancels proposed rules while preserving general edits for an ordinary save",
   fireEvent.change(screen.getByLabelText("ประเภทฟอร์มสมัคร"), {
     target: { value: "royal" },
   });
-  fireEvent.change(screen.getByLabelText("รุ่นระดับประเทศ"), {
+  fireEvent.change(screen.getByLabelText("ชื่อรุ่น"), {
     target: { value: "รุ่นที่เสนอใหม่" },
   });
   fireEvent.click(screen.getByRole("button", { name: "สร้างรายงานผลกระทบ" }));
@@ -298,7 +298,7 @@ it("cancels proposed rules while preserving general edits for an ordinary save",
   expect(screen.getByLabelText("ประเภทฟอร์มสมัคร")).toHaveValue(
     event.eventType,
   );
-  expect(screen.getByLabelText("รุ่นระดับประเทศ")).toHaveValue(
+  expect(screen.getByLabelText("ชื่อรุ่น")).toHaveValue(
     event.catalogs.national.join("\n"),
   );
   expect(screen.getByRole("textbox", { name: /ชื่องาน/ })).toHaveValue(
@@ -329,4 +329,44 @@ it("cancels proposed rules while preserving general edits for an ordinary save",
     catalogs: event.catalogs,
   });
   expect(mockReview).not.toHaveBeenCalled();
+});
+
+it("preserves untouched ambiguous legacy and provincial catalogs on a general save", async () => {
+  const legacy = {
+    ...event,
+    catalogs: {
+      national: ["อายุประมาณ 12 เดือน แบบเดิม"],
+      province: ["[SP] รุ่นจังหวัดเดิม"],
+    },
+  };
+  mockUpdate.mockResolvedValue({
+    ...legacy,
+    title: "แก้ชื่อเท่านั้น",
+    _rev: "revision2",
+  });
+  render(<CompetitionEditor existing={legacy} />);
+  expect(
+    screen.getByRole("region", { name: "รุ่นจังหวัดจากข้อมูลเดิม" }),
+  ).toBeVisible();
+  expect(screen.getByText(/ข้อมูลเดิมอ่านเงื่อนไขไม่ชัดเจน/)).toBeVisible();
+  fireEvent.change(screen.getByRole("textbox", { name: /ชื่องาน/ }), {
+    target: { value: "แก้ชื่อเท่านั้น" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "บันทึกการแก้ไข" }));
+  await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));
+  const submitted = (mockUpdate.mock.calls as unknown[][])[0]?.[0] as {
+    input: CompetitionInput;
+  };
+  expect(submitted.input.catalogs).toEqual(legacy.catalogs);
+});
+
+it("new events expose only the single national-backed class list", () => {
+  render(<CompetitionEditor />);
+  expect(screen.getByRole("region", { name: "รุ่นแข่งขัน" })).toBeVisible();
+  expect(
+    screen.queryByRole("region", { name: "รุ่นจังหวัดจากข้อมูลเดิม" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("textbox", { name: "รุ่นระดับประเทศ" }),
+  ).not.toBeInTheDocument();
 });
