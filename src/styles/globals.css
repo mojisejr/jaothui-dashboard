@@ -154,3 +154,14 @@
   }
 }
 
+
+/* Competition operational screens preserve visible controls on narrow screens. */
+.competition-workspace { overflow-x: clip; }
+.competition-workspace header nav { gap: 12px; flex-wrap: wrap; }
+.competition-workspace header button { min-height: 44px; }
+@media (prefers-reduced-motion: reduce) {
+  .competition-workspace *, .competition-workspace *::before, .competition-workspace *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
