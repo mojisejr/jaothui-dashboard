@@ -8,6 +8,7 @@ import { rewardRouter } from "./routers/r-reward";
 import { dnaRouter } from "./routers/r-dna";
 import { certRouter } from "./routers/r-certificate";
 import { sanityRouter } from "./routers/r-sanity";
+import { buffaloOperationsRouter } from "./routers/r-buffalo-operations";
 import { newsEventsRouter } from "./routers/r-news-events";
 
 /**
@@ -26,6 +27,7 @@ export const appRouter = createTRPCRouter({
   cert: certRouter,
   sanity: sanityRouter,
   newsEvents: newsEventsRouter,
+  buffaloOperations: buffaloOperationsRouter,
 });
 
 // export type definition of API
