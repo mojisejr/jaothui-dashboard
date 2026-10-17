@@ -1,15 +1,17 @@
 import { account, viemPublic, viemWallet } from "./viem";
 import { abi, address } from "./metadata-maneger/abi";
 import { abi as nftAbi, address as nftAddress } from "./nft/abi";
-import { type IMetadata, type RawMetadata } from "~/interfaces/i-metadata";
-import { getJsonUrl } from "../services/supabase/supabase";
+import { type IMetadata } from "~/interfaces/i-metadata";
+import { getJsonUrl, getImageUrl } from "../services/supabase/supabase";
 import axios from "axios";
 import { type JsonMetadata } from "~/interfaces/i-metadata-json";
-import { NewBuffaloInput } from "~/components/new-buffalo-info/NewBuffaloForm";
 import { getByMicrochip } from "../services/buffalo.service";
-import dayjs from "dayjs";
-import { parse } from "path";
 import { db } from "../db";
+import { readBuffaloMetadata } from "../services/buffalo-integrity/read";
+import {
+  metadataDomain,
+  readChainIdentity,
+} from "../services/buffalo-integrity/chain-read";
 
 export const getAllMintedBuffalos = async () => {
   const metadata = (await viemPublic.readContract({
@@ -161,59 +163,11 @@ export const getCurrentTokenId = async () => {
 };
 
 export const getMetadataByMicrochipId = async (microchipId: string) => {
-  try {
-    const data = (await viemPublic.readContract({
-      address: address,
-      abi: abi,
-      functionName: "getMetadataByMicrochip",
-      args: [microchipId],
-    })) as RawMetadata;
-
-    const fromDb = await getByMicrochip(microchipId);
-
-    if (!fromDb) return null;
-
-    // const parsed = {
-    //   ...data!,
-    //   imageUri: getImageUrl(`${tokenId}.jpg`),
-    //   birthdate: +data.birthdate!.toString(),
-    //   height: +data.height.toString(),
-    //   certify: {
-    //     ...data.certify,
-    //     issuedAt: +data.certify.issuedAt.toString(),
-    //   },
-    //   createdAt: +data.createdAt.toString(),
-    //   updatedAt: +data.updatedAt.toString(),
-    //   certificate: certificationData,
-    // };
-
-    const parsed: IMetadata = {
-      tokenId: parseInt(fromDb.tokenId.toString()),
-      name: data.name,
-      origin: data.origin,
-      color: data.color,
-      image: data.imageUri,
-      detail: data.detail,
-      sex: data.sex,
-      birthdate: parseInt(data.birthdate.toString()) * 1000,
-      birthday: dayjs(
-        new Date(parseInt(data.birthdate.toString()) * 1000),
-      ).format("YYYY/MM/DD"),
-      height: data.height.toString(),
-      microchip: microchipId,
-      certNo: data.certify.certNo,
-      dna: fromDb.dna,
-      rarity: data.certify.rarity,
-      fatherId: data.relation.fatherTokenId,
-      motherId: data.relation.motherTokenId,
-      createdAt: data.createdAt.toString(),
-      updatedAt: data.updatedAt.toString(),
-    };
-
-    return parsed;
-  } catch (error) {
-    console.log(error);
-  }
+  return readBuffaloMetadata(microchipId, metadataDomain, {
+    findCow: getByMicrochip,
+    readChain: readChainIdentity,
+    imageForCow: (cow) => getImageUrl(`${cow.tokenId.toString()}.jpg`, false),
+  });
 };
 
 export const updateBuffaloMicrochip = async (
