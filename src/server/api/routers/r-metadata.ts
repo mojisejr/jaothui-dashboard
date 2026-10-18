@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createTRPCRouter, protectProcedure } from "~/server/api/trpc";
 import {
@@ -26,11 +27,16 @@ import {
   uploadBuffaloJson,
 } from "~/server/services/buffalo.service";
 
+const legacyWrite = protectProcedure.use(({ next }) => {
+  if (process.env.BUFFALO_INTEGRITY_ISOLATED_CONFIG) throw new TRPCError({code:"PRECONDITION_FAILED",message:"LEGACY_WRITE_DISABLED_IN_ISOLATION"});
+  return next();
+});
+
 export const metadataRouter = createTRPCRouter({
   getAllMetadata: protectProcedure.query(async () => {
     return await getAllMintedBuffalos();
   }),
-  upload: protectProcedure
+  upload: legacyWrite
     .input(
       z.object({
         tokenId: z.number(),
@@ -56,7 +62,7 @@ export const metadataRouter = createTRPCRouter({
     .mutation(({ input }) => {
       return checkCanMint(input.tokenId);
     }),
-  mint: protectProcedure
+  mint: legacyWrite
     .input(
       z.object({
         tokenId: z.number(),
@@ -81,7 +87,7 @@ export const metadataRouter = createTRPCRouter({
       if (input.tokenId == -1) return;
       return await mintNFT(input.tokenId);
     }),
-  addMetadata: protectProcedure
+  addMetadata: legacyWrite
     .input(
       z.object({
         tokenId: z.number(),
@@ -125,12 +131,12 @@ export const metadataRouter = createTRPCRouter({
     .query(async ({ input }) => {
       return await getMetadataByMicrochipId(input);
     }),
-  updateBuffaloImage: protectProcedure
+  updateBuffaloImage: legacyWrite
     .input(z.number())
     .mutation(async ({ input }) => {
       return await addMetadataBatch(input);
     }),
-  updateBuffaloMicrochip: protectProcedure
+  updateBuffaloMicrochip: legacyWrite
     .input(
       z.object({
         tokenId: z.number(),
@@ -145,7 +151,7 @@ export const metadataRouter = createTRPCRouter({
         input.microchip,
       );
     }),
-  updateBuffaloBirthday: protectProcedure
+  updateBuffaloBirthday: legacyWrite
     .input(
       z.object({
         tokenId: z.number(),
@@ -160,7 +166,7 @@ export const metadataRouter = createTRPCRouter({
         input.birthday,
       );
     }),
-  updateBuffaloCertNo: protectProcedure
+  updateBuffaloCertNo: legacyWrite
     .input(
       z.object({
         tokenId: z.number(),
@@ -175,7 +181,7 @@ export const metadataRouter = createTRPCRouter({
         input.certNo,
       );
     }),
-  updateBuffaloColor: protectProcedure
+  updateBuffaloColor: legacyWrite
     .input(
       z.object({
         tokenId: z.number(),
@@ -190,7 +196,7 @@ export const metadataRouter = createTRPCRouter({
         input.color,
       );
     }),
-  updateBuffaloDetail: protectProcedure
+  updateBuffaloDetail: legacyWrite
     .input(
       z.object({
         tokenId: z.number(),
@@ -205,7 +211,7 @@ export const metadataRouter = createTRPCRouter({
         input.detail,
       );
     }),
-  updateBuffaloDna: protectProcedure
+  updateBuffaloDna: legacyWrite
     .input(
       z.object({
         tokenId: z.number(),
@@ -216,7 +222,7 @@ export const metadataRouter = createTRPCRouter({
     .mutation(async ({ input }) => {
       return await updateBuffaloDna(input.tokenId, input.microchip, input.dna);
     }),
-  updateBuffaloHeight: protectProcedure
+  updateBuffaloHeight: legacyWrite
     .input(
       z.object({
         tokenId: z.number(),
@@ -231,7 +237,7 @@ export const metadataRouter = createTRPCRouter({
         input.height,
       );
     }),
-  updateBuffaloName: protectProcedure
+  updateBuffaloName: legacyWrite
     .input(
       z.object({
         tokenId: z.number(),
@@ -246,7 +252,7 @@ export const metadataRouter = createTRPCRouter({
         input.name,
       );
     }),
-  updateBuffaloOrigin: protectProcedure
+  updateBuffaloOrigin: legacyWrite
     .input(
       z.object({
         tokenId: z.number(),
@@ -262,7 +268,7 @@ export const metadataRouter = createTRPCRouter({
       );
     }),
 
-  updateBuffaloRarity: protectProcedure
+  updateBuffaloRarity: legacyWrite
     .input(
       z.object({
         tokenId: z.number(),
@@ -278,7 +284,7 @@ export const metadataRouter = createTRPCRouter({
       );
     }),
 
-  updateBuffaloSex: protectProcedure
+  updateBuffaloSex: legacyWrite
     .input(
       z.object({
         tokenId: z.number(),
@@ -290,7 +296,7 @@ export const metadataRouter = createTRPCRouter({
       return await updateBuffaloSex(input.tokenId, input.microchip, input.sex);
     }),
 
-  updateParentId: protectProcedure
+  updateParentId: legacyWrite
     .input(
       z.object({
         microchip: z.string(),

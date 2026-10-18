@@ -323,7 +323,9 @@ export function loopbackChainPorts(config: LoopbackConfig): ChainPorts {
                   ...chainSnapshot(value as RawMetadata),
                   issuedAt: (value as RawMetadata).certify.issuedAt.toString(),
                 }
-              : value;
+              : effect.projection === "nft-uri" && Array.isArray(value)
+                ? value.slice(0, 2)
+                : value;
           if (
             payloadHash(serializedValue(projected)) !==
             payloadHash(serializedValue(effect.expected))
@@ -333,6 +335,9 @@ export function loopbackChainPorts(config: LoopbackConfig): ChainPorts {
             kind: "read",
             field: effect.functionName,
             value: serializedValue(projected),
+            ...(effect.projection === "nft-uri" && Array.isArray(value)
+              ? { nativeCreatedAt: serializedValue(value[2]) }
+              : {}),
           });
         } else {
           const minted = rawReceipt.logs
@@ -426,6 +431,7 @@ export function loopbackChainPorts(config: LoopbackConfig): ChainPorts {
             actualToken,
             receiver: effect.receiver,
             tokenUri: effect.tokenUri,
+            nativeCreatedAt: serializedValue(nftRecord[2]),
           });
         }
       }

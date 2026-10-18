@@ -196,7 +196,14 @@ infra(
     });
     test("real fork mint + metadata receipts bind actual ID; DB/file projection crash resumes without remint", async () => {
       const signer = JSON.parse(
-        readFileSync(resolve(".tmp/phase2/local-signer.json"), "utf8"),
+        readFileSync(
+          resolve(
+            process.env.BUFFALO_INTEGRITY_TEST_FIXTURE_DIR
+              ? `${process.env.BUFFALO_INTEGRITY_TEST_FIXTURE_DIR}/local-signer.json`
+              : ".tmp/phase2/local-signer.json",
+          ),
+          "utf8",
+        ),
       ) as {
         privateKey: Hex;
         address: string;
@@ -204,8 +211,18 @@ infra(
         chainId: number;
       };
       const identity = JSON.parse(
-        readFileSync(resolve(".tmp/phase2/fork-identity.json"), "utf8"),
-      ) as { contracts: { address: string; codeHash: string }[] };
+        readFileSync(
+          resolve(
+            process.env.BUFFALO_INTEGRITY_TEST_FIXTURE_DIR
+              ? `${process.env.BUFFALO_INTEGRITY_TEST_FIXTURE_DIR}/fork-identity.json`
+              : ".tmp/phase2/fork-identity.json",
+          ),
+          "utf8",
+        ),
+      ) as {
+        contracts?: { address: string; codeHash: string }[];
+        codeHashes?: Record<string, string>;
+      };
       const requested = {
         ...sample,
         buffalo: {
@@ -229,7 +246,10 @@ infra(
         return result.result;
       };
       const domain = { chainId: 96, nft, manager };
-      const origin = resolve(".tmp/phase2/origins");
+      const origin = resolve(
+        process.env.BUFFALO_INTEGRITY_TEST_FIXTURE_DIR ?? ".tmp/phase2",
+        "origins",
+      );
       mkdirSync(origin, { recursive: true });
       const tokenUri = `https://example.test/phase2/${randomUUID()}.json`;
       const metadataResponse = await fetch(signer.rpcUrl, {
@@ -260,12 +280,14 @@ infra(
         rpcUrl: signer.rpcUrl,
         privateKey: signer.privateKey,
         domain,
-        codeHashes: Object.fromEntries(
-          identity.contracts.map((entry) => [
-            entry.address.toLowerCase(),
-            entry.codeHash,
-          ]),
-        ),
+        codeHashes:
+          identity.codeHashes ??
+          Object.fromEntries(
+            identity.contracts!.map((entry) => [
+              entry.address.toLowerCase(),
+              entry.codeHash,
+            ]),
+          ),
         maxFeeWei: approved.maxFeeWei,
         prepare: async () => approved,
         nextStep: async (operation, steps) => {
@@ -390,7 +412,11 @@ infra(
                 };
               };
               writeFileSync(
-                resolve(".tmp/phase2/adapter-failure.json"),
+                resolve(
+                  process.env.BUFFALO_INTEGRITY_TEST_FIXTURE_DIR ??
+                    ".tmp/phase2",
+                  "adapter-failure.json",
+                ),
                 JSON.stringify(
                   {
                     stage,
@@ -421,7 +447,10 @@ infra(
             cause?: { name?: string; shortMessage?: string; details?: string };
           };
           writeFileSync(
-            resolve(".tmp/phase2/sign-failure.json"),
+            resolve(
+              process.env.BUFFALO_INTEGRITY_TEST_FIXTURE_DIR ?? ".tmp/phase2",
+              "sign-failure.json",
+            ),
             JSON.stringify(
               {
                 name: known.name,
@@ -474,7 +503,10 @@ infra(
       );
       if (childA.status !== 0)
         writeFileSync(
-          resolve(".tmp/phase2/process-child-diagnostic.json"),
+          resolve(
+            process.env.BUFFALO_INTEGRITY_TEST_FIXTURE_DIR ?? ".tmp/phase2",
+            "process-child-diagnostic.json",
+          ),
           JSON.stringify(
             { status: childA.status, stderr: childA.stderr },
             null,
@@ -555,7 +587,10 @@ infra(
       const status = await restarted.status(operation.id, owner);
       expect(JSON.stringify(status)).not.toContain("signedBytes");
       writeFileSync(
-        resolve(".tmp/phase2/fork-adapter-proof.json"),
+        resolve(
+          process.env.BUFFALO_INTEGRITY_TEST_FIXTURE_DIR ?? ".tmp/phase2",
+          "fork-adapter-proof.json",
+        ),
         JSON.stringify(
           {
             mode: "DISPOSABLE_PG15_LOOPBACK_FORK",

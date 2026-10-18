@@ -109,7 +109,7 @@ export interface ExpectedCall {
         args: Json[];
         expected: Json;
         abi: Json[];
-        projection?: "manager-business";
+        projection?: "manager-business" | "nft-uri";
       }
   >;
 }

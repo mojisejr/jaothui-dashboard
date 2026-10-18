@@ -127,6 +127,7 @@ export class PostgresOperationRepository implements Repository {
     key: string,
     input: OperationIntent,
     domain: Domain,
+    singleActive = false,
   ): Promise<Operation> {
     if (!owner || !key || key.length > 128)
       throw new IntegrityError("INVALID_OPERATION_KEY");
@@ -147,6 +148,16 @@ export class PostgresOperationRepository implements Repository {
     };
     const hash = payloadHash({ intent, domain: canonicalDomain });
     return this.transaction(async (tx) => {
+      if (singleActive) {
+        const lock = await tx.$queryRaw<
+          { ok: boolean }[]
+        >`SELECT pg_try_advisory_xact_lock(hashtextextended(${`buffalo-create:${owner}`},0)) AS ok`;
+        if (!lock[0]?.ok) throw new IntegrityError("ACCOUNT_OPERATION_BUSY");
+        const active = await tx.$queryRaw<
+          { id: string }[]
+        >`SELECT id FROM buffalo_integrity.operation WHERE owner=${owner} AND idempotency_key<>${key} AND intent->>'kind'='create' AND state NOT IN ('COMPLETED','CANCELLED') LIMIT 1`;
+        if (active[0]) throw new IntegrityError("CONTINUE_EXISTING_OPERATION");
+      }
       const id = randomUUID();
       const inserted =
         await tx.$executeRaw`INSERT INTO buffalo_integrity.operation(id,owner,idempotency_key,intent_hash,intent,domain) VALUES (${id}::uuid,${owner},${key},${hash},${JSON.stringify(intent)}::jsonb,${JSON.stringify(canonicalDomain)}::jsonb) ON CONFLICT(owner,idempotency_key) DO NOTHING`;

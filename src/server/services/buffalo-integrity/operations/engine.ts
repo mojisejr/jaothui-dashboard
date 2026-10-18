@@ -159,8 +159,11 @@ export class OperationEngine {
     id: string,
     owner: string,
     action: "mint" | "metadata" | "resume",
+    expectedVersion?: number,
   ) {
     await this.withClaim(id, owner, async (claim, initial) => {
+      if (expectedVersion !== undefined && initial.version !== expectedVersion)
+        throw new IntegrityError("STALE_OPERATION_REVISION");
       if (["DRAFT", "CANCELLED"].includes(initial.state))
         throw new IntegrityError("INVALID_OPERATION_STAGE");
       if (["COMPLETED", "NEEDS_REVIEW"].includes(initial.state)) return;
