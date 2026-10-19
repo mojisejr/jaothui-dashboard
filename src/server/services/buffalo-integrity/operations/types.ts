@@ -190,6 +190,7 @@ export interface ChainPorts {
   nonce: (sender: string) => Promise<{ latest: number; pending: number }>;
   sign: (operation: Operation, step: Step, nonce: number) => Promise<Signed>;
   broadcast: (signedBytes: string) => Promise<string>;
+  beforeBroadcast?: (operation: Operation, step: Step) => Promise<void>;
   observe: (step: Step) => Promise<Observation>;
   verifyEffects: (
     operation: Operation,

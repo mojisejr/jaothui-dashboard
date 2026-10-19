@@ -16,6 +16,7 @@ import { abi as nftAbi } from "~/server/blockchain/nft/abi";
 import { type RawMetadata } from "~/interfaces/i-metadata";
 import { chainSnapshot, managerManifest } from "../field-policy";
 import { IntegrityError, payloadHash, asJson } from "./hash";
+import { bindReceiptEvidence, receiptEvidence } from "./receipt-evidence";
 import {
   type ChainPorts,
   type Plan,
@@ -67,6 +68,8 @@ export interface LoopbackConfig {
   maxFeeWei: string;
   prepare: (operation: Operation) => Promise<Plan>;
   beforeSign?: (operation: Operation) => Promise<void>;
+  beforeBroadcast?: (operation: Operation, step: Step) => Promise<void>;
+  reconcileCurrent?: (operation: Operation, step: Step) => Promise<void>;
   nextStep: (operation: Operation, steps: Step[]) => Promise<StepSpec | null>;
   project: (operation: Operation, steps: Step[]) => Promise<PublicationProof>;
   verifyPublication: (
@@ -77,7 +80,21 @@ export interface LoopbackConfig {
 }
 /** Explicit test-only factory. No env/default RPC or production signer import exists. */
 export function loopbackChainPorts(config: LoopbackConfig): ChainPorts {
-  const rpc = assertLoopbackUrl(config.rpcUrl);
+  return configuredChainPorts(config);
+}
+export function productionChainPorts(
+  config: LoopbackConfig & { checkpoint: { number: string; hash: string } },
+): ChainPorts {
+  const url = new URL(config.rpcUrl);
+  if (url.protocol !== "https:" || url.username || url.password || url.hash)
+    throw new IntegrityError("PRODUCTION_RPC_HTTPS_REQUIRED");
+  return configuredChainPorts(config, config.checkpoint);
+}
+function configuredChainPorts(
+  config: LoopbackConfig,
+  checkpoint?: { number: string; hash: string },
+): ChainPorts {
+  const rpc = checkpoint ? config.rpcUrl : assertLoopbackUrl(config.rpcUrl);
   const account = privateKeyToAccount(config.privateKey);
   const transport = http(rpc, { timeout: 8000, retryCount: 0 });
   const publicClient = createPublicClient({
@@ -101,26 +118,37 @@ export function loopbackChainPorts(config: LoopbackConfig): ChainPorts {
     config.domain.manager.toLowerCase(),
   ];
   async function isolated() {
-    const response = await fetch(rpc, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "anvil_metadata",
-        params: [],
-      }),
-      signal: AbortSignal.timeout(2000),
-    });
-    const result = (await response.json()) as {
-      result?: { clientVersion?: string; instanceId?: string };
-    };
-    if (
-      !result.result?.clientVersion?.toLowerCase().includes("anvil") ||
-      result.result.instanceId !== config.expectedInstanceId ||
-      (await publicClient.getChainId()) !== config.domain.chainId
-    )
-      throw new IntegrityError("NOT_ISOLATED_ANVIL");
+    if (checkpoint) {
+      const block = await publicClient.getBlock({
+        blockNumber: BigInt(checkpoint.number),
+      });
+      if (
+        block.hash !== checkpoint.hash ||
+        (await publicClient.getChainId()) !== config.domain.chainId
+      )
+        throw new IntegrityError("PRODUCTION_NETWORK_MISMATCH");
+    } else {
+      const response = await fetch(rpc, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "anvil_metadata",
+          params: [],
+        }),
+        signal: AbortSignal.timeout(2000),
+      });
+      const result = (await response.json()) as {
+        result?: { clientVersion?: string; instanceId?: string };
+      };
+      if (
+        !result.result?.clientVersion?.toLowerCase().includes("anvil") ||
+        result.result.instanceId !== config.expectedInstanceId ||
+        (await publicClient.getChainId()) !== config.domain.chainId
+      )
+        throw new IntegrityError("NOT_ISOLATED_ANVIL");
+    }
     for (const contract of allowed) {
       const code = await publicClient.getCode({ address: contract as Address });
       if (!code || keccak256(code) !== config.codeHashes[contract])
@@ -141,6 +169,7 @@ export function loopbackChainPorts(config: LoopbackConfig): ChainPorts {
       return plan;
     },
     nextStep: config.nextStep,
+    beforeBroadcast: config.beforeBroadcast,
     async nonce(sender) {
       const [latest, pending] = await Promise.all([
         publicClient.getTransactionCount({
@@ -280,7 +309,7 @@ export function loopbackChainPorts(config: LoopbackConfig): ChainPorts {
         confirmations: Number(latest - receipt.blockNumber + 1n),
       };
     },
-    async verifyEffects(_operation, step, receipt): Promise<EffectProof> {
+    async verifyEffects(operation, step, receipt): Promise<EffectProof> {
       await isolated();
       const transaction = await publicClient.getTransaction({
         hash: receipt.transactionHash as Hex,
@@ -299,162 +328,292 @@ export function loopbackChainPorts(config: LoopbackConfig): ChainPorts {
       const rawReceipt = await publicClient.getTransactionReceipt({
         hash: receipt.transactionHash as Hex,
       });
-      let actualToken: string | undefined;
-      const details: Json[] = [];
-      for (const effect of step.expected.effects) {
+      const canonicalBlock = await publicClient.getBlock({
+        blockNumber: BigInt(receipt.blockNumber),
+      });
+      if (
+        canonicalBlock.hash !== receipt.blockHash ||
+        rawReceipt.blockHash !== receipt.blockHash ||
+        rawReceipt.status !== "success"
+      )
+        throw new IntegrityError("RECEIPT_CANONICALITY_CHANGED");
+      const saved =
+        step.state === "CONFIRMED"
+          ? receiptEvidence(operation, step, receipt)
+          : null;
+      if (saved) {
         if (
-          !allowed.includes(
-            (effect.kind === "mint"
-              ? effect.nft
-              : effect.contract
-            ).toLowerCase(),
+          saved.binding.blockTimestamp !== canonicalBlock.timestamp.toString()
+        )
+          throw new IntegrityError("RECEIPT_TIMESTAMP_CHANGED");
+        if (saved.observedHead) {
+          const anchor = await publicClient.getBlock({
+            blockNumber: BigInt(saved.observedHead.number),
+          });
+          if (
+            anchor.hash?.toLowerCase() !== saved.observedHead.hash.toLowerCase()
+          )
+            throw new IntegrityError("RECONCILIATION_HEAD_CHANGED");
+        }
+        const actualToken = saved.effects.find(
+          (e) => e.kind === "mint",
+        )?.actualToken;
+        return {
+          ...(typeof actualToken === "string" ? { actualToken } : {}),
+          details: asJson(saved),
+        };
+      }
+      const evaluate = async (blockNumber: bigint) => {
+        let actualToken: string | undefined;
+        const details: Json[] = [];
+        for (const effect of step.expected.effects) {
+          if (
+            !allowed.includes(
+              (effect.kind === "mint"
+                ? effect.nft
+                : effect.contract
+              ).toLowerCase(),
+            )
+          )
+            throw new IntegrityError("UNAPPROVED_EFFECT_CONTRACT");
+          if (effect.kind === "read") {
+            const value = await dynamicRead({
+              address: effect.contract as Address,
+              abi: effect.abi as unknown as Abi,
+              functionName: effect.functionName,
+              args: effect.args,
+              blockNumber,
+            });
+            const projected =
+              effect.projection === "manager-manifest"
+                ? managerManifest(value as RawMetadata)
+                : effect.projection === "manager-business"
+                  ? {
+                      ...chainSnapshot(value as RawMetadata),
+                      issuedAt: (
+                        value as RawMetadata
+                      ).certify.issuedAt.toString(),
+                    }
+                  : effect.projection === "nft-uri" && Array.isArray(value)
+                    ? value.slice(0, 2)
+                    : value;
+            if (
+              payloadHash(serializedValue(projected)) !==
+              payloadHash(serializedValue(effect.expected))
+            )
+              throw new IntegrityError("FIELD_READBACK_MISMATCH");
+            details.push({
+              kind: "read",
+              field: effect.functionName,
+              value: serializedValue(projected),
+              ...(effect.projection === "manager-manifest" ||
+              effect.projection === "manager-business"
+                ? {
+                    nativeCreatedAt: serializedValue(
+                      (value as RawMetadata).createdAt,
+                    ),
+                    nativeUpdatedAt: serializedValue(
+                      (value as RawMetadata).updatedAt,
+                    ),
+                  }
+                : {}),
+              ...(effect.projection === "nft-uri" && Array.isArray(value)
+                ? {
+                    nativeCreatedAt: serializedValue(value[2]),
+                    nativeUpdatedAt: serializedValue(value[3]),
+                  }
+                : {}),
+            });
+          } else {
+            const minted = rawReceipt.logs
+              .filter(
+                (log) => log.address.toLowerCase() === effect.nft.toLowerCase(),
+              )
+              .flatMap((log) => {
+                try {
+                  const decoded = decodeEventLog({
+                    abi: nftAbi as Abi,
+                    data: log.data,
+                    topics: log.topics,
+                  });
+                  return decoded.eventName === "MintWithMetadata"
+                    ? [decoded.args as unknown as Record<string, unknown>]
+                    : [];
+                } catch {
+                  return [];
+                }
+              });
+            if (minted.length !== 1)
+              throw new IntegrityError("MINT_EVENT_NOT_UNIQUE");
+            const event = minted[0]!;
+            const token = event._tokenId;
+            if (
+              typeof token !== "bigint" ||
+              event._tokenURI !== effect.tokenUri ||
+              String(event.operator).toLowerCase() !== step.sender.toLowerCase()
+            )
+              throw new IntegrityError("MINT_EVENT_BINDING_MISMATCH");
+            const transfers = rawReceipt.logs
+              .filter(
+                (log) => log.address.toLowerCase() === effect.nft.toLowerCase(),
+              )
+              .flatMap((log) => {
+                try {
+                  const decoded = decodeEventLog({
+                    abi: nftAbi as Abi,
+                    data: log.data,
+                    topics: log.topics,
+                  });
+                  return decoded.eventName === "Transfer"
+                    ? [decoded.args as unknown as Record<string, unknown>]
+                    : [];
+                } catch {
+                  return [];
+                }
+              })
+              .filter(
+                (event) =>
+                  event.from === "0x0000000000000000000000000000000000000000" &&
+                  event.tokenId === token &&
+                  String(event.to).toLowerCase() ===
+                    effect.receiver.toLowerCase(),
+              );
+            if (transfers.length !== 1)
+              throw new IntegrityError("MINT_RECEIVER_MISMATCH");
+            actualToken = token.toString();
+            const [owner, uri, nftRecord] = await Promise.all([
+              publicClient.readContract({
+                address: effect.nft as Address,
+                abi: nftAbi,
+                functionName: "ownerOf",
+                args: [token],
+                blockNumber,
+              }),
+              publicClient.readContract({
+                address: effect.nft as Address,
+                abi: nftAbi,
+                functionName: "tokenURI",
+                args: [token],
+                blockNumber,
+              }),
+              publicClient.readContract({
+                address: effect.nft as Address,
+                abi: nftAbi,
+                functionName: "tokenIdToUri",
+                args: [token],
+                blockNumber,
+              }),
+            ]);
+            if (
+              String(owner).toLowerCase() !== effect.receiver.toLowerCase() ||
+              uri !== effect.tokenUri ||
+              !Array.isArray(nftRecord) ||
+              nftRecord[0] !== effect.imageUri
+            )
+              throw new IntegrityError("MINT_BINDING_READBACK_MISMATCH");
+            details.push({
+              kind: "mint",
+              actualToken,
+              receiver: effect.receiver,
+              tokenUri: effect.tokenUri,
+              nativeCreatedAt: serializedValue(nftRecord[2]),
+              nativeUpdatedAt: serializedValue(nftRecord[3]),
+            });
+          }
+        }
+        return { actualToken, details };
+      };
+      let evaluated: Awaited<ReturnType<typeof evaluate>>;
+      let qualification: {
+        origin: "receipt-state" | "current-full-state";
+        observedHead?: { number: string; hash: string };
+      } = { origin: "receipt-state" };
+      try {
+        evaluated = await evaluate(BigInt(receipt.blockNumber));
+      } catch (error) {
+        let message = "";
+        let cause: unknown = error;
+        for (let i = 0; i < 8 && cause instanceof Error; i++) {
+          message += " " + cause.message;
+          cause = (cause as Error & { cause?: unknown }).cause;
+        }
+        if (
+          !/missing trie node|historical state (?:is )?(?:pruned|unavailable)|state is not available|no state available/i.test(
+            message,
           )
         )
-          throw new IntegrityError("UNAPPROVED_EFFECT_CONTRACT");
-        if (effect.kind === "read") {
-          const value = await dynamicRead({
-            address: effect.contract as Address,
-            abi: effect.abi as unknown as Abi,
-            functionName: effect.functionName,
-            args: effect.args,
-            blockNumber: BigInt(receipt.blockNumber),
-          });
-          const projected =
-            effect.projection === "manager-manifest"
-              ? managerManifest(value as RawMetadata)
-              : effect.projection === "manager-business"
-                ? {
-                    ...chainSnapshot(value as RawMetadata),
-                    issuedAt: (
-                      value as RawMetadata
-                    ).certify.issuedAt.toString(),
-                  }
-                : effect.projection === "nft-uri" && Array.isArray(value)
-                  ? value.slice(0, 2)
-                  : value;
+          throw error;
+        if (!config.reconcileCurrent)
+          throw new IntegrityError("HISTORICAL_STATE_REQUIRED");
+        const head = await publicClient.getBlock();
+        if (head.number === null || !head.hash)
+          throw new IntegrityError("CANONICAL_BLOCK_REQUIRED");
+        evaluated = await evaluate(head.number);
+        qualification = {
+          origin: "current-full-state",
+          observedHead: { number: head.number.toString(), hash: head.hash },
+        };
+        for (const detail of evaluated.details) {
+          const d = detail as Record<string, Json>;
           if (
-            payloadHash(serializedValue(projected)) !==
-            payloadHash(serializedValue(effect.expected))
+            d.kind === "mint" &&
+            (d.nativeCreatedAt !== canonicalBlock.timestamp.toString() ||
+              d.nativeUpdatedAt !== "0")
           )
-            throw new IntegrityError("FIELD_READBACK_MISMATCH");
-          details.push({
-            kind: "read",
-            field: effect.functionName,
-            value: serializedValue(projected),
-            ...(effect.projection === "manager-manifest"
-              ? {
-                  nativeCreatedAt: serializedValue(
-                    (value as RawMetadata).createdAt,
-                  ),
-                  nativeUpdatedAt: serializedValue(
-                    (value as RawMetadata).updatedAt,
-                  ),
-                }
-              : {}),
-            ...(effect.projection === "nft-uri" && Array.isArray(value)
-              ? {
-                  nativeCreatedAt: serializedValue(value[2]),
-                  nativeUpdatedAt: serializedValue(value[3]),
-                }
-              : {}),
-          });
-        } else {
-          const minted = rawReceipt.logs
-            .filter(
-              (log) => log.address.toLowerCase() === effect.nft.toLowerCase(),
-            )
-            .flatMap((log) => {
-              try {
-                const decoded = decodeEventLog({
-                  abi: nftAbi as Abi,
-                  data: log.data,
-                  topics: log.topics,
-                });
-                return decoded.eventName === "MintWithMetadata"
-                  ? [decoded.args as unknown as Record<string, unknown>]
-                  : [];
-              } catch {
-                return [];
-              }
-            });
-          if (minted.length !== 1)
-            throw new IntegrityError("MINT_EVENT_NOT_UNIQUE");
-          const event = minted[0]!;
-          const token = event._tokenId;
+            throw new IntegrityError("CURRENT_MINT_NATIVE_CONFLICT");
           if (
-            typeof token !== "bigint" ||
-            event._tokenURI !== effect.tokenUri ||
-            String(event.operator).toLowerCase() !== step.sender.toLowerCase()
+            d.kind === "read" &&
+            (d.field === "tokenIdToUri" ||
+              (step.kind === "metadata" && d.field === "getMetadata")) &&
+            (d.nativeCreatedAt !== canonicalBlock.timestamp.toString() ||
+              d.nativeUpdatedAt !== canonicalBlock.timestamp.toString())
           )
-            throw new IntegrityError("MINT_EVENT_BINDING_MISMATCH");
-          const transfers = rawReceipt.logs
-            .filter(
-              (log) => log.address.toLowerCase() === effect.nft.toLowerCase(),
-            )
-            .flatMap((log) => {
-              try {
-                const decoded = decodeEventLog({
-                  abi: nftAbi as Abi,
-                  data: log.data,
-                  topics: log.topics,
-                });
-                return decoded.eventName === "Transfer"
-                  ? [decoded.args as unknown as Record<string, unknown>]
-                  : [];
-              } catch {
-                return [];
-              }
-            })
-            .filter(
-              (event) =>
-                event.from === "0x0000000000000000000000000000000000000000" &&
-                event.tokenId === token &&
-                String(event.to).toLowerCase() ===
-                  effect.receiver.toLowerCase(),
-            );
-          if (transfers.length !== 1)
-            throw new IntegrityError("MINT_RECEIVER_MISMATCH");
-          actualToken = token.toString();
-          const [owner, uri, nftRecord] = await Promise.all([
-            publicClient.readContract({
-              address: effect.nft as Address,
-              abi: nftAbi,
-              functionName: "ownerOf",
-              args: [token],
-              blockNumber: BigInt(receipt.blockNumber),
-            }),
-            publicClient.readContract({
-              address: effect.nft as Address,
-              abi: nftAbi,
-              functionName: "tokenURI",
-              args: [token],
-              blockNumber: BigInt(receipt.blockNumber),
-            }),
-            publicClient.readContract({
-              address: effect.nft as Address,
-              abi: nftAbi,
-              functionName: "tokenIdToUri",
-              args: [token],
-              blockNumber: BigInt(receipt.blockNumber),
-            }),
-          ]);
-          if (
-            String(owner).toLowerCase() !== effect.receiver.toLowerCase() ||
-            uri !== effect.tokenUri ||
-            !Array.isArray(nftRecord) ||
-            nftRecord[0] !== effect.imageUri
-          )
-            throw new IntegrityError("MINT_BINDING_READBACK_MISMATCH");
-          details.push({
-            kind: "mint",
-            actualToken,
-            receiver: effect.receiver,
-            tokenUri: effect.tokenUri,
-            nativeCreatedAt: serializedValue(nftRecord[2]),
-          });
+            throw new IntegrityError("CURRENT_RECEIPT_NATIVE_CONFLICT");
         }
+        const candidate = {
+          ...bindReceiptEvidence(
+            operation,
+            step,
+            receipt,
+            canonicalBlock.timestamp,
+            evaluated.details,
+            qualification,
+          ),
+          ...(evaluated.actualToken
+            ? { actualToken: evaluated.actualToken }
+            : {}),
+        };
+        await config.reconcileCurrent(
+          {
+            ...operation,
+            actualToken: evaluated.actualToken ?? operation.actualToken,
+          },
+          {
+            ...step,
+            state: "CONFIRMED",
+            receipt,
+            proof: asJson(candidate.details),
+          },
+        );
+        if (
+          (await publicClient.getBlock({ blockNumber: head.number })).hash !==
+          head.hash
+        )
+          throw new IntegrityError("CURRENT_RECONCILIATION_REORG");
       }
-      return { ...(actualToken ? { actualToken } : {}), details };
+      return {
+        ...bindReceiptEvidence(
+          operation,
+          step,
+          receipt,
+          canonicalBlock.timestamp,
+          evaluated.details,
+          qualification,
+        ),
+        ...(evaluated.actualToken
+          ? { actualToken: evaluated.actualToken }
+          : {}),
+      };
     },
     project: config.project,
     verifyPublication: config.verifyPublication,

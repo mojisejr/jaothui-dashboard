@@ -1,4 +1,5 @@
 /** @jest-environment node */
+import { bindReceiptEvidence } from "../../operations/receipt-evidence";
 import { randomUUID, createHash } from "crypto";
 import { type Pedigree, type PrismaClient } from "@prisma/client";
 import { decodeFunctionData, type Hex } from "viem";
@@ -29,7 +30,7 @@ import {
 } from "../../operations/types";
 import { type CreateChain } from "../../create/workflow";
 import { intentToJson } from "../../json-adapter";
-import { IntegrityError } from "../../operations/hash";
+import { IntegrityError, asJson } from "../../operations/hash";
 const owner = "unit-editor",
   token = 901n;
 export function setupEdit(chip = intent.buffalo.microchip) {
@@ -750,5 +751,52 @@ test("DNA receipts cannot authorize unexpected native updatedAt changes; restora
   steps.push(batch.apply(restore));
   await expect(batch.workflow.nextStep(batchOp, steps)).rejects.toThrow(
     "MANAGER_NATIVE_TIMESTAMP_CHANGED",
+  );
+});
+
+test("durable receipt-bound native evidence permits aged recovery when receipt-state eth_call is pruned", async () => {
+  const c = setupEdit();
+  const op = await c.start({ name: "Aged recovery" });
+  const step = c.apply((await c.workflow.nextStep(op, []))!);
+  step.id = randomUUID();
+  step.operationId = op.id;
+  step.receipt = {
+    transactionHash: `0x${"11".repeat(32)}`,
+    blockHash: `0x${"ab".repeat(32)}`,
+    blockNumber: "101",
+    status: "success",
+  };
+  step.proof = asJson(
+    bindReceiptEvidence(
+      op,
+      step,
+      step.receipt,
+      2000n,
+      step.expected.effects.map((effect) => {
+        if (effect.kind !== "read") throw Error("read effect required");
+        return {
+          kind: "read",
+          field: effect.functionName,
+          value: effect.expected,
+          ...(effect.functionName === "getMetadata"
+            ? {
+                nativeCreatedAt: c.raw.createdAt.toString(),
+                nativeUpdatedAt: c.raw.updatedAt.toString(),
+              }
+            : {}),
+        };
+      }),
+    ).details,
+  );
+  const original = c.read.getMockImplementation()!;
+  c.read.mockImplementation(async (...args) => {
+    if (args[4] !== undefined)
+      throw Error("missing trie node: historical state pruned");
+    return original(...args);
+  });
+  await expect(c.workflow.guard(op, [step])).resolves.toBeUndefined();
+  c.raw.detail = "external change after receipt";
+  await expect(c.workflow.guard(op, [step])).rejects.toThrow(
+    "EXTERNAL_CHAIN_BASELINE_CHANGED",
   );
 });

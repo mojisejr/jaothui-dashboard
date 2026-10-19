@@ -352,7 +352,7 @@ export class PostgresOperationRepository implements Repository {
   }
   async releaseWallet(claim: Claim, current: Step): Promise<void> {
     await this.locked(claim, async (tx) => {
-      await tx.$executeRaw`UPDATE buffalo_integrity.wallet_lease SET active_step=NULL,lease_until=NULL WHERE chain_id=${current.chainId} AND sender=${current.sender} AND active_step=${current.id}::uuid AND EXISTS (SELECT 1 FROM buffalo_integrity.step WHERE id=${current.id}::uuid AND state IN ('CONFIRMED','REVERTED') AND receipt IS NOT NULL)`;
+      await tx.$executeRaw`UPDATE buffalo_integrity.wallet_lease SET active_step=NULL,lease_until=NULL WHERE chain_id=${current.chainId} AND sender=${current.sender} AND active_step=${current.id}::uuid AND EXISTS (SELECT 1 FROM buffalo_integrity.step WHERE id=${current.id}::uuid AND ((state IN ('CONFIRMED','REVERTED') AND receipt IS NOT NULL) OR (state='RESERVED' AND signed_bytes IS NULL)))`;
     });
   }
   async complete(claim: Claim, result: PublicationProof): Promise<void> {

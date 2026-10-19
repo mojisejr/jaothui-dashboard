@@ -190,6 +190,21 @@ export class OperationEngine {
           )
             return;
           if (error.code === "EXPLICIT_MINT_ACTION_REQUIRED") throw error;
+          if (error.code === "INTEGRITY_WRITES_PAUSED") {
+            for (const step of await this.repository.steps(id))
+              if (!step.signedBytes && step.state === "RESERVED")
+                await this.repository.releaseWallet(claim, step);
+            await this.repository.setState(claim, "READY", error.code);
+            return;
+          }
+          if (error.code === "HISTORICAL_STATE_REQUIRED") {
+            await this.repository.setState(
+              claim,
+              "RECOVERY_REQUIRED",
+              error.code,
+            );
+            return;
+          }
           if (error.code === "REQUEST_BUDGET_EXCEEDED") {
             const steps = await this.repository.steps(id);
             await this.repository.setState(
@@ -336,6 +351,13 @@ export class OperationEngine {
   private async broadcast(claim: Claim, step: Step, deadline: number) {
     try {
       await this.repository.assertBroadcast(claim, step);
+      if (this.chain.beforeBroadcast)
+        await this.io(deadline, async () =>
+          this.chain.beforeBroadcast!(
+            await this.repository.get(claim.id, claim.owner),
+            step,
+          ),
+        );
       const hash = await this.io(deadline, () =>
         this.chain.broadcast(step.signedBytes!),
       );

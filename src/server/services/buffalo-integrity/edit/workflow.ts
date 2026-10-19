@@ -1,3 +1,8 @@
+import { nativeReceiptEvidence } from "../operations/receipt-evidence";
+import {
+  executionEnvironment,
+  transactionLink,
+} from "../operations/environment";
 import sharp from "sharp";
 import { type PrismaClient, type Pedigree, type Prisma } from "@prisma/client";
 import { encodeFunctionData, type Abi } from "viem";
@@ -273,14 +278,14 @@ export class BuffaloEditWorkflow {
       nftRecord: serializedValue(nftRecord),
     };
   }
-  private async permission() {
+  private async permission(block?: bigint) {
     if (
-      String(await this.read("owner", [], true)).toLowerCase() !==
+      String(await this.read("owner", [], true, block)).toLowerCase() !==
       this.chain.sender.toLowerCase()
     )
       throw new IntegrityError("NFT_OWNER_PERMISSION_REQUIRED");
-    const role = await this.read("ADMIN");
-    if (!(await this.read("hasRole", [role, this.chain.sender])))
+    const role = await this.read("ADMIN", [], false, block);
+    if (!(await this.read("hasRole", [role, this.chain.sender], false, block)))
       throw new IntegrityError("MANAGER_ADMIN_PERMISSION_REQUIRED");
   }
   private async available(chip: string, row: Pedigree) {
@@ -558,8 +563,8 @@ export class BuffaloEditWorkflow {
     return {
       domain: this.chain.domain,
       sender: this.chain.sender.toLowerCase(),
-      confirmations: 3,
-      maxFeeWei: "50000000000000000",
+      confirmations: this.chain.confirmations ?? 3,
+      maxFeeWei: this.chain.maxFeeWei ?? "50000000000000000",
       ...(this.chain.executionInstance
         ? { executionInstance: this.chain.executionInstance }
         : {}),
@@ -583,17 +588,22 @@ export class BuffaloEditWorkflow {
       relation: { ...target.relation },
     };
   }
-  async guard(op: Operation, steps: Step[]) {
+  async guard(op: Operation, steps: Step[], block?: bigint) {
     const intent = edit(op),
       c = context(op),
       token = BigInt(intent.tokenId),
-      raw = (await this.read("getMetadata", [token])) as RawMetadata;
+      raw = (await this.read(
+        "getMetadata",
+        [token],
+        false,
+        block,
+      )) as RawMetadata;
     if (
       payloadHash(managerManifest(raw)) !==
       payloadHash(this.expected(op, steps))
     )
       throw new IntegrityError("EXTERNAL_CHAIN_BASELINE_CHANGED");
-    const now = await this.invariants(token, raw);
+    const now = await this.invariants(token, raw, block);
     if (
       payloadHash({
         owner: now.owner,
@@ -625,8 +635,14 @@ export class BuffaloEditWorkflow {
           (s.kind === "setter" && intent.patch.dna === undefined),
       )
       .at(-1);
-    const atReceipt = (step: Step | undefined) =>
-      step?.receipt
+    const atReceipt = (step: Step | undefined) => {
+      const saved = nativeReceiptEvidence(op, step, "getMetadata");
+      if (saved)
+        return Promise.resolve({
+          createdAt: BigInt(saved.createdAt),
+          updatedAt: BigInt(saved.updatedAt),
+        });
+      return step?.receipt
         ? (this.read(
             "getMetadata",
             [token],
@@ -634,6 +650,20 @@ export class BuffaloEditWorkflow {
             BigInt(step.receipt.blockNumber),
           ) as Promise<RawMetadata>)
         : null;
+    };
+    const batchNative = nativeReceiptEvidence(op, batchStep, "getMetadata");
+    const historyNative = nativeReceiptEvidence(
+      op,
+      lastHistoryStep,
+      "getMetadata",
+    );
+    if (
+      (batchNative !== null &&
+        batchNative.createdAt !== batchNative.timestamp) ||
+      (historyNative !== null &&
+        historyNative.updatedAt !== historyNative.timestamp)
+    )
+      throw new IntegrityError("MANAGER_NATIVE_TIMESTAMP_CHANGED");
     const batchRecord = await atReceipt(batchStep);
     const historyRecord =
       lastHistoryStep === batchStep
@@ -651,32 +681,47 @@ export class BuffaloEditWorkflow {
     )
       throw new IntegrityError("MANAGER_NATIVE_TIMESTAMP_CHANGED");
     const uriStep = steps.find((s) => s.kind === "uri");
-    const recordedNft = uriStep?.receipt
-      ? (serializedValue(
-          await this.read(
-            "tokenIdToUri",
-            [token],
-            true,
-            BigInt(uriStep.receipt.blockNumber),
-          ),
-        ) as Json[])
-      : before;
+    const savedNft = nativeReceiptEvidence(op, uriStep, "tokenIdToUri");
+    if (
+      savedNft &&
+      (savedNft.createdAt !== savedNft.timestamp ||
+        savedNft.updatedAt !== savedNft.timestamp)
+    )
+      throw new IntegrityError("NFT_NATIVE_TIMESTAMP_CHANGED");
+    const recordedNft = savedNft
+      ? [nft[0], nft[1], savedNft.createdAt, savedNft.updatedAt]
+      : uriStep?.receipt
+        ? (serializedValue(
+            await this.read(
+              "tokenIdToUri",
+              [token],
+              true,
+              BigInt(uriStep.receipt.blockNumber),
+            ),
+          ) as Json[])
+        : before;
     if (nft[2] !== recordedNft[2] || nft[3] !== recordedNft[3])
       throw new IntegrityError("NFT_NATIVE_TIMESTAMP_CHANGED");
     const expectedChip = this.expected(op, steps).certify.microchip;
     if (
-      (await this.read("microchipToTokenId", [expectedChip])) !== token ||
-      !(await this.read("exists", [token], true)) ||
-      !(await this.read("initialized", [token]))
+      (await this.read("microchipToTokenId", [expectedChip], false, block)) !==
+        token ||
+      !(await this.read("exists", [token], true, block)) ||
+      !(await this.read("initialized", [token], false, block))
     )
       throw new IntegrityError("IDENTITY_CONFLICT");
     if (
       intent.patch.microchip &&
       steps.some((s) => s.kind === "batch") &&
-      (await this.read("microchipToTokenId", [intent.microchip])) !== token
+      (await this.read(
+        "microchipToTokenId",
+        [intent.microchip],
+        false,
+        block,
+      )) !== token
     )
       throw new IntegrityError("OLD_MICROCHIP_ALIAS_CHANGED");
-    await this.permission();
+    await this.permission(block);
     if ((await this.db.pedigree.count({ where: { tokenId: token } })) !== 1)
       throw new IntegrityError("AMBIGUOUS_DB_TOKEN");
     if (!steps.length) {
@@ -1001,7 +1046,7 @@ export class BuffaloEditWorkflow {
         ? context(op).desired.microchip
         : intent.microchip,
       legacyDifferences: op.plan ? context(op).legacyDifferences : [],
-      environment: this.chain.executionInstance ? "local-fork" : "mainnet",
+      environment: executionEnvironment(this.chain.executionInstance),
       restorationPending:
         !!op.plan &&
         context(op).batch &&
@@ -1014,10 +1059,7 @@ export class BuffaloEditWorkflow {
         ),
       steps: status.steps.map((s) => ({
         ...s,
-        explorerUrl:
-          !this.chain.executionInstance && s.hash
-            ? `https://www.kubscan.com/tx/${s.hash}`
-            : null,
+        explorerUrl: transactionLink(this.chain.executionInstance, s.hash),
       })),
     };
   }

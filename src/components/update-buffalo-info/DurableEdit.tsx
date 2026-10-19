@@ -69,6 +69,14 @@ const stateText: Record<string, string> = {
 const friendly = (code: string) =>
   (
     ({
+      INTEGRITY_WRITES_PAUSED:
+        "ระบบพักรับคำขอใหม่ชั่วคราว คำขอเดิมยังอยู่ กรุณาลองดำเนินการต่อเมื่อเปิดระบบ",
+      HISTORICAL_STATE_REQUIRED:
+        "ยังตรวจสอบประวัติธุรกรรมเดิมไม่ได้ กรุณาให้ผู้ดูแลตรวจสอบคำขอเดิม",
+      INVALID_RECEIPT_EVIDENCE:
+        "หลักฐานธุรกรรมไม่ครบ กรุณาให้ผู้ดูแลตรวจสอบคำขอเดิม",
+      RECONCILIATION_HEAD_CHANGED:
+        "ประวัติบล็อกเชนเปลี่ยนไป กรุณาให้ผู้ดูแลตรวจสอบคำขอเดิม",
       STALE_EDIT_RECORD:
         "ข้อมูลเปลี่ยนหลังจากเปิดหน้าต่างนี้ กรุณาปิดแล้วค้นหาใหม่ โดยเก็บค่าที่ต้องการแก้ไขไว้",
       MICROCHIP_HAS_CHILD_REFERENCES_REVIEW_REQUIRED:

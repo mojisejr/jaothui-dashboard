@@ -1,3 +1,11 @@
+import {
+  receiptEvidence,
+  nativeReceiptEvidence,
+} from "../operations/receipt-evidence";
+import {
+  executionEnvironment,
+  transactionLink,
+} from "../operations/environment";
 import { randomUUID } from "crypto";
 import sharp from "sharp";
 import { type PrismaClient } from "@prisma/client";
@@ -38,6 +46,8 @@ export interface CreateChain {
   sender: string;
   receiver: string;
   executionInstance?: string;
+  confirmations?: number;
+  maxFeeWei?: string;
   read: (
     contract: string,
     abi: Abi,
@@ -309,8 +319,8 @@ export class BuffaloCreateWorkflow {
     return {
       domain: this.chain.domain,
       sender: this.chain.sender.toLowerCase(),
-      confirmations: 3,
-      maxFeeWei: "50000000000000000",
+      confirmations: this.chain.confirmations ?? 3,
+      maxFeeWei: this.chain.maxFeeWei ?? "50000000000000000",
       ...(this.chain.executionInstance
         ? { executionInstance: this.chain.executionInstance }
         : {}),
@@ -389,6 +399,128 @@ export class BuffaloCreateWorkflow {
       nativeUpdatedAt: value.updatedAt.toString(),
     });
     return value;
+  }
+  /** Current full authorized state must remain true before every signing/publication, including aged recovery. */
+  async guard(operation: Operation, steps: Step[], blockNumber?: bigint) {
+    const read: CreateChain["read"] = (
+      contract,
+      abi,
+      name,
+      args = [],
+      number,
+    ) => this.chain.read(contract, abi, name, args, blockNumber ?? number);
+    const intent = buffalo(operation),
+      context = object(operation.plan!.context);
+    const mint = steps.find((s) => s.kind === "mint");
+    if (!mint) {
+      await this.prepare(operation);
+      return;
+    }
+    if (!operation.actualToken)
+      throw new IntegrityError("ACTUAL_RECEIPT_TOKEN_REQUIRED");
+    const token = BigInt(operation.actualToken),
+      uriStep = steps.find((s) => s.kind === "uri"),
+      final = await this.finalJson(operation);
+    const [owner, record, approved, contractOwner, role] = await Promise.all([
+      read(this.chain.domain.nft, nftAbi as Abi, "ownerOf", [token]),
+      read(this.chain.domain.nft, nftAbi as Abi, "tokenIdToUri", [token]),
+      read(this.chain.domain.nft, nftAbi as Abi, "getApproved", [token]),
+      read(this.chain.domain.nft, nftAbi as Abi, "owner"),
+      read(this.chain.domain.manager, managerAbi as Abi, "ADMIN"),
+    ]);
+    if (
+      String(owner).toLowerCase() !== this.chain.receiver.toLowerCase() ||
+      String(approved) !== "0x0000000000000000000000000000000000000000" ||
+      String(contractOwner).toLowerCase() !== this.chain.sender.toLowerCase() ||
+      !(await read(this.chain.domain.manager, managerAbi as Abi, "hasRole", [
+        role,
+        this.chain.sender,
+      ]))
+    )
+      throw new IntegrityError("CREATE_OWNERSHIP_OR_PERMISSION_CHANGED");
+    if (
+      !Array.isArray(record) ||
+      record[0] !== intent.image ||
+      record[1] !== String(uriStep ? final.uri : context.provisionalUri)
+    )
+      throw new IntegrityError("CREATE_NFT_BASELINE_CHANGED");
+    const uriNative = nativeReceiptEvidence(operation, uriStep, "tokenIdToUri");
+    const mintProof = mint.receipt
+      ? receiptEvidence(operation, mint, mint.receipt)
+      : null;
+    const mintNative = mintProof?.effects.find((e) => e.kind === "mint");
+    if (
+      uriNative &&
+      (String(record[2]) !== uriNative.timestamp ||
+        String(record[3]) !== uriNative.timestamp)
+    )
+      throw new IntegrityError("CREATE_NFT_NATIVE_CHANGED");
+    if (
+      !uriStep &&
+      mintNative &&
+      (String(record[2]) !== mintNative.nativeCreatedAt ||
+        String(record[3]) !== "0")
+    )
+      throw new IntegrityError("CREATE_NFT_NATIVE_CHANGED");
+    const mapped = await read(
+      this.chain.domain.manager,
+      managerAbi as Abi,
+      "microchipToTokenId",
+      [intent.microchip],
+    );
+    const initialized = await read(
+      this.chain.domain.manager,
+      managerAbi as Abi,
+      "initialized",
+      [token],
+    );
+    if (initialized) {
+      const raw = (await read(
+        this.chain.domain.manager,
+        managerAbi as Abi,
+        "getMetadata",
+        [token],
+      )) as RawMetadata;
+      const actual = {
+        ...chainSnapshot(raw),
+        issuedAt: raw.certify.issuedAt.toString(),
+      };
+      const withParents = steps.some((s) => s.kind === "parents");
+      const expected = this.expected(operation, withParents);
+      if (!withParents) {
+        const acceptableParents =
+          (actual.fatherId === "" && actual.motherId === "") ||
+          (actual.fatherId === intent.fatherId.replace(/^N\/A$/, "") &&
+            actual.motherId === intent.motherId.replace(/^N\/A$/, ""));
+        if (!acceptableParents)
+          throw new IntegrityError("CREATE_PARENT_BASELINE_CHANGED");
+        actual.fatherId = "";
+        actual.motherId = "";
+      }
+      if (mapped !== token || payloadHash(actual) !== payloadHash(expected))
+        throw new IntegrityError("CREATE_MANIFEST_BASELINE_CHANGED");
+      const metadata = steps.find((s) => s.kind === "metadata"),
+        native = nativeReceiptEvidence(operation, metadata, "getMetadata");
+      if (native && String(raw.createdAt) !== native.timestamp)
+        throw new IntegrityError("CREATE_METADATA_NATIVE_CHANGED");
+      const history = steps
+          .filter((s) => s.kind === "metadata" || s.kind === "parents")
+          .at(-1),
+        last = nativeReceiptEvidence(operation, history, "getMetadata");
+      if (last && String(raw.updatedAt) !== last.timestamp)
+        throw new IntegrityError("CREATE_METADATA_NATIVE_CHANGED");
+    } else if (mapped !== 0n || steps.some((s) => s.kind === "metadata"))
+      throw new IntegrityError("CREATE_MANIFEST_BASELINE_CHANGED");
+    const image = await this.storage.get(
+      `${String(context.prefix)}/source.jpg`,
+    );
+    if (!image || contentHash(image) !== context.imageHash)
+      throw new IntegrityError("IMAGE_ORIGIN_CONFLICT");
+    const row = await this.db.pedigree.findUnique({
+      where: { microchip: intent.microchip },
+    });
+    if (row && row.tokenId !== token)
+      throw new IntegrityError("DATABASE_PUBLICATION_CONFLICT");
   }
   async nextStep(
     operation: Operation,
@@ -705,12 +837,7 @@ export class BuffaloCreateWorkflow {
       ...status,
       steps: status.steps.map((step) => ({
         ...step,
-        explorerUrl:
-          !this.chain.executionInstance &&
-          step.hash &&
-          /^0x[0-9a-fA-F]{64}$/.test(step.hash)
-            ? `https://www.kubscan.com/tx/${step.hash}`
-            : null,
+        explorerUrl: transactionLink(this.chain.executionInstance, step.hash),
       })),
       input: { ...intent },
       imageReady: !!(evidence && object(evidence).imageHash) || !!op.plan,
@@ -723,7 +850,7 @@ export class BuffaloCreateWorkflow {
       publishedImageUrl: op.actualToken
         ? this.storage.publicUrl(`buffalo/${op.actualToken}.jpg`)
         : null,
-      environment: this.chain.executionInstance ? "local-fork" : "mainnet",
+      environment: executionEnvironment(this.chain.executionInstance),
     };
   }
 }

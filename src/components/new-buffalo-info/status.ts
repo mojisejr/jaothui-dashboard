@@ -17,6 +17,16 @@ const statuses: Record<string, string> = {
 export const createStatus = (state: string) =>
   statuses[state] ?? "กำลังตรวจสอบสถานะ";
 export function createError(code: string) {
+  if (code.includes("INTEGRITY_WRITES_PAUSED"))
+    return "ระบบพักรับรายการใหม่ชั่วคราว รายการเดิมยังอยู่ กรุณาดำเนินการต่อเมื่อผู้ดูแลเปิดระบบ";
+  if (code.includes("HISTORICAL_STATE_REQUIRED"))
+    return "ยังตรวจสอบประวัติธุรกรรมเดิมไม่ได้ กรุณาให้ผู้ดูแลตรวจสอบ ไม่ต้อง Mint ใหม่";
+  if (
+    code.includes("RECEIPT_EVIDENCE") ||
+    code.includes("PRESERVATION") ||
+    code.includes("RECONCILIATION")
+  )
+    return "หลักฐานธุรกรรมหรือข้อมูลเดิมเปลี่ยนไป กรุณาให้ผู้ดูแลตรวจสอบรายการเดิม";
   if (code.includes("UNAUTHORIZED"))
     return "เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง รายการเดิมยังถูกบันทึกไว้";
   if (code.includes("INVALID_CALENDAR_DAY"))

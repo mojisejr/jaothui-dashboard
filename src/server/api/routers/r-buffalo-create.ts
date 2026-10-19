@@ -53,6 +53,7 @@ export function createBuffaloCreateRouter(
       .mutation(({ input }) =>
         safe(async () => {
           const runtime = runtimeFactory();
+          runtime.assertCanStart?.();
           const op = await runtime.workflow.create(
             sharedAccount(),
             input.key,
@@ -73,6 +74,7 @@ export function createBuffaloCreateRouter(
       .mutation(({ input }) =>
         safe(async () => {
           const runtime = runtimeFactory();
+          runtime.assertCanStart?.();
           const op = await runtime.workflow.revise(
             input.id,
             sharedAccount(),

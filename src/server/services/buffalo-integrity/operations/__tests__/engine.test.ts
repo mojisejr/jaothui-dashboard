@@ -325,3 +325,66 @@ test("deadline expires after signing computation: checkpoint prevents journal an
   expect((await c.repo.steps(c.id))[0]!.hash).toBeNull();
   expect(c.chain.broadcast).not.toHaveBeenCalled();
 });
+
+test("before our first broadcast and rebroadcast a changed baseline stops the signed journal without resigning", async () => {
+  const c = await setup();
+  const guard = jest.fn(async () => undefined);
+  c.chain.beforeBroadcast = guard;
+  c.chain.broadcast.mockRejectedValueOnce(
+    new Error("unsent network interruption"),
+  );
+  await c.engine.advance(c.id, c.owner, "mint");
+  const signed = (await c.repo.steps(c.id))[0]!;
+  guard.mockRejectedValueOnce(
+    new IntegrityError("EXTERNAL_CHAIN_BASELINE_CHANGED"),
+  );
+  c.chain.observe.mockResolvedValueOnce({
+    state: "missing",
+    latestNonce: 0,
+    pendingNonce: 0,
+  });
+  expect(
+    (
+      await new OperationEngine(c.repo, c.chain).advance(
+        c.id,
+        c.owner,
+        "resume",
+      )
+    ).state,
+  ).toBe("NEEDS_REVIEW");
+  expect(c.chain.broadcast).toHaveBeenCalledTimes(1);
+  expect(c.chain.sign).toHaveBeenCalledTimes(1);
+  const retained = (await c.repo.steps(c.id))[0]!;
+  expect(retained.hash).toBe(signed.hash);
+  expect(retained.signedBytes).toBe(signed.signedBytes);
+});
+test("unchanged protected baseline permits only identical bytes on our rebroadcast", async () => {
+  const c = await setup();
+  c.chain.beforeBroadcast = jest.fn(async () => undefined);
+  c.chain.broadcast.mockRejectedValueOnce(new Error("unsent"));
+  await c.engine.advance(c.id, c.owner, "mint");
+  c.chain.observe.mockResolvedValueOnce({
+    state: "missing",
+    latestNonce: 0,
+    pendingNonce: 0,
+  });
+  await new OperationEngine(c.repo, c.chain).advance(c.id, c.owner, "resume");
+  expect(c.chain.beforeBroadcast).toHaveBeenCalledTimes(2);
+  expect(c.chain.sign).toHaveBeenCalledTimes(1);
+  expect(c.chain.broadcast.mock.calls[1]![0]).toBe(
+    c.chain.broadcast.mock.calls[0]![0],
+  );
+});
+test("planned drain before signing releases unsigned reservation and unpauses the same operation", async () => {
+  const c = await setup();
+  c.chain.sign.mockRejectedValueOnce(
+    new IntegrityError("INTEGRITY_WRITES_PAUSED"),
+  );
+  const paused = await c.engine.advance(c.id, c.owner, "mint");
+  expect(paused.state).toBe("READY");
+  expect(paused.reason).toBe("INTEGRITY_WRITES_PAUSED");
+  expect(c.chain.broadcast).not.toHaveBeenCalled();
+  expect((await c.repo.steps(c.id))[0]!.signedBytes).toBeNull();
+  expect((await c.engine.advance(c.id, c.owner, "mint")).id).toBe(c.id);
+  expect(c.chain.broadcast).toHaveBeenCalledTimes(1);
+});

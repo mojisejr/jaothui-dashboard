@@ -47,8 +47,9 @@ export function createBuffaloEditRouter(
     ),
     create: protectProcedure.input(editInputSchema).mutation(({ input }) =>
       safe(async () => {
-        const r = factory(),
-          op = await r.workflow.create(sharedAccount(), input);
+        const r = factory();
+        r.assertCanStart?.();
+        const op = await r.workflow.create(sharedAccount(), input);
         return r.workflow.view(op.id, sharedAccount(), r.engine);
       }),
     ),

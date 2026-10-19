@@ -1,49 +1,30 @@
+import { receiptEvidence } from "../operations/receipt-evidence";
 import { OperationEngine } from "../operations/engine";
-import { loopbackChainPorts } from "../operations/loopback";
-import { getCreateRuntime } from "../create/runtime";
+import { getCreateRuntime, type CreateRuntime } from "../create/runtime";
 import { BuffaloEditWorkflow } from "./workflow";
-import { readFileSync } from "fs";
-import { type Hex } from "viem";
-import { type Domain } from "../operations/types";
+import { IntegrityError } from "../operations/hash";
 export interface EditRuntime {
   workflow: BuffaloEditWorkflow;
   engine: OperationEngine;
+  assertCanStart?: () => void;
 }
 const cached = globalThis as typeof globalThis & {
-  __buffaloEditRuntime?: { path: string; value: EditRuntime };
+  __buffaloEditRuntime?: { base: CreateRuntime; value: EditRuntime };
 };
-/** getCreateRuntime enforces task-owned config, loopback DB/RPC and hard-off in production first. */
 export function getEditRuntime(): EditRuntime {
-  const runtime = getCreateRuntime(),
-    path = process.env.BUFFALO_INTEGRITY_ISOLATED_CONFIG!;
-  if (cached.__buffaloEditRuntime?.path === path)
+  const runtime = getCreateRuntime();
+  if (cached.__buffaloEditRuntime?.base === runtime)
     return cached.__buffaloEditRuntime.value;
-  const config = JSON.parse(readFileSync(path, "utf8")) as {
-    rpcUrl: string;
-    privateKey: Hex;
-    domain: Domain;
-    instanceId: string;
-    codeHashes: Record<string, string>;
-    editProjectionFailures?: number;
-    editPauseAfterBatch?: boolean;
-  };
+  if (!runtime.portsFactory)
+    throw new IntegrityError("INTEGRITY_PORT_CONFIGURATION_REQUIRED");
   const workflow = new BuffaloEditWorkflow(
     runtime.db,
     runtime.drafts,
     runtime.storage,
     runtime.workflow.chain,
-    {
-      projectionFailures: config.editProjectionFailures ?? 0,
-      pauseAfterBatch: config.editPauseAfterBatch ?? false,
-    },
+    runtime.editFaults,
   );
-  const ports = loopbackChainPorts({
-    expectedInstanceId: config.instanceId,
-    rpcUrl: config.rpcUrl,
-    privateKey: config.privateKey,
-    domain: config.domain,
-    codeHashes: config.codeHashes,
-    maxFeeWei: "50000000000000000",
+  const ports = runtime.portsFactory({
     prepare: (op) => workflow.prepare(op),
     nextStep: (op, steps) => workflow.nextStep(op, steps),
     beforeSign: async (op) =>
@@ -53,6 +34,28 @@ export function getEditRuntime(): EditRuntime {
           (s) => s.state === "CONFIRMED",
         ),
       ),
+    beforeBroadcast: async (op) =>
+      workflow.guard(
+        op,
+        (await runtime.drafts.operations.steps(op.id)).filter(
+          (s) => s.state === "CONFIRMED",
+        ),
+      ),
+    reconcileCurrent: async (op, step) =>
+      workflow.guard(
+        op,
+        [
+          ...(await runtime.drafts.operations.steps(op.id)).filter(
+            (s) => s.state === "CONFIRMED" && s.id !== step.id,
+          ),
+          step,
+        ].sort((a, b) => a.ordinal - b.ordinal),
+        step.receipt && receiptEvidence(op, step, step.receipt)?.observedHead
+          ? BigInt(
+              receiptEvidence(op, step, step.receipt)!.observedHead!.number,
+            )
+          : undefined,
+      ),
     project: (op, steps) => workflow.project(op, steps),
     verifyPublication: (op, steps, proof) =>
       workflow.verifyPublication(op, steps, proof),
@@ -60,7 +63,8 @@ export function getEditRuntime(): EditRuntime {
   const value = {
     workflow,
     engine: new OperationEngine(runtime.drafts.operations, ports),
+    assertCanStart: runtime.assertCanStart,
   };
-  cached.__buffaloEditRuntime = { path, value };
+  cached.__buffaloEditRuntime = { base: runtime, value };
   return value;
 }
