@@ -10,6 +10,10 @@ export const operationIntentSchema = z.discriminatedUnion("kind", [
       kind: z.literal("edit"),
       microchip: z.string().min(1),
       tokenId: z.string().regex(/^[1-9][0-9]*$/),
+      expectedRevision: z
+        .string()
+        .regex(/^[0-9a-f]{64}$/)
+        .optional(),
       patch: z
         .object({
           name: z.string().optional(),
@@ -109,7 +113,7 @@ export interface ExpectedCall {
         args: Json[];
         expected: Json;
         abi: Json[];
-        projection?: "manager-business" | "nft-uri";
+        projection?: "manager-business" | "manager-manifest" | "nft-uri";
       }
   >;
 }

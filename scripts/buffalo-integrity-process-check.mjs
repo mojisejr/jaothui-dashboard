@@ -6,6 +6,10 @@ const path = require("path");
 const Module = require("module");
 const ts = require("typescript");
 const root = process.cwd();
+const fixtureRoot = path.resolve(
+  root,
+  process.env.BUFFALO_INTEGRITY_TEST_FIXTURE_DIR ?? ".tmp/phase2",
+);
 const originalResolve = Module._resolveFilename;
 Module._resolveFilename = function (request, parent, ...rest) {
   const resolved = request.startsWith("~/")
@@ -46,26 +50,10 @@ async function main() {
   if (!id || !owner?.startsWith("phase2:"))
     throw Error("EXPLICIT_TEST_OPERATION_REQUIRED");
   const signer = JSON.parse(
-    fs.readFileSync(
-      path.join(
-        root,
-        process.env.BUFFALO_INTEGRITY_TEST_FIXTURE_DIR
-          ? `${process.env.BUFFALO_INTEGRITY_TEST_FIXTURE_DIR}/local-signer.json`
-          : ".tmp/phase2/local-signer.json",
-      ),
-      "utf8",
-    ),
+    fs.readFileSync(path.join(fixtureRoot, "local-signer.json"), "utf8"),
   );
   const identity = JSON.parse(
-    fs.readFileSync(
-      path.join(
-        root,
-        process.env.BUFFALO_INTEGRITY_TEST_FIXTURE_DIR
-          ? `${process.env.BUFFALO_INTEGRITY_TEST_FIXTURE_DIR}/fork-identity.json`
-          : ".tmp/phase2/fork-identity.json",
-      ),
-      "utf8",
-    ),
+    fs.readFileSync(path.join(fixtureRoot, "fork-identity.json"), "utf8"),
   );
   const db = new PrismaClient({ datasources: { db: { url } } });
   const repo = new PostgresOperationRepository(db, 30);
@@ -105,11 +93,7 @@ async function main() {
           return await original(...args);
         } catch (error) {
           fs.writeFileSync(
-            path.join(
-              root,
-              process.env.BUFFALO_INTEGRITY_TEST_FIXTURE_DIR ?? ".tmp/phase2",
-              "process-adapter-failure.json",
-            ),
+            path.join(fixtureRoot, "process-adapter-failure.json"),
             JSON.stringify(
               {
                 stage,

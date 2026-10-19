@@ -1,7 +1,6 @@
 import { readFileSync } from "fs";
 import { resolve, sep } from "path";
-import { createPublicClient, http, createWalletClient } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { createPublicClient, http } from "viem";
 import { bitkub_mainnet } from "./chain";
 
 function legacyTransport() {
@@ -25,25 +24,4 @@ export const viemPublic = createPublicClient({
   transport: legacyTransport(),
 });
 
-function legacySigner(): `0x${string}` {
-  if (!process.env.BUFFALO_INTEGRITY_ISOLATED_CONFIG)
-    return `0x${process.env.minter!}`;
-  legacyTransport();
-  const config = JSON.parse(
-    readFileSync(
-      resolve(process.env.BUFFALO_INTEGRITY_ISOLATED_CONFIG),
-      "utf8",
-    ),
-  ) as { privateKey: `0x${string}` };
-  if (!/^0x[0-9a-fA-F]{64}$/.test(config.privateKey))
-    throw Error("ISOLATED_SIGNER_REQUIRED");
-  return config.privateKey;
-}
-export const account = privateKeyToAccount(legacySigner());
-
-export const viemWallet = createWalletClient({
-  account: account,
-  chain: bitkub_mainnet,
-  // chain: bitkub_testnet,
-  transport: legacyTransport(),
-});
+// Signing is available only through the durable operation ports.

@@ -2,6 +2,7 @@ import { type NextApiRequest, type NextApiResponse } from "next";
 import { z } from "zod";
 import { isAuth } from "~/server/services/auth.service";
 import { getCreateRuntime } from "~/server/services/buffalo-integrity/create/runtime";
+import { getEditRuntime } from "~/server/services/buffalo-integrity/edit/runtime";
 import { RAW_IMAGE_LIMIT } from "~/server/services/buffalo-integrity/create/contract";
 import { IntegrityError } from "~/server/services/buffalo-integrity/operations/hash";
 export const config = { api: { bodyParser: false } };
@@ -18,6 +19,7 @@ export default async function image(req: NextApiRequest, res: NextApiResponse) {
     const input = z
       .object({
         id: z.string().uuid(),
+        kind: z.enum(["create", "edit"]).optional(),
         version: z.coerce.number().int().nonnegative(),
       })
       .strict()
@@ -38,7 +40,7 @@ export default async function image(req: NextApiRequest, res: NextApiResponse) {
     }
     if (size !== length)
       return res.status(400).json({ error: "INVALID_IMAGE_LENGTH" });
-    await runtime.workflow.upload(
+    await (input.kind === "edit" ? getEditRuntime() : runtime).workflow.upload(
       input.id,
       `shared:${process.env.username!}`,
       input.version,
@@ -47,13 +49,9 @@ export default async function image(req: NextApiRequest, res: NextApiResponse) {
     );
     return res.status(200).json({ ok: true });
   } catch (error) {
-    return res
-      .status(400)
-      .json({
-        error:
-          error instanceof IntegrityError
-            ? error.code
-            : "IMAGE_UPLOAD_REJECTED",
-      });
+    return res.status(400).json({
+      error:
+        error instanceof IntegrityError ? error.code : "IMAGE_UPLOAD_REJECTED",
+    });
   }
 }

@@ -14,7 +14,7 @@ import { bitkub_mainnet } from "~/server/blockchain/chain";
 import { abi as managerAbi } from "~/server/blockchain/metadata-maneger/abi";
 import { abi as nftAbi } from "~/server/blockchain/nft/abi";
 import { type RawMetadata } from "~/interfaces/i-metadata";
-import { chainSnapshot } from "../field-policy";
+import { chainSnapshot, managerManifest } from "../field-policy";
 import { IntegrityError, payloadHash, asJson } from "./hash";
 import {
   type ChainPorts,
@@ -66,6 +66,7 @@ export interface LoopbackConfig {
   codeHashes: Record<string, string>;
   maxFeeWei: string;
   prepare: (operation: Operation) => Promise<Plan>;
+  beforeSign?: (operation: Operation) => Promise<void>;
   nextStep: (operation: Operation, steps: Step[]) => Promise<StepSpec | null>;
   project: (operation: Operation, steps: Step[]) => Promise<PublicationProof>;
   verifyPublication: (
@@ -157,6 +158,7 @@ export function loopbackChainPorts(config: LoopbackConfig): ChainPorts {
       if (operation.plan?.executionInstance !== config.expectedInstanceId)
         throw new IntegrityError("ISOLATED_INSTANCE_MISMATCH");
       await isolated();
+      await config.beforeSign?.(operation);
       if (!allowed.includes(step.expected.to.toLowerCase()))
         throw new IntegrityError("UNAPPROVED_CONTRACT");
       const nftCall =
@@ -318,14 +320,18 @@ export function loopbackChainPorts(config: LoopbackConfig): ChainPorts {
             blockNumber: BigInt(receipt.blockNumber),
           });
           const projected =
-            effect.projection === "manager-business"
-              ? {
-                  ...chainSnapshot(value as RawMetadata),
-                  issuedAt: (value as RawMetadata).certify.issuedAt.toString(),
-                }
-              : effect.projection === "nft-uri" && Array.isArray(value)
-                ? value.slice(0, 2)
-                : value;
+            effect.projection === "manager-manifest"
+              ? managerManifest(value as RawMetadata)
+              : effect.projection === "manager-business"
+                ? {
+                    ...chainSnapshot(value as RawMetadata),
+                    issuedAt: (
+                      value as RawMetadata
+                    ).certify.issuedAt.toString(),
+                  }
+                : effect.projection === "nft-uri" && Array.isArray(value)
+                  ? value.slice(0, 2)
+                  : value;
           if (
             payloadHash(serializedValue(projected)) !==
             payloadHash(serializedValue(effect.expected))
@@ -335,8 +341,21 @@ export function loopbackChainPorts(config: LoopbackConfig): ChainPorts {
             kind: "read",
             field: effect.functionName,
             value: serializedValue(projected),
+            ...(effect.projection === "manager-manifest"
+              ? {
+                  nativeCreatedAt: serializedValue(
+                    (value as RawMetadata).createdAt,
+                  ),
+                  nativeUpdatedAt: serializedValue(
+                    (value as RawMetadata).updatedAt,
+                  ),
+                }
+              : {}),
             ...(effect.projection === "nft-uri" && Array.isArray(value)
-              ? { nativeCreatedAt: serializedValue(value[2]) }
+              ? {
+                  nativeCreatedAt: serializedValue(value[2]),
+                  nativeUpdatedAt: serializedValue(value[3]),
+                }
               : {}),
           });
         } else {

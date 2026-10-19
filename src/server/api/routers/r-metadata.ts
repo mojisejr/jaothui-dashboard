@@ -27,9 +27,11 @@ import {
   uploadBuffaloJson,
 } from "~/server/services/buffalo.service";
 
-const legacyWrite = protectProcedure.use(({ next }) => {
-  if (process.env.BUFFALO_INTEGRITY_ISOLATED_CONFIG) throw new TRPCError({code:"PRECONDITION_FAILED",message:"LEGACY_WRITE_DISABLED_IN_ISOLATION"});
-  return next();
+const legacyWrite = protectProcedure.use(() => {
+  throw new TRPCError({
+    code: "PRECONDITION_FAILED",
+    message: "LEGACY_WRITE_REQUIRES_DURABLE_OPERATION",
+  });
 });
 
 export const metadataRouter = createTRPCRouter({

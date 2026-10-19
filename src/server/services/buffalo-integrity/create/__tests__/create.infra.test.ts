@@ -32,6 +32,9 @@ import { abi as nftAbi } from "~/server/blockchain/nft/abi";
 import { abi as managerAbi } from "~/server/blockchain/metadata-maneger/abi";
 import { bitkub_mainnet } from "~/server/blockchain/chain";
 
+const artifacts = resolve(
+  process.env.BUFFALO_INTEGRITY_TEST_FIXTURE_DIR ?? ".tmp/phase3",
+);
 const enabled =
   process.env.BUFFALO_INTEGRITY_TEST_DATABASE_URL &&
   process.env.BUFFALO_INTEGRITY_TEST_FIXTURE_DIR;
@@ -125,7 +128,7 @@ infra(
                     cause?: { details?: string };
                   };
                   writeFileSync(
-                    resolve(".tmp/phase3/create-adapter-failure.json"),
+                    resolve(artifacts, "create-adapter-failure.json"),
                     JSON.stringify(
                       {
                         stage,
@@ -265,8 +268,8 @@ infra(
           return { number: block.number, hash: block.hash };
         },
       };
-      await mkdir(resolve(".tmp/phase3"), { recursive: true });
-      directory = await mkdtemp(resolve(".tmp/phase3/create-tests-"));
+      await mkdir(artifacts, { recursive: true });
+      directory = await mkdtemp(resolve(artifacts, "create-tests-"));
       server = httpServer.createServer((req, res) => {
         void (async () => {
           try {
@@ -313,7 +316,7 @@ infra(
       }
       if (preserve)
         writeFileSync(
-          resolve(".tmp/phase3/create-pending-assets.json"),
+          resolve(artifacts, "create-pending-assets.json"),
           JSON.stringify(
             { directory, origin, operationIds: [...createdIds] },
             null,

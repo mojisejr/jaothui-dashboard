@@ -44,7 +44,7 @@ export const buffaloIntentSchema = z
     rarity: z.enum(["Normal", "Rare", "Super Rare", "Super Special Rare"]),
     birthday: daySchema,
     issuedOn: daySchema,
-    height: z.number().int().nonnegative().safe(),
+    height: z.number().int().nonnegative().max(2147483647),
     fatherId: z.string(),
     motherId: z.string(),
     dna: z.string(),

@@ -75,6 +75,26 @@ export function chainSnapshot(record: RawMetadata): BusinessSnapshot {
   };
 }
 
+/** Exact on-chain business literals, distinct from display/absence normalization. Native timestamps are verified separately. */
+export function managerManifest(record: RawMetadata) {
+  return {
+    name: record.name,
+    origin: record.origin,
+    color: record.color,
+    imageUri: record.imageUri,
+    detail: record.detail,
+    sex: record.sex,
+    birthdate: record.birthdate.toString(),
+    height: record.height.toString(),
+    certify: {
+      ...record.certify,
+      issuedAt: record.certify.issuedAt.toString(),
+    },
+    relation: { ...record.relation },
+  };
+}
+export type ManagerManifest = ReturnType<typeof managerManifest>;
+
 /** Image aliases require separate origin-hash proof; URL inequality is not content inequality. */
 export function businessDifferences(
   database: BusinessSnapshot,

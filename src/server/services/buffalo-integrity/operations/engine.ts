@@ -117,6 +117,9 @@ export class OperationEngine {
         hash: step.hash,
         receipt: step.receipt,
       })),
+      canCancel:
+        !steps.some((step) => step.signedBytes) &&
+        !["COMPLETED", "CANCELLED"].includes(operation.state),
       canResume: !["DRAFT", "COMPLETED", "CANCELLED", "NEEDS_REVIEW"].includes(
         operation.state,
       ),
@@ -178,7 +181,14 @@ export class OperationEngine {
       } catch (error) {
         if (error instanceof IntegrityError) {
           // Stale workers never change state or broadcast; the current owner reconciles its journal.
-          if (error.code.startsWith("STALE_")) return;
+          if (
+            [
+              "STALE_OPERATION_LEASE",
+              "STALE_WALLET_LEASE",
+              "STALE_BROADCAST_LEASE",
+            ].includes(error.code)
+          )
+            return;
           if (error.code === "EXPLICIT_MINT_ACTION_REQUIRED") throw error;
           if (error.code === "REQUEST_BUDGET_EXCEEDED") {
             const steps = await this.repository.steps(id);

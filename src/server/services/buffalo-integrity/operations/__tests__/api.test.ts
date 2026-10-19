@@ -99,6 +99,7 @@ test("status DTO whitelists public stage/proof and excludes journal authorizatio
   const result = await c.caller.status({ id: operation.id });
   expect(Object.keys(result).sort()).toEqual([
     "actualToken",
+    "canCancel",
     "canResume",
     "id",
     "microchip",

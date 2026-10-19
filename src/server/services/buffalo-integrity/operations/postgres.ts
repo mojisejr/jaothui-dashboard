@@ -378,9 +378,9 @@ export class PostgresOperationRepository implements Repository {
       if (signed.length)
         throw new IntegrityError("CANNOT_CANCEL_SIGNED_OPERATION");
       const changed =
-        await tx.$executeRaw`UPDATE buffalo_integrity.operation SET state='CANCELLED',version=version+1 WHERE id=${claim.id}::uuid AND state IN ('DRAFT','READY','RETRYABLE')`;
+        await tx.$executeRaw`UPDATE buffalo_integrity.operation SET state='CANCELLED',version=version+1 WHERE id=${claim.id}::uuid AND state IN ('DRAFT','READY','RETRYABLE','NEEDS_REVIEW','RECOVERY_REQUIRED','SIGNING')`;
       if (!changed) throw new IntegrityError("INVALID_CANCEL_STAGE");
-      await tx.$executeRaw`UPDATE buffalo_integrity.wallet_lease SET active_step=NULL WHERE active_step IN (SELECT id FROM buffalo_integrity.step WHERE operation_id=${claim.id}::uuid)`;
+      await tx.$executeRaw`UPDATE buffalo_integrity.wallet_lease SET active_step=NULL,lease_until=NULL WHERE active_step IN (SELECT id FROM buffalo_integrity.step WHERE operation_id=${claim.id}::uuid)`;
       await tx.$executeRaw`DELETE FROM buffalo_integrity.reservation WHERE operation_id=${claim.id}::uuid`;
       await this.event(tx, claim.id, "CANCELLED");
     });

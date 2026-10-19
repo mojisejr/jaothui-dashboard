@@ -4,7 +4,19 @@ import { resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
 import http from "node:http";
-const root = resolve(".tmp/phase3");
+const directoryName = process.env.BF_ISOLATED_DIRECTORY ?? ".tmp/phase3";
+if (!/^\.tmp\/phase[0-9]+[a-z]?$/.test(directoryName))
+  throw Error("TASK_DIRECTORY_REQUIRED");
+const root = resolve(directoryName);
+const uiPort = Number(process.env.BF_ISOLATED_UI_PORT ?? 3153);
+const originPort = Number(process.env.BF_ISOLATED_ORIGIN_PORT ?? 18551);
+if (
+  ![uiPort, originPort].every(
+    (p) => Number.isInteger(p) && p > 1024 && p < 65536,
+  ) ||
+  uiPort === originPort
+)
+  throw Error("INVALID_LOOPBACK_PORTS");
 const env = Object.fromEntries(
   readFileSync(resolve(root, "disposable.env"), "utf8")
     .split("\n")
@@ -55,7 +67,9 @@ const configuration = {
   instanceId: identity.instanceId,
   codeHashes: identity.codeHashes,
   storageDirectory: directory,
-  storageOrigin: "http://127.0.0.1:18551",
+  storageOrigin: `http://127.0.0.1:${originPort}`,
+  editPauseAfterBatch: process.env.BF_EDIT_PAUSE_AFTER_BATCH === "1",
+  editProjectionFailures: Number(process.env.BF_EDIT_PROJECTION_FAILURES ?? 0),
   projectionFailures: Number(process.env.BF_ISOLATED_PROJECTION_FAILURES ?? 1),
 };
 writeFileSync(configPath, JSON.stringify(configuration, null, 2), {
@@ -89,12 +103,19 @@ const origin = http.createServer(async (req, res) => {
     res.writeHead(404).end();
   }
 });
-origin.listen(18551, "127.0.0.1", () =>
-  console.log("Isolated asset origin http://127.0.0.1:18551"),
+origin.listen(originPort, "127.0.0.1", () =>
+  console.log(`Isolated asset origin http://127.0.0.1:${originPort}`),
 );
 const child = spawn(
   process.execPath,
-  ["node_modules/next/dist/bin/next", "dev", "-H", "127.0.0.1", "-p", "3153"],
+  [
+    "node_modules/next/dist/bin/next",
+    "dev",
+    "-H",
+    "127.0.0.1",
+    "-p",
+    String(uiPort),
+  ],
   {
     stdio: "inherit",
     env: {

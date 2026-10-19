@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { type SupabaseClient } from "@supabase/supabase-js";
-import { mkdir, readFile, writeFile } from "fs/promises";
+import { mkdir, readFile, writeFile, rename } from "fs/promises";
 import { dirname, resolve, sep } from "path";
 import { IntegrityError } from "../operations/hash";
 
@@ -10,6 +10,12 @@ export interface AssetStorage {
   publicUrl: (key: string) => string;
   get: (key: string) => Promise<Buffer | null>;
   putImmutable: (key: string, bytes: Buffer, mime: string) => Promise<void>;
+  replaceAlias?: (
+    key: string,
+    bytes: Buffer,
+    mime: string,
+    previousHash: string | null,
+  ) => Promise<void>;
 }
 function safeKey(key: string): string {
   if (
@@ -19,6 +25,15 @@ function safeKey(key: string): string {
   )
     throw new IntegrityError("UNOWNED_ASSET_KEY");
   return key;
+}
+/** Resolve only URLs belonging to this exact storage prefix; never fetch arbitrary chain URLs. */
+export function ownedAssetKey(storage: AssetStorage, value: string): string {
+  const exemplar = storage.publicUrl("buffalo/1.jpg"),
+    base = exemplar.slice(0, -"buffalo/1.jpg".length);
+  const url = new URL(value);
+  if (url.search || url.hash || !value.startsWith(base))
+    throw new IntegrityError("ASSET_ORIGIN_REVIEW_REQUIRED");
+  return safeKey(decodeURIComponent(value.slice(base.length)));
 }
 export function operationPrefix(owner: string, key: string) {
   if (!/^[0-9a-f-]{36}$/.test(key))
@@ -50,6 +65,19 @@ export function localAssetStorage(
   return {
     publicUrl: (key) => `${url.origin}/${safeKey(key)}`,
     get,
+    async replaceAlias(key, bytes, _mime, previousHash) {
+      if (!/^(buffalo|json)\//.test(safeKey(key)))
+        throw new IntegrityError("ALIAS_KEY_REQUIRED");
+      const before = await get(key);
+      if (before && contentHash(before) === contentHash(bytes)) return;
+      if ((before ? contentHash(before) : null) !== previousHash)
+        throw new IntegrityError("ALIAS_BASELINE_CHANGED");
+      const path = file(key);
+      await mkdir(dirname(path), { recursive: true });
+      const pending = `${path}.pending`;
+      await writeFile(pending, bytes);
+      await rename(pending, path);
+    },
     async putImmutable(key, bytes) {
       const path = file(key);
       await mkdir(dirname(path), { recursive: true });
@@ -95,6 +123,22 @@ export function supabaseAssetStorage(
     publicUrl: (key) =>
       client.storage.from(bucket).getPublicUrl(safeKey(key)).data.publicUrl,
     get,
+    async replaceAlias(key, bytes, mime, previousHash) {
+      if (!/^(buffalo|json)\//.test(safeKey(key)))
+        throw new IntegrityError("ALIAS_KEY_REQUIRED");
+      const before = await get(key);
+      if (before && contentHash(before) === contentHash(bytes)) return;
+      if ((before ? contentHash(before) : null) !== previousHash)
+        throw new IntegrityError("ALIAS_BASELINE_CHANGED");
+      const result = await client.storage
+        .from(bucket)
+        .upload(safeKey(key), bytes, {
+          contentType: mime,
+          upsert: true,
+          cacheControl: "0",
+        });
+      if (result.error) throw new IntegrityError("STORAGE_ORIGIN_UNAVAILABLE");
+    },
     async putImmutable(key, bytes, mime) {
       const result = await client.storage
         .from(bucket)
