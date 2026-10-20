@@ -1,6 +1,8 @@
 # Buffalo write integrity: operator release and recovery
 
-Status: qualification in progress; local-first candidate only. Hosted Supabase staging, gateway/CDN behavior, Vercel deployment and production configuration remain unqualified until separately rehearsed. This document does not authorize production schema, policy, mainnet, deployment or merge changes. The default runtime is off.
+Release amendment (20 October 2026): the owner approved a controlled production rollout with hosted risks accepted. Follow [CONTROLLED-PRODUCTION.md](CONTROLLED-PRODUCTION.md) for the authorized sequence and human canary boundary; it supersedes the separate hosted staging prerequisite below.
+
+Historical local qualification status: local-first candidate only. Hosted Supabase staging, gateway/CDN behavior, Vercel deployment and production configuration remain unqualified until separately rehearsed. This document does not authorize production schema, policy, mainnet, deployment or merge changes. The default runtime is off.
 
 ## Required server configuration
 
