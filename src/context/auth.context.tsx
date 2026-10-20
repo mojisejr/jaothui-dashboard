@@ -1,4 +1,3 @@
-import { TRPCClientErrorLike } from "@trpc/client";
 import { useRouter } from "next/router";
 import {
   type ReactNode,
@@ -60,7 +59,11 @@ export function AuthProvider({ children }: Props) {
   useEffect(() => {
     if (isError && error != null) {
       setAuth(false);
-      alert(`${error.data!.code}`);
+      alert(
+        error.data?.code === "UNAUTHORIZED"
+          ? "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง"
+          : "ติดต่อระบบเข้าสู่ระบบไม่สำเร็จ กรุณาลองอีกครั้ง",
+      );
     }
   }, [isError, error]);
 
