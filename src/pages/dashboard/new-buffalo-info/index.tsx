@@ -1,23 +1,10 @@
-import React from "react";
+import DurableCreate from "~/components/new-buffalo-info/DurableCreate";
 import BaseLayout from "~/components/layout/BaseLayout";
-import MetadataGenerate from "~/components/new-buffalo-info/MetadataGenerate";
-import Minting from "~/components/new-buffalo-info/Minting";
-import NewBuffaloForm from "~/components/new-buffalo-info/NewBuffaloForm";
-import UploadImageForm from "~/components/new-buffalo-info/UploadImageForm";
-import { useBuffaloInfo } from "~/context/buffalo-info.context";
-
-const NewBuffaloInfoMainPage = () => {
-  const { step } = useBuffaloInfo();
+/** Product execution remains hard-off in the server runtime until the combined release gate. */
+export default function NewBuffaloInfoMainPage() {
   return (
     <BaseLayout title="New Buffalo Info">
-      <div className="flex w-full items-center justify-center">
-        {step == 0 ? <NewBuffaloForm /> : null}
-        {step == 1 ? <UploadImageForm /> : null}
-        {step == 2 ? <MetadataGenerate /> : null}
-        {step == 3 ? <Minting /> : null}
-      </div>
+      <DurableCreate />
     </BaseLayout>
   );
-};
-
-export default NewBuffaloInfoMainPage;
+}

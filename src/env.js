@@ -8,6 +8,17 @@ export const env = createEnv({
    */
   server: {
     DATABASE_URL: z.string().url(),
+    BUFFALO_INTEGRITY_MODE: z.enum(["off", "drain", "enabled"]).optional(),
+    BUFFALO_INTEGRITY_SERVER_CONFIG: z.string().optional(),
+    BUFFALO_INTEGRITY_SIGNER_KEY: z
+      .string()
+      .regex(/^0x[0-9a-fA-F]{64}$/)
+      .optional(),
+    BUFFALO_INTEGRITY_STORAGE_JWT: z.string().optional(),
+    BUFFALO_INTEGRITY_RELEASE_ID: z.string().optional(),
+    BUFFALO_INTEGRITY_ISOLATED_CONFIG: z.string().optional(),
+    BUFFALO_INTEGRITY_REHEARSAL_ID: z.string().optional(),
+
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -33,6 +44,16 @@ export const env = createEnv({
    */
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
+    BUFFALO_INTEGRITY_MODE: process.env.BUFFALO_INTEGRITY_MODE,
+    BUFFALO_INTEGRITY_SERVER_CONFIG:
+      process.env.BUFFALO_INTEGRITY_SERVER_CONFIG,
+    BUFFALO_INTEGRITY_SIGNER_KEY: process.env.BUFFALO_INTEGRITY_SIGNER_KEY,
+    BUFFALO_INTEGRITY_STORAGE_JWT: process.env.BUFFALO_INTEGRITY_STORAGE_JWT,
+    BUFFALO_INTEGRITY_RELEASE_ID: process.env.BUFFALO_INTEGRITY_RELEASE_ID,
+    BUFFALO_INTEGRITY_ISOLATED_CONFIG:
+      process.env.BUFFALO_INTEGRITY_ISOLATED_CONFIG,
+    BUFFALO_INTEGRITY_REHEARSAL_ID: process.env.BUFFALO_INTEGRITY_REHEARSAL_ID,
+
     NODE_ENV: process.env.NODE_ENV,
     SANITY_PROJECT_ID: process.env.SANITY_PROJECT_ID,
     SANITY_DATASET: process.env.SANITY_DATASET,
