@@ -1,53 +1,21 @@
-import { uploadImage } from "./supabase/upload-imagefile";
-import { uploadJson } from "./supabase/upload-jsonfile";
 import { getImageUrl, getJsonUrl } from "./supabase/supabase";
 import { db } from "../db";
-import { type JsonMetadata } from "~/interfaces/i-metadata-json";
 import { type Reward } from "~/interfaces/i-reward";
-import { updateDNAOnChain } from "../blockchain/metadata.service";
 
 export const uploadBuffaloJson = async (
-  tokenId: number,
-  metadata: string,
-  motherId?: string,
-  fatherId?: string,
+  _tokenId: number,
+  _metadata: string,
+  _motherId?: string,
+  _fatherId?: string,
 ) => {
-  const parsed = JSON.parse(metadata) as JsonMetadata;
-
-  if (parsed == undefined) throw Error("parsed metadata error");
-
-  const result = await db.pedigree.create({
-    data: {
-      tokenId: parsed.edition,
-      microchip: parsed.attributes[1]?.value ?? "N/A",
-      name: parsed.name.split(" #")[0] ?? "N/A",
-      certNo: "N/A",
-      birthday: new Date(parsed.attributes[2]?.value ?? 0),
-      sex: parsed.attributes[0]?.value ?? "N/A",
-      motherId: motherId ?? "N/A",
-      fatherId: fatherId ?? "N/A",
-      origin: parsed.attributes[4]?.value ?? "N/A",
-      height: 0,
-      color: parsed.attributes[3]?.value ?? "N/A",
-      createdAt: new Date().getTime().toString(),
-      updatedAt: new Date().getTime().toString(),
-      detail: "N/A",
-      dna: "N/A",
-      image: parsed.image.split(".jpg")[0],
-      rarity: parsed.attributes[6]?.value ?? "Normal",
-    },
-  });
-
-  if (!result) throw Error("create search data failed cannot update json");
-
-  return await uploadJson(tokenId, metadata);
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
 
 export const uploadBuffaloImage = async (
-  tokenId: number,
-  buffaloBuffer: Buffer,
+  _tokenId: number,
+  _buffaloBuffer: Buffer,
 ) => {
-  return await uploadImage(tokenId, buffaloBuffer);
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
 
 export const checkCanMint = async (tokenId: number) => {
@@ -85,27 +53,9 @@ export const addNewReward = async (reward: Reward) => {
 };
 
 export const updateDNA = async (
-  tokenId: string,
-  microchip: string,
-  dnaURL: string,
+  _tokenId: string,
+  _microchip: string,
+  _dnaURL: string,
 ) => {
-  try {
-    const dbUpdated = await db.pedigree.update({
-      where: { microchip },
-      data: { dna: dnaURL },
-    });
-
-    if (!dbUpdated) return null;
-
-    const updated = await updateDNAOnChain(tokenId, dnaURL);
-
-    if (!updated) {
-      return null;
-    }
-
-    return dbUpdated;
-  } catch (error) {
-    console.log(error);
-    return null;
-  }
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };

@@ -1,17 +1,7 @@
-import { getJsonUrl, supabase } from "./supabase";
-
-export const uploadJson = async (tokenId: number, metadata: string) => {
-  const uploadResult = await supabase.storage
-
-    // .from("test/json")
-    .from("slipstorage/json")
-    .upload(`${tokenId}.json`, metadata, {
-      upsert: true,
-      cacheControl: "0",
-    });
-
-  if (uploadResult.error == null) {
-    const imageUrl = getJsonUrl(uploadResult.data?.path, false);
-    return imageUrl;
-  }
+/** Protected aliases are written only by the server-owned durable asset coordinator. */
+export const uploadJson = async (
+  _tokenId: number,
+  _metadata: string,
+): Promise<never> => {
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };

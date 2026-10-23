@@ -40,7 +40,7 @@ verify_eyes:
       - "Transaction atomicity, server authorization, timezone boundaries and concurrency require deterministic tests"
       - "Physical LINE delivery and operator acceptance require separate approved recipient and operator evidence"
       - "No native or React Native rendering claims"
-    artifact_sink: "/Users/non/dev/opilot/.playwright-mcp/jaothui-dashboard/competition-admin/phase-3/"
+    artifact_sink: "/Users/non/dev/opilot/.playwright-mcp/jaothui-dashboard/competition-admin/phase-5/"
     commands:
       - "Run npm run dev from the isolated dashboard worktree on an available local port; record the actual URL"
       - "Use the plan canonical Codex cua_repl owned browser session/tab; obtain operator login readiness when needed"
@@ -49,6 +49,18 @@ verify_eyes:
       - "Record viewport, URLs, commit IDs, synthetic entity IDs, sanitized console/network results and screenshots in artifact_sink"
       - "Require documentElement.scrollWidth <= documentElement.clientWidth; inspect local table scroll separately"
     claim_label: EVENT_WORKSPACE_WEB_EYE_CLOSED
+  - kind: web-eye
+    gate: required
+    sees:
+      - "Existing production buffalo create/edit DOM, receipt progress, upload, reload and re-auth recovery at390/768/1440px"
+    does_not_see:
+      - "Source-only validation does not establish runtime recovery or actual mainnet acceptance"
+      - "No native rendering claims"
+    artifact_sink: "/Users/non/dev/opilot/.playwright-mcp/jaothui-dashboard/buffalo-integrity/"
+    commands:
+      - "Use the source-selected isolated buffalo runtime only for genuine create/edit recovery tests; never use mainnet as an incidental regression fixture"
+      - "For competition-only changes, verify existing buffalo route/read/disabled-write guards and retain earlier qualified runtime evidence with its exact scope"
+    claim_label: BUFFALO_REGISTRY_WEB_EYE_CLOSED
 primitives:
   - name: Header
     file: src/components/ui/Header.tsx
@@ -65,6 +77,15 @@ primitives:
   - name: Icon
     file: src/components/ui/Icon.tsx
     variants: [sm, md, lg, xl, orange-glow, purple-glow]
+  - name: BaseLayout
+    file: src/components/layout/BaseLayout.tsx
+    variants: [dashboard, inner-page]
+  - name: DurableCreate
+    file: src/components/new-buffalo-info/DurableCreate.tsx
+    variants: [form, upload, review, pending, completed]
+  - name: DurableEdit
+    file: src/components/update-buffalo-info/DurableEdit.tsx
+    variants: [details, field-dialog, pending, recovery, scoped-completed, read-only-conflict]
 quality_gates:
   accessibility:
     contrast: "WCAG AA; zero critical or serious axe violations on changed surfaces"
@@ -293,3 +314,15 @@ Patterns explain similarities, not exact conformance or permission to restyle.
 - Hub source filename is `src/pages/dashboard/index..tsx` with two dots. Check
   actual routing before wiring the competition entry; do not normalize it as an
   unrelated change. Existing `/dev/tokens-showcase` is not a newly-built showcase.
+
+## Buffalo registry scope
+
+The production buffalo forms keep their existing BaseLayout/DaisyUI four-step
+creation flow and field-dialog edit flow. Their8px form corners and ordinary
+bordered surfaces are scoped to buffalo forms; the competition workspace retains
+its existing24px glass panels. Preserve both instead of restyling one domain to
+match the other. The full inherited production contract and selectors are kept
+in [Buffalo integrity design](docs/buffalo-integrity-design.md). Competition work
+must not restore legacy buffalo write routes, change receipt/recovery semantics,
+or replace the durable create/edit components. Production canary acceptance is
+not implied by a competition regression run.

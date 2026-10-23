@@ -1,15 +1,16 @@
-import { account, viemPublic, viemWallet } from "./viem";
+import { viemPublic } from "./viem";
 import { abi, address } from "./metadata-maneger/abi";
 import { abi as nftAbi, address as nftAddress } from "./nft/abi";
-import { type IMetadata, type RawMetadata } from "~/interfaces/i-metadata";
-import { getJsonUrl } from "../services/supabase/supabase";
+import { type IMetadata } from "~/interfaces/i-metadata";
+import { getJsonUrl, getImageUrl } from "../services/supabase/supabase";
 import axios from "axios";
 import { type JsonMetadata } from "~/interfaces/i-metadata-json";
-import { NewBuffaloInput } from "~/components/new-buffalo-info/NewBuffaloForm";
 import { getByMicrochip } from "../services/buffalo.service";
-import dayjs from "dayjs";
-import { parse } from "path";
-import { db } from "../db";
+import { readBuffaloMetadata } from "../services/buffalo-integrity/read";
+import {
+  metadataDomain,
+  readChainIdentity,
+} from "../services/buffalo-integrity/chain-read";
 
 export const getAllMintedBuffalos = async () => {
   const metadata = (await viemPublic.readContract({
@@ -26,81 +27,16 @@ export const getAllMintedBuffalos = async () => {
   return metadataWithTokenIds;
 };
 
-export const mintNFT = async (tokenId: number) => {
-  try {
-    const url = getJsonUrl(`${tokenId.toString()}.json`, false);
-    const response = await axios.get<JsonMetadata>(url);
-    const data: JsonMetadata = response.data;
-
-    const { request } = await viemPublic.simulateContract({
-      account: account,
-      address: nftAddress,
-      abi: nftAbi,
-      functionName: "mintWithMetadata",
-      args: ["0xD0fBB6E65B81bafe6dd6ea112ca7154368683C7C", data.image, url],
-    });
-
-    // console.log(request);
-
-    const minted = await viemWallet.writeContract(request);
-
-    if (minted) {
-      return true;
-    } else {
-      return false;
-    }
-  } catch (error) {
-    console.log(error);
-    return false;
-  }
+export const mintNFT = async (_tokenId: number) => {
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
 
-export const addMetadata = async (tokenId: number) => {
-  try {
-    const metadataForManager = await createMetadataForManager(tokenId);
-    const { request: metadataRequest } = await viemPublic.simulateContract({
-      account: account,
-      address: address,
-      abi: abi,
-      functionName: "addMetadata",
-      args: [tokenId.toString(), metadataForManager],
-    });
-
-    const metadataAdded = await viemWallet.writeContract(metadataRequest);
-
-    if (metadataAdded) {
-      return true;
-    } else {
-      return false;
-    }
-  } catch (error) {
-    console.log(error);
-    return false;
-  }
+export const addMetadata = async (_tokenId: number) => {
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
 
-export const addMetadataBatch = async (tokenId: number) => {
-  try {
-    const metadataForManager = await createMetadataForManager(tokenId);
-    const { request: metadataRequest } = await viemPublic.simulateContract({
-      account: account,
-      address: address,
-      abi: abi,
-      functionName: "addMetadataBatch",
-      args: [[tokenId.toString()], [metadataForManager]],
-    });
-
-    const metadataAdded = await viemWallet.writeContract(metadataRequest);
-
-    if (metadataAdded) {
-      return true;
-    } else {
-      return false;
-    }
-  } catch (error) {
-    console.log(error);
-    return false;
-  }
+export const addMetadataBatch = async (_tokenId: number) => {
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
 
 export const createMetadataForManager = async (tokenId: number) => {
@@ -161,268 +97,109 @@ export const getCurrentTokenId = async () => {
 };
 
 export const getMetadataByMicrochipId = async (microchipId: string) => {
-  try {
-    const data = (await viemPublic.readContract({
-      address: address,
-      abi: abi,
-      functionName: "getMetadataByMicrochip",
-      args: [microchipId],
-    })) as RawMetadata;
-
-    const fromDb = await getByMicrochip(microchipId);
-
-    if (!fromDb) return null;
-
-    // const parsed = {
-    //   ...data!,
-    //   imageUri: getImageUrl(`${tokenId}.jpg`),
-    //   birthdate: +data.birthdate!.toString(),
-    //   height: +data.height.toString(),
-    //   certify: {
-    //     ...data.certify,
-    //     issuedAt: +data.certify.issuedAt.toString(),
-    //   },
-    //   createdAt: +data.createdAt.toString(),
-    //   updatedAt: +data.updatedAt.toString(),
-    //   certificate: certificationData,
-    // };
-
-    const parsed: IMetadata = {
-      tokenId: parseInt(fromDb.tokenId.toString()),
-      name: data.name,
-      origin: data.origin,
-      color: data.color,
-      image: data.imageUri,
-      detail: data.detail,
-      sex: data.sex,
-      birthdate: parseInt(data.birthdate.toString()) * 1000,
-      birthday: dayjs(
-        new Date(parseInt(data.birthdate.toString()) * 1000),
-      ).format("YYYY/MM/DD"),
-      height: data.height.toString(),
-      microchip: microchipId,
-      certNo: data.certify.certNo,
-      dna: fromDb.dna,
-      rarity: data.certify.rarity,
-      fatherId: data.relation.fatherTokenId,
-      motherId: data.relation.motherTokenId,
-      createdAt: data.createdAt.toString(),
-      updatedAt: data.updatedAt.toString(),
-    };
-
-    return parsed;
-  } catch (error) {
-    console.log(error);
-  }
+  return readBuffaloMetadata(microchipId, metadataDomain, {
+    findCow: getByMicrochip,
+    readChain: readChainIdentity,
+    imageForCow: (cow) => getImageUrl(`${cow.tokenId.toString()}.jpg`, false),
+  });
 };
 
 export const updateBuffaloMicrochip = async (
-  tokenId: number,
-  oldMicrochip: string,
-  microchip: string,
+  _tokenId: number,
+  _oldMicrochip: string,
+  _microchip: string,
 ) => {
-  try {
-    const result = await addMetadataBatch(tokenId);
-    if (result) {
-      await db.pedigree.update({
-        where: { microchip: oldMicrochip },
-        data: { microchip: microchip },
-      });
-    }
-    return true;
-  } catch (error) {
-    return false;
-  }
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
 
 export const updateBuffaloBirthday = async (
-  tokenId: number,
-  microchip: string,
-  birthday: Date,
+  _tokenId: number,
+  _microchip: string,
+  _birthday: Date,
 ) => {
-  const result = await addMetadataBatch(tokenId);
-  if (result) {
-    await db.pedigree.update({
-      where: { microchip },
-      data: { birthday: birthday },
-    });
-  }
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
 
 export const updateBuffaloCertNo = async (
-  tokenId: number,
-  microchip: string,
-  certNo: string,
+  _tokenId: number,
+  _microchip: string,
+  _certNo: string,
 ) => {
-  const result = await addMetadataBatch(tokenId);
-  if (result) {
-    await db.pedigree.update({
-      where: { microchip },
-      data: { certNo: certNo },
-    });
-  }
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
 
 export const updateBuffaloColor = async (
-  tokenId: number,
-  microchip: string,
-  color: string,
+  _tokenId: number,
+  _microchip: string,
+  _color: string,
 ) => {
-  const result = await addMetadataBatch(tokenId);
-  if (result) {
-    await db.pedigree.update({
-      where: { microchip },
-      data: { color: color },
-    });
-  }
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
 
 export const updateBuffaloDetail = async (
-  tokenId: number,
-  microchip: string,
-  detail: string,
+  _tokenId: number,
+  _microchip: string,
+  _detail: string,
 ) => {
-  const result = await addMetadataBatch(tokenId);
-  if (result) {
-    await db.pedigree.update({
-      where: { microchip },
-      data: { detail: detail },
-    });
-  }
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
 
 export const updateBuffaloDna = async (
-  tokenId: number,
-  microchip: string,
-  dna: string,
+  _tokenId: number,
+  _microchip: string,
+  _dna: string,
 ) => {
-  const result = await addMetadataBatch(tokenId);
-  if (result) {
-    await db.pedigree.update({
-      where: { microchip },
-      data: { dna: dna },
-    });
-  }
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
 
 export const updateBuffaloHeight = async (
-  tokenId: number,
-  microchip: string,
-  height: number,
+  _tokenId: number,
+  _microchip: string,
+  _height: number,
 ) => {
-  const result = await addMetadataBatch(tokenId);
-  if (result) {
-    await db.pedigree.update({
-      where: { microchip },
-      data: { height: height },
-    });
-  }
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
 
 export const updateBuffaloName = async (
-  tokenId: number,
-  microchip: string,
-  name: string,
+  _tokenId: number,
+  _microchip: string,
+  _name: string,
 ) => {
-  const result = await addMetadataBatch(tokenId);
-  if (result) {
-    await db.pedigree.update({
-      where: { microchip },
-      data: { name: name },
-    });
-  }
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
 
 export const updateBuffaloOrigin = async (
-  tokenId: number,
-  microchip: string,
-  origin: string,
+  _tokenId: number,
+  _microchip: string,
+  _origin: string,
 ) => {
-  const result = await addMetadataBatch(tokenId);
-  if (result) {
-    await db.pedigree.update({
-      where: { microchip },
-      data: { origin: origin },
-    });
-  }
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
 
 export const updateBuffaloRarity = async (
-  tokenId: number,
-  microchip: string,
-  rarity: string,
+  _tokenId: number,
+  _microchip: string,
+  _rarity: string,
 ) => {
-  const result = await addMetadataBatch(tokenId);
-  if (result) {
-    await db.pedigree.update({
-      where: { microchip },
-      data: { rarity: rarity },
-    });
-  }
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
 
 export const updateBuffaloSex = async (
-  tokenId: number,
-  microchip: string,
-  sex: string,
+  _tokenId: number,
+  _microchip: string,
+  _sex: string,
 ) => {
-  const result = await addMetadataBatch(tokenId);
-  if (result) {
-    await db.pedigree.update({
-      where: { microchip },
-      data: { sex: sex },
-    });
-  }
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
 
 export const updateParentId = async (
-  microchip: string,
-  motherMicrochip: string,
-  fatherMicrochip: string,
+  _microchip: string,
+  _motherMicrochip: string,
+  _fatherMicrochip: string,
 ) => {
-  try {
-    const target = await db.pedigree.findFirst({
-      where: { microchip: microchip },
-    });
-
-    const { request: metadataRequest } = await viemPublic.simulateContract({
-      account: account,
-      address: address,
-      abi: abi,
-      functionName: "setParent",
-      args: [target?.tokenId, fatherMicrochip, motherMicrochip],
-    });
-
-    const metadataAdded = await viemWallet.writeContract(metadataRequest);
-    if (metadataAdded) {
-      return true;
-    } else {
-      return false;
-    }
-  } catch (error) {
-    console.log(error);
-    return false;
-  }
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
 
-export const updateDNAOnChain = async (tokenId: string, dnaUrl: string) => {
-  try {
-    const { request: dnaUpdateRequest } = await viemPublic.simulateContract({
-      account: account,
-      address: address,
-      abi: abi,
-      functionName: "setDNA",
-      args: [parseInt(tokenId), dnaUrl],
-    });
-
-    const dna = await viemWallet.writeContract(dnaUpdateRequest);
-    if (dna) {
-      return true;
-    } else {
-      return false;
-    }
-  } catch (error) {
-    console.log(error);
-    return false;
-  }
+export const updateDNAOnChain = async (_tokenId: string, _dnaUrl: string) => {
+  throw new Error("LEGACY_WRITE_REQUIRES_DURABLE_OPERATION");
 };
