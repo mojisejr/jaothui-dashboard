@@ -1,7 +1,7 @@
-# Competition workspace — Phase 3 operator guide
+# Competition workspace — operator guide
 
-Issue: #56. This checkpoint covers event setup and event controls. It is not the
-complete competition-admin migration.
+Issue: #56. Event setup, controls, applications, onsite and export are implemented.
+The release remains held for Phase5 regression, controlled LINE and operator acceptance.
 
 ## Use the workspace
 
@@ -80,25 +80,26 @@ events. Configure both source dataset settings, `NEXT_PUBLIC_SANITY_DATASET` and
 also use `dev`. Check the selected dataset before enabling writes. Local preview
 success does not establish production readiness or operator acceptance.
 
-## Remaining delivery and rollout hold
+## Applications, onsite and export
 
-Phase 4 still needs the dashboard applications list/detail, approval/rejection,
-notification outcomes/retry, onsite registration, and event-context export UI
-with browser verification. Source API availability is not proof that these
-operator workflows are delivered.
+Open an event's applications to search and filter by approval/type/level/sex/color.
+Absent approval is pending, not rejected. Review images, address and applicant
+information; nullable legacy data remains readable. Reject with a reason.
+Approval-save and LINE delivery/retry states are separate; provider acceptance
+does not prove a person read the message. Never repeat approval solely to retry
+notification. Staff onsite can continue after public registration closes, until
+the event ends, with the source age cutoff and explicit duplicate override.
 
-Phase 5 still needs full public/admin regression, controlled live delivery
-proof, legacy admin cutover, production configuration checks, recovery exercise
-and operator acceptance. Voting and raffle work remain outside this scope.
+Export from the event context or the existing /dashboard/event-export page. Both
+use the source export contract; stored ages, including zero, take precedence.
+Missing ages use only the event's age cutoff and show warnings when unavailable.
+The old route does not invent an age from today's date or the event start.
 
-Hold production writes and legacy admin removal until those gates close. Deploy
-the compatible source backend and public draft-visibility readers first, with
-bridge writes disabled; verify their contracts, then deploy/configure the
-dashboard. Enable source writes only at the approved rollout checkpoint.
+## Release and recovery
 
-For a write incident, disable `JAOTHUI_COMPETITION_ADMIN_WRITES_ENABLED` on the
-source and redeploy/restart it, then investigate before retrying. The switch
-stops new bridge mutations; it does not undo completed writes. Keep compatible
-source readers available for existing event history and drafts. Roll back the
-dashboard independently if needed; do not remove draft filtering or run a
-destructive data rollback as part of UI recovery.
+Follow [competition release/operator handover](competition-release.md) for the
+source-first sequence, environment checks, legacy link/API cutover and recovery.
+Actual LINE and production changes need their explicit approved boundaries.
+Existing buffalo production settings and public applicant LINE login are unchanged.
+Local tests are isolated to designated Sanitydev synthetic records; no physical
+LINE receipt or complete operator acceptance is claimed by this guide.
