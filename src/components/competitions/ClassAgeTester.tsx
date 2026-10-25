@@ -2,6 +2,8 @@ import { useState } from "react";
 import { getEligibleCompetitionClasses } from "~/lib/competition-classes";
 import { previewCompetitionAge } from "~/lib/competition-age-preview";
 import { formatDay } from "~/lib/competitions";
+import { ThaiDateInput } from "./ThaiDateInput";
+import { emptyDateDraft, dateDraftIso } from "~/lib/competition-thai-date";
 import { control } from "./Workspace";
 
 export function ClassAgeTester({
@@ -13,7 +15,8 @@ export function ClassAgeTester({
   royal: boolean;
   values: string[];
 }) {
-  const [birthday, setBirthday] = useState("");
+  const [birthdayDraft, setBirthdayDraft] = useState(emptyDateDraft);
+  const birthday = dateDraftIso(birthdayDraft) ?? "";
   const [albino, setAlbino] = useState(false);
   const age = previewCompetitionAge(birthday, cutoff, royal && albino);
   const eligible =
@@ -29,15 +32,11 @@ export function ClassAgeTester({
         10 เดือน สมัครได้เฉพาะช่วงที่ตรงกัน
       </p>
       <div className="grid min-w-0 gap-4 md:grid-cols-2">
-        <label className="min-w-0 space-y-2 text-sm">
-          วันเกิดสำหรับทดลอง
-          <input
-            className={control}
-            type="date"
-            value={birthday}
-            onChange={(e) => setBirthday(e.target.value)}
-          />
-        </label>
+        <ThaiDateInput
+          label="วันเกิดสำหรับทดลอง"
+          value={birthdayDraft}
+          onChange={setBirthdayDraft}
+        />
         {royal ? (
           <label className="min-w-0 space-y-2 text-sm">
             สีสำหรับทดลอง

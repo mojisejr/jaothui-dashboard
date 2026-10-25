@@ -175,13 +175,9 @@ it("special age bounds apply in the birthday tester and manual criteria are expl
   const tester = render(
     <ClassAgeTester cutoff="2026-10-16" royal={false} values={[rule]} />,
   );
-  fireEvent.change(screen.getByLabelText("วันเกิดสำหรับทดลอง"), {
-    target: { value: "2025-12-16" },
-  });
+  chooseDate("วันเกิดสำหรับทดลอง", "2025-12-16");
   expect(screen.getByText("ไม่พบรุ่นที่เข้าเกณฑ์")).toBeVisible();
-  fireEvent.change(screen.getByLabelText("วันเกิดสำหรับทดลอง"), {
-    target: { value: "2025-10-16" },
-  });
+  chooseDate("วันเกิดสำหรับทดลอง", "2025-10-16");
   expect(screen.getByText("[SP] ฟันแท้ 1–2 คู่")).toBeVisible();
   expect(tester.container).not.toHaveTextContent("@jaothui/class");
 });
@@ -214,4 +210,53 @@ it("fails closed on future or invalid dates and minimum-exclusive empty interval
       criteria: "",
     }),
   ).toThrow();
+});
+
+function chooseDate(label: string, iso: string) {
+  const [year, month, day] = iso.split("-").map(Number);
+  for (const [part, value] of [
+    ["วัน", day],
+    ["เดือน", month],
+    ["ปี พ.ศ.", year! + 543],
+  ] as const)
+    fireEvent.change(screen.getByLabelText(`${label}—${part}`), {
+      target: { value: String(value) },
+    });
+}
+
+it("preserves a birthday after today when it is before the event age cutoff", () => {
+  jest.useFakeTimers().setSystemTime(new Date("2026-10-25T00:00:00Z"));
+  try {
+    render(
+      <ClassAgeTester
+        cutoff="2028-10-16"
+        royal={false}
+        values={["ไม่เกิน 12 เดือน"]}
+      />,
+    );
+    chooseDate("วันเกิดสำหรับทดลอง", "2027-10-16");
+    expect(screen.getByText("อายุที่ใช้จัดรุ่น: 12 เดือน")).toBeVisible();
+    expect(screen.getByText("ไม่เกิน 12 เดือน")).toBeVisible();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+it("recomputes Royal albino ceiling age from the selected Gregorian birthday", () => {
+  render(
+    <ClassAgeTester
+      cutoff="2026-10-16"
+      royal
+      values={["มากกว่า 12 เดือน ถึง 15 เดือน"]}
+    />,
+  );
+  chooseDate("วันเกิดสำหรับทดลอง", "2025-10-16");
+  expect(screen.getByText("อายุที่ใช้จัดรุ่น: 12 เดือน")).toBeVisible();
+  fireEvent.change(screen.getByLabelText("สีสำหรับทดลอง"), {
+    target: { value: "albino" },
+  });
+  expect(screen.getByText("อายุที่ใช้จัดรุ่น: 13 เดือน")).toBeVisible();
+  fireEvent.change(screen.getByLabelText("วันเกิดสำหรับทดลอง—เดือน"), {
+    target: { value: "" },
+  });
+  expect(screen.queryByText(/อายุที่ใช้จัดรุ่น:/)).not.toBeInTheDocument();
 });

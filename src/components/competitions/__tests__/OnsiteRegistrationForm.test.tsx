@@ -88,11 +88,11 @@ async function fill() {
   await screen.findByText("ไม่พบข้อมูลทะเบียนต้นทาง กรอกข้อมูลด้วยตนเองได้");
   for (const [name, value] of [
     ["ชื่อควาย *", "ควายทดสอบ"],
-    ["วันเกิด *", "2025-10-16"],
     ["ชื่อเจ้าของ *", "ผู้ทดสอบ"],
     ["เบอร์โทรศัพท์ *", "0800000000"],
   ])
     fireEvent.change(screen.getByLabelText(name!), { target: { value } });
+  chooseDate("วันเกิด", "2025-10-16");
   fireEvent.change(screen.getByLabelText("รุ่นแข่งขัน *"), {
     target: { value: "ไม่เกิน 12 เดือน" },
   });
@@ -130,6 +130,10 @@ it("requires metadata review before applying; preserves manual values until expl
     screen.getByRole("button", { name: "ตรวจแล้ว นำข้อมูลมาใส่ฟอร์ม" }),
   );
   expect(screen.getByLabelText("ชื่อควาย *")).toHaveValue("ต้นทาง");
+  expect(screen.getByLabelText("วันเกิด—วัน")).toHaveValue("16");
+  expect(screen.getByLabelText("วันเกิด—เดือน")).toHaveValue("10");
+  expect(screen.getByLabelText("วันเกิด—ปี พ.ศ.")).toHaveValue("2568");
+  expect(screen.getByLabelText("รุ่นแข่งขัน *")).toHaveValue("");
   expect(
     screen.getByRole("option", { name: "ไม่เกิน 12 เดือน" }),
   ).toBeInTheDocument();
@@ -148,6 +152,8 @@ it("retains the same operation, revision and payload on uncertain retry and neve
   );
   await screen.findByText(/ยังยืนยันผลไม่ได้/);
   expect(screen.getByLabelText("ชื่อควาย *")).toBeDisabled();
+  for (const part of ["วัน", "เดือน", "ปี พ.ศ."])
+    expect(screen.getByLabelText(`วันเกิด—${part}`)).toBeDisabled();
   const original: unknown = (mockSubmit.mock.calls as unknown[][])[0]![0];
   fireEvent.click(screen.getByRole("button", { name: "ลองคำขอเดิมอีกครั้ง" }));
   await screen.findByRole("link", { name: "ดูใบสมัครที่บันทึก" });
@@ -225,11 +231,11 @@ it("keeps manual registration available when registry lookup is unavailable but 
   ).not.toBeInTheDocument();
   for (const [name, value] of [
     ["ชื่อควาย *", "ควายทดสอบ"],
-    ["วันเกิด *", "2025-10-16"],
     ["ชื่อเจ้าของ *", "ผู้ทดสอบ"],
     ["เบอร์โทรศัพท์ *", "0800000000"],
   ])
     fireEvent.change(screen.getByLabelText(name!), { target: { value } });
+  chooseDate("วันเกิด", "2025-10-16");
   fireEvent.change(screen.getByLabelText("รุ่นแข่งขัน *"), {
     target: { value: "ไม่เกิน 12 เดือน" },
   });
@@ -281,4 +287,56 @@ it("warns before internal navigation with entered form and supports cancelling w
   expect(confirm).toHaveBeenCalled();
   expect(screen.getByLabelText("ชื่อควาย *")).toHaveValue("ยังไม่ได้บันทึก");
   confirm.mockRestore();
+});
+
+function chooseDate(label: string, iso: string) {
+  const [year, month, day] = iso.split("-").map(Number);
+  for (const [part, value] of [
+    ["วัน", day],
+    ["เดือน", month],
+    ["ปี พ.ศ.", year! + 543],
+  ] as const)
+    fireEvent.change(screen.getByLabelText(`${label}—${part}`), {
+      target: { value: String(value) },
+    });
+}
+
+it("clears a selected class on every birthday part edit and blocks stale partial submission", async () => {
+  render(
+    <OnsiteRegistrationForm event={event} refresh={async () => undefined} />,
+  );
+  await fill();
+  expect(screen.getByLabelText("รุ่นแข่งขัน *")).toHaveValue(
+    "ไม่เกิน 12 เดือน",
+  );
+  fireEvent.change(screen.getByLabelText("วันเกิด—เดือน"), {
+    target: { value: "" },
+  });
+  expect(screen.getByLabelText("รุ่นแข่งขัน *")).toHaveValue("");
+  fireEvent.submit(
+    screen
+      .getByRole("button", { name: "บันทึกลงทะเบียนหน้างาน" })
+      .closest("form")!,
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "กรุณาเลือกวันเกิดให้ครบ",
+  );
+  expect(mockSubmit).not.toHaveBeenCalled();
+});
+it("sends original Gregorian birthday and resets every Buddhist date part on success", async () => {
+  render(
+    <OnsiteRegistrationForm event={event} refresh={async () => undefined} />,
+  );
+  await fill();
+  expect(screen.getByLabelText("วันเกิด—ปี พ.ศ.")).toHaveValue("2568");
+  fireEvent.click(
+    screen.getByRole("button", { name: "บันทึกลงทะเบียนหน้างาน" }),
+  );
+  await screen.findByRole("link", { name: "ดูใบสมัครที่บันทึก" });
+  expect(
+    (mockSubmit.mock.calls as [{ registration: { birthday: string } }][])[0]![0]
+      .registration.birthday,
+  ).toBe("2025-10-16");
+  for (const part of ["วัน", "เดือน", "ปี พ.ศ."])
+    expect(screen.getByLabelText(`วันเกิด—${part}`)).toHaveValue("");
 });

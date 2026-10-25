@@ -138,13 +138,16 @@ it("keeps dirty editor state when back is cancelled and allows confirmed back", 
 });
 it("locks rules after applications while leaving signup deadline editable", () => {
   render(<CompetitionEditor existing={event} />);
-  expect(screen.getByLabelText("วันที่ใช้ตัดอายุควาย")).toBeDisabled();
+  for (const part of ["วัน", "เดือน", "ปี พ.ศ."])
+    expect(
+      screen.getByLabelText(`วันที่ใช้ตัดอายุควาย—${part}`),
+    ).toBeDisabled();
   expect(screen.getByLabelText("ชื่อรุ่น")).toBeDisabled();
-  expect(screen.getByLabelText("วันปิดรับสมัคร")).toBeEnabled();
+  expect(screen.getByLabelText("วันปิดรับสมัคร—วัน")).toBeEnabled();
   fireEvent.click(
     screen.getByRole("button", { name: "เตรียมเสนอแก้กติกาเป็นกรณีพิเศษ" }),
   );
-  expect(screen.getByLabelText("วันที่ใช้ตัดอายุควาย")).toBeEnabled();
+  expect(screen.getByLabelText("วันที่ใช้ตัดอายุควาย—วัน")).toBeEnabled();
   expect(screen.getByRole("button", { name: "บันทึกการแก้ไข" })).toBeDisabled();
   expect(
     screen.getByRole("button", { name: "สร้างรายงานผลกระทบ" }),
@@ -170,12 +173,8 @@ it("rejects reversed event dates without writing", async () => {
   fireEvent.change(screen.getByRole("textbox", { name: /ชื่องาน/ }), {
     target: { value: "งานทดสอบ" },
   });
-  fireEvent.change(screen.getByLabelText("วันเริ่มงาน"), {
-    target: { value: "2026-10-20" },
-  });
-  fireEvent.change(screen.getByLabelText("วันจบงาน"), {
-    target: { value: "2026-10-19" },
-  });
+  chooseDate("วันเริ่มงาน", "2026-10-20");
+  chooseDate("วันจบงาน", "2026-10-19");
   fireEvent.click(screen.getByRole("button", { name: "บันทึกงานร่าง" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "วันจบงานต้องไม่ก่อนวันเริ่มงาน",
@@ -242,9 +241,7 @@ it("invalidates the review report when proposed rules change", async () => {
   expect(
     screen.getByRole("button", { name: "บันทึกกติกาที่ผ่านการตรวจแล้ว" }),
   ).toBeDisabled();
-  fireEvent.change(screen.getByLabelText("วันที่ใช้ตัดอายุควาย"), {
-    target: { value: "2026-10-19" },
-  });
+  chooseDate("วันที่ใช้ตัดอายุควาย", "2026-10-19");
   expect(screen.queryByText("application1")).not.toBeInTheDocument();
   expect(mockReview).not.toHaveBeenCalled();
 });
@@ -269,9 +266,7 @@ it("cancels proposed rules while preserving general edits for an ordinary save",
   fireEvent.click(
     screen.getByRole("button", { name: "เตรียมเสนอแก้กติกาเป็นกรณีพิเศษ" }),
   );
-  fireEvent.change(screen.getByLabelText("วันที่ใช้ตัดอายุควาย"), {
-    target: { value: "2026-10-19" },
-  });
+  chooseDate("วันที่ใช้ตัดอายุควาย", "2026-10-19");
   fireEvent.change(screen.getByLabelText("ประเภทฟอร์มสมัคร"), {
     target: { value: "royal" },
   });
@@ -291,10 +286,10 @@ it("cancels proposed rules while preserving general edits for an ordinary save",
   fireEvent.click(
     screen.getByRole("button", { name: "กลับไปแก้ข้อมูลทั่วไป" }),
   );
-  expect(screen.getByLabelText("วันที่ใช้ตัดอายุควาย")).toHaveValue(
-    event.buffaloAgeDeadline,
+  expect(screen.getByLabelText("วันที่ใช้ตัดอายุควาย—วัน")).toHaveValue(
+    String(Number(event.buffaloAgeDeadline!.slice(8))),
   );
-  expect(screen.getByLabelText("วันที่ใช้ตัดอายุควาย")).toBeDisabled();
+  expect(screen.getByLabelText("วันที่ใช้ตัดอายุควาย—วัน")).toBeDisabled();
   expect(screen.getByLabelText("ประเภทฟอร์มสมัคร")).toHaveValue(
     event.eventType,
   );
@@ -369,4 +364,107 @@ it("new events expose only the single national-backed class list", () => {
   expect(
     screen.queryByRole("textbox", { name: "รุ่นระดับประเทศ" }),
   ).not.toBeInTheDocument();
+});
+
+function chooseDate(label: string, iso: string) {
+  const [year, month, day] = iso.split("-").map(Number);
+  for (const [part, value] of [
+    ["วัน", day],
+    ["เดือน", month],
+    ["ปี พ.ศ.", year! + 543],
+  ] as const)
+    fireEvent.change(screen.getByLabelText(`${label}—${part}`), {
+      target: { value: String(value) },
+    });
+}
+
+it("sends all five Gregorian dates unchanged and reloads the returned Buddhist parts after save", async () => {
+  const dated = {
+    ...event,
+    registrationCount: 0,
+    startAt: "2026-10-25",
+    endAt: "2026-10-31",
+    registrationStartAt: "2026-10-20",
+    registrationDeadline: "2026-10-26",
+    buffaloAgeDeadline: "2026-10-25",
+  };
+  mockUpdate.mockResolvedValue({ ...dated, _rev: "revision2" });
+  render(<CompetitionEditor existing={dated} />);
+  for (const label of [
+    "วันเริ่มงาน",
+    "วันจบงาน",
+    "วันเปิดรับสมัคร",
+    "วันปิดรับสมัคร",
+    "วันที่ใช้ตัดอายุควาย",
+  ])
+    expect(screen.getByLabelText(`${label}—ปี พ.ศ.`)).toHaveValue("2569");
+  fireEvent.click(screen.getByRole("button", { name: "บันทึกการแก้ไข" }));
+  await screen.findByText("บันทึกแล้ว");
+  expect(
+    (mockUpdate.mock.calls as [{ input: CompetitionInput }][])[0]![0].input,
+  ).toMatchObject({
+    startAt: "2026-10-25",
+    endAt: "2026-10-31",
+    registrationStartAt: "2026-10-20",
+    registrationDeadline: "2026-10-26",
+    buffaloAgeDeadline: "2026-10-25",
+  });
+  expect(screen.getByLabelText("วันจบงาน—วัน")).toHaveValue("31");
+  const unload = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(unload);
+  expect(unload.defaultPrevented).toBe(false);
+});
+it("blocks a partial optional saved date instead of clearing it and tracks unfinished-only edits", async () => {
+  render(
+    <CompetitionEditor
+      existing={{ ...event, registrationCount: 0, startAt: "2026-10-25" }}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText("วันเริ่มงาน—วัน"), {
+    target: { value: "" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "บันทึกการแก้ไข" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "กรุณาตรวจวันที่ให้ครบ",
+  );
+  expect(mockUpdate).not.toHaveBeenCalled();
+  const unload = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(unload);
+  expect(unload.defaultPrevented).toBe(true);
+});
+it("tracks partial edits even when the serialized optional field remains undefined, and permits explicit whole-date clearing", async () => {
+  mockUpdate.mockResolvedValue({
+    ...event,
+    registrationCount: 0,
+    _rev: "revision2",
+  });
+  render(<CompetitionEditor existing={{ ...event, registrationCount: 0 }} />);
+  fireEvent.change(screen.getByLabelText("วันเริ่มงาน—วัน"), {
+    target: { value: "25" },
+  });
+  const unload = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(unload);
+  expect(unload.defaultPrevented).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "ล้างวันเริ่มงาน" }));
+  fireEvent.click(screen.getByRole("button", { name: "บันทึกการแก้ไข" }));
+  await screen.findByText("บันทึกแล้ว");
+  expect(
+    (mockUpdate.mock.calls as [{ input: CompetitionInput }][])[0]![0].input
+      .startAt,
+  ).toBeUndefined();
+});
+it("blocks an unfinished rule date from the impact report and invalidates prior reports", async () => {
+  render(<CompetitionEditor existing={event} />);
+  fireEvent.click(
+    screen.getByRole("button", { name: "เตรียมเสนอแก้กติกาเป็นกรณีพิเศษ" }),
+  );
+  fireEvent.change(screen.getByLabelText("วันที่ใช้ตัดอายุควาย—เดือน"), {
+    target: { value: "" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "สร้างรายงานผลกระทบ" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "วันที่ใช้ตัดอายุควาย",
+  );
+  expect(mockImpact).not.toHaveBeenCalled();
+  expect(mockReview).not.toHaveBeenCalled();
 });
