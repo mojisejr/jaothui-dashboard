@@ -15,9 +15,29 @@ import {
   type Impact,
 } from "~/lib/competitions";
 import { Status, Alert, button, primary, control, EventNav } from "./Workspace";
+import { ThaiDateInput } from "./ThaiDateInput";
+import {
+  dateDraftFromIso,
+  dateDraftIso,
+  dateDraftNeedsReview,
+  type DateDraft,
+} from "~/lib/competition-thai-date";
 import { ClassCatalogEditor } from "./ClassCatalogEditor";
 import { ClassAgeTester } from "./ClassAgeTester";
 import { validateCompetitionCatalog } from "~/lib/competition-classes";
+const dateFields = [
+  "startAt",
+  "endAt",
+  "registrationStartAt",
+  "registrationDeadline",
+  "buffaloAgeDeadline",
+] as const;
+type DateField = (typeof dateFields)[number];
+function dateDrafts(input: CompetitionInput): Record<DateField, DateDraft> {
+  return Object.fromEntries(
+    dateFields.map((key) => [key, dateDraftFromIso(input[key])]),
+  ) as Record<DateField, DateDraft>;
+}
 type Action =
   | "publish"
   | "close-registration"
@@ -73,6 +93,14 @@ export function CompetitionEditor({ existing }: { existing?: Competition }) {
   const [saved, setSaved] = useState(() =>
     JSON.stringify(existing ? inputFromCompetition(existing) : blankInput()),
   );
+  const [dates, setDates] = useState(() =>
+    dateDrafts(existing ? inputFromCompetition(existing) : blankInput()),
+  );
+  const [savedDates, setSavedDates] = useState(() =>
+    JSON.stringify(
+      dateDrafts(existing ? inputFromCompetition(existing) : blankInput()),
+    ),
+  );
   const [message, setMessage] = useState("");
   const [failure, setFailure] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -97,7 +125,8 @@ export function CompetitionEditor({ existing }: { existing?: Competition }) {
     { enabled: isAuth },
   );
   const locked = (event?.registrationCount ?? 0) > 0;
-  const dirty = JSON.stringify(form) !== saved;
+  const dirty =
+    JSON.stringify(form) !== saved || JSON.stringify(dates) !== savedDates;
   const busy =
     create.isPending ||
     update.isPending ||
@@ -174,6 +203,10 @@ export function CompetitionEditor({ existing }: { existing?: Competition }) {
     setFailure("");
     setMessage("");
   };
+  const changeDate = (key: DateField, draft: DateDraft) => {
+    setDates((old) => ({ ...old, [key]: draft }));
+    change(key, dateDraftIso(draft));
+  };
   const op = (fingerprint: string) => {
     if (operation.current?.fingerprint !== fingerprint)
       operation.current = { fingerprint, id: crypto.randomUUID() };
@@ -183,6 +216,8 @@ export function CompetitionEditor({ existing }: { existing?: Competition }) {
     const next = inputFromCompetition(v);
     setEvent(v);
     setForm(next);
+    setDates(dateDrafts(next));
+    setSavedDates(JSON.stringify(dateDrafts(next)));
     setSaved(JSON.stringify(next));
     setImageUrl(v.imageUrl ?? "");
     setReport(undefined);
@@ -192,6 +227,15 @@ export function CompetitionEditor({ existing }: { existing?: Competition }) {
     void utils.competitions.get.invalidate();
   };
   const validate = () => {
+    const unfinished = dateFields.filter((key) =>
+      dateDraftNeedsReview(dates[key]),
+    );
+    if (unfinished.length) {
+      setFailure(
+        `กรุณาตรวจวันที่ให้ครบและถูกต้องก่อนบันทึก: ${unfinished.map((key) => fieldLabels[key]).join(" • ")}`,
+      );
+      return;
+    }
     const parsed = competitionInputSchema.safeParse(form);
     if (!parsed.success) {
       setFailure(parsed.error.issues.map(validationMessage).join(" • "));
@@ -251,6 +295,12 @@ export function CompetitionEditor({ existing }: { existing?: Competition }) {
     if (!event || busy) return;
     setFailure("");
     setMessage("");
+    if (dateFields.some((key) => dateDraftNeedsReview(dates[key]))) {
+      setFailure(
+        "กรุณาตรวจวันที่ให้ครบและถูกต้องก่อนเปลี่ยนสถานะหรือคัดลอกงาน",
+      );
+      return;
+    }
     if (dirty) {
       setFailure("กรุณาบันทึกข้อมูลก่อนเปลี่ยนสถานะหรือคัดลอกงาน");
       return;
@@ -552,50 +602,14 @@ export function CompetitionEditor({ existing }: { existing?: Competition }) {
               onChange={(e) => change("location", e.target.value)}
             />
           </label>
-          <label className="space-y-2 text-sm">
-            วันเริ่มงาน
-            <input
-              aria-label="วันเริ่มงาน"
-              className={control}
-              type="date"
-              value={form.startAt ?? ""}
-              onChange={(e) => change("startAt", e.target.value || undefined)}
+          {dateFields.slice(0, 4).map((key) => (
+            <ThaiDateInput
+              key={key}
+              label={fieldLabels[key]!}
+              value={dates[key]}
+              onChange={(draft) => changeDate(key, draft)}
             />
-          </label>
-          <label className="space-y-2 text-sm">
-            วันจบงาน
-            <input
-              aria-label="วันจบงาน"
-              className={control}
-              type="date"
-              value={form.endAt ?? ""}
-              onChange={(e) => change("endAt", e.target.value || undefined)}
-            />
-          </label>
-          <label className="space-y-2 text-sm">
-            วันเปิดรับสมัคร
-            <input
-              aria-label="วันเปิดรับสมัคร"
-              className={control}
-              type="date"
-              value={form.registrationStartAt ?? ""}
-              onChange={(e) =>
-                change("registrationStartAt", e.target.value || undefined)
-              }
-            />
-          </label>
-          <label className="space-y-2 text-sm">
-            วันปิดรับสมัคร
-            <input
-              aria-label="วันปิดรับสมัคร"
-              className={control}
-              type="date"
-              value={form.registrationDeadline ?? ""}
-              onChange={(e) =>
-                change("registrationDeadline", e.target.value || undefined)
-              }
-            />
-          </label>
+          ))}
           <p className="text-sm text-orange-100 md:col-span-2">
             เลือกวันที่อย่างเดียว เปิดตั้งแต่ต้นวันและรับได้ถึงสิ้นวันปิด ตาม
             Asia/Bangkok แยกจากวันจบงานและวันตัดอายุ
@@ -643,6 +657,12 @@ export function CompetitionEditor({ existing }: { existing?: Competition }) {
             disabled={busy}
             onClick={() => {
               if (exception && event) {
+                setDates((current) => ({
+                  ...current,
+                  buffaloAgeDeadline: dateDraftFromIso(
+                    event.buffaloAgeDeadline,
+                  ),
+                }));
                 setForm((current) => ({
                   ...current,
                   buffaloAgeDeadline: event.buffaloAgeDeadline,
@@ -674,18 +694,11 @@ export function CompetitionEditor({ existing }: { existing?: Competition }) {
           <legend className="px-2 text-xl font-semibold">
             กติกาและรุ่นแข่งขัน
           </legend>
-          <label className="space-y-2 text-sm">
-            วันที่ใช้ตัดอายุควาย
-            <input
-              aria-label="วันที่ใช้ตัดอายุควาย"
-              className={control}
-              type="date"
-              value={form.buffaloAgeDeadline ?? ""}
-              onChange={(e) =>
-                change("buffaloAgeDeadline", e.target.value || undefined)
-              }
-            />
-          </label>
+          <ThaiDateInput
+            label="วันที่ใช้ตัดอายุควาย"
+            value={dates.buffaloAgeDeadline}
+            onChange={(draft) => changeDate("buffaloAgeDeadline", draft)}
+          />
           <label className="space-y-2 text-sm">
             ประเภทฟอร์มสมัคร
             <select

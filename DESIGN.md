@@ -326,3 +326,22 @@ in [Buffalo integrity design](docs/buffalo-integrity-design.md). Competition wor
 must not restore legacy buffalo write routes, change receipt/recovery semantics,
 or replace the durable create/edit components. Production canary acceptance is
 not implied by a competition regression run.
+
+### Competition Thai date composition
+
+`src/components/competitions/ThaiDateInput.tsx` composes existing `control`
+styles into one fieldset with a legend and a three-select row: day, abbreviated
+Thai month, Buddhist-era year. Each select has a field-specific accessible name,
+shared error description, 48px minimum control height and orange focus styling.
+The month column is wider; each column has `min-width: 0`. Parent grids keep
+existing stacking at mobile widths and two-column editor layout on desktop.
+Arabic digits and an explicit พ.ศ. legend distinguish the displayed era.
+Calendar errors remain visible without silently clamping a selected day. The
+clear action appears only for nonempty/review fields and retains a 48px target.
+
+The component is controlled by draft parts, without effect-based value syncing.
+Consumers explicitly reset on accept/autofill/clear and guard incomplete dates.
+Gregorian ISO date-only strings remain the API and persistence contract. Year
+choice expansion does not create a new eligibility rule. Date-specific rendered
+proof belongs in `/Users/non/dev/opilot/.playwright-mcp/jaothui-dashboard/competition-thai-date/phase-3/`;
+deterministic helper/consumer tests alone do not close that web-eye lane.

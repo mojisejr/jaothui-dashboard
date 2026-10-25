@@ -1,3 +1,10 @@
+import { ThaiDateInput } from "./ThaiDateInput";
+import {
+  emptyDateDraft,
+  dateDraftFromIso,
+  dateDraftIso,
+  dateDraftNeedsReview,
+} from "~/lib/competition-thai-date";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
@@ -33,6 +40,7 @@ export function OnsiteRegistrationForm({
 }) {
   const router = useRouter();
   const [form, setForm] = useState(blankOnsiteForm);
+  const [birthdayDraft, setBirthdayDraft] = useState(emptyDateDraft);
   const [metadata, setMetadata] = useState<CompetitionMetadata | null>(null);
   const [looking, setLooking] = useState(false);
   const [message, setMessage] = useState("");
@@ -50,7 +58,9 @@ export function OnsiteRegistrationForm({
   const classes = onsiteClasses(event, form);
   const criteria = onsiteCriteria(event, form);
   const dirty =
-    JSON.stringify(form) !== JSON.stringify(blankOnsiteForm()) || !!retry;
+    JSON.stringify(form) !== JSON.stringify(blankOnsiteForm()) ||
+    JSON.stringify(birthdayDraft) !== JSON.stringify(emptyDateDraft()) ||
+    !!retry;
   useEffect(() => {
     if (!dirty) return;
     const confirmLeave = () =>
@@ -150,6 +160,7 @@ export function OnsiteRegistrationForm({
   function applyMetadata() {
     const data = metadata?.metadata;
     if (!data || metadata.microchip !== form.microchip.trim()) return;
+    setBirthdayDraft(dateDraftFromIso(data.birthday));
     setForm((old) => ({
       ...old,
       name: data.name,
@@ -179,6 +190,10 @@ export function OnsiteRegistrationForm({
   async function submit(request?: PendingRequest) {
     if (submitting.current) return;
     if (!request) {
+      if (dateDraftNeedsReview(birthdayDraft)) {
+        setError("กรุณาเลือกวันเกิดให้ครบและถูกต้องก่อนบันทึก");
+        return;
+      }
       const problem = validateOnsite(event, form, duplicateCount);
       if (problem) {
         setError(problem);
@@ -215,6 +230,7 @@ export function OnsiteRegistrationForm({
         "บันทึกลงทะเบียนหน้างานแล้ว • ไม่มีการสร้างบัญชี LINE ให้ผู้สมัคร",
       );
       setForm(blankOnsiteForm());
+      setBirthdayDraft(emptyDateDraft());
       setMetadata(null);
       try {
         await refresh();
@@ -411,29 +427,31 @@ export function OnsiteRegistrationForm({
                 ["fatherName", "ชื่อพ่อ"],
                 ["motherName", "ชื่อแม่"],
               ] as const
-            ).map(([key, label]) => (
-              <label className="min-w-0 space-y-2 text-sm" key={key}>
-                {label}
-                <input
-                  className={control}
-                  type={
-                    key === "birthday"
-                      ? "date"
-                      : key === "ownerTel"
-                        ? "tel"
-                        : "text"
-                  }
-                  required={[
-                    "name",
-                    "birthday",
-                    "ownerName",
-                    "ownerTel",
-                  ].includes(key)}
-                  value={form[key]}
-                  onChange={(e) => change(key, e.target.value)}
+            ).map(([key, label]) =>
+              key === "birthday" ? (
+                <ThaiDateInput
+                  key={key}
+                  label="วันเกิด"
+                  value={birthdayDraft}
+                  required
+                  onChange={(draft) => {
+                    setBirthdayDraft(draft);
+                    change("birthday", dateDraftIso(draft) ?? "");
+                  }}
                 />
-              </label>
-            ))}
+              ) : (
+                <label className="min-w-0 space-y-2 text-sm" key={key}>
+                  {label}
+                  <input
+                    className={control}
+                    type={key === "ownerTel" ? "tel" : "text"}
+                    required={["name", "ownerName", "ownerTel"].includes(key)}
+                    value={form[key]}
+                    onChange={(e) => change(key, e.target.value)}
+                  />
+                </label>
+              ),
+            )}
             <label className="min-w-0 space-y-2 text-sm">
               เพศ *
               <select

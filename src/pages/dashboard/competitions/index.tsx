@@ -1,3 +1,9 @@
+import { ThaiDateInput } from "~/components/competitions/ThaiDateInput";
+import {
+  emptyDateDraft,
+  dateDraftIso,
+  dateDraftNeedsReview,
+} from "~/lib/competition-thai-date";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "~/utils/api";
@@ -18,6 +24,10 @@ import {
 } from "~/lib/competitions";
 export default function Competitions() {
   const { isAuth } = useAuth();
+  const [dates, setDates] = useState({
+    startFrom: emptyDateDraft(),
+    startTo: emptyDateDraft(),
+  });
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<CompetitionFilters>({
     search: "",
@@ -102,39 +112,38 @@ export default function Competitions() {
             <option value="royal">Royal</option>
           </select>
         </label>
-        <label className="space-y-2 text-sm">
-          วันเริ่มงานตั้งแต่
-          <input
-            type="date"
-            className={control}
-            value={filters.startFrom ?? ""}
-            onChange={(e) =>
-              setFilters((f) => ({
-                ...f,
-                startFrom: e.target.value || undefined,
+        {(
+          [
+            ["startFrom", "วันเริ่มงานตั้งแต่"],
+            ["startTo", "วันเริ่มงานถึง"],
+          ] as const
+        ).map(([key, label]) => (
+          <ThaiDateInput
+            key={key}
+            label={label}
+            value={dates[key]}
+            onChange={(draft) => {
+              setDates((old) => ({ ...old, [key]: draft }));
+              setFilters((old) => ({
+                ...old,
+                [key]: dateDraftIso(draft),
                 page: 1,
-              }))
+              }));
+            }}
+            hint={
+              dateDraftNeedsReview(dates[key])
+                ? "พักตัวกรองวันที่นี้จนกว่าจะเลือกครบและถูกต้อง"
+                : undefined
             }
           />
-        </label>
-        <label className="space-y-2 text-sm">
-          วันเริ่มงานถึง
-          <input
-            type="date"
-            className={control}
-            value={filters.startTo ?? ""}
-            onChange={(e) =>
-              setFilters((f) => ({
-                ...f,
-                startTo: e.target.value || undefined,
-                page: 1,
-              }))
-            }
-          />
-        </label>
+        ))}
         <button
           className={button}
           onClick={() => {
+            setDates({
+              startFrom: emptyDateDraft(),
+              startTo: emptyDateDraft(),
+            });
             setSearch("");
             setFilters({ search: "", page: 1, pageSize: 12 });
           }}
