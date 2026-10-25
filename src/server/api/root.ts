@@ -18,7 +18,10 @@ import { newsEventsRouter } from "./routers/r-news-events";
  *
  * All routers added in /api/routers should be manually added here.
  */
+import { competitionsRouter } from "./routers/r-competitions";
+
 export const appRouter = createTRPCRouter({
+  competitions: competitionsRouter,
   ped: pedigreeRouter,
   auth: authRouter,
   metadata: metadataRouter,

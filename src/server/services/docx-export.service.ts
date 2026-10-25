@@ -27,6 +27,11 @@ export interface EventRegisterData {
   color: string;
   sex: string;
   buffaloAge: number;
+  /** New source-authoritative export path: presence, including null/zero, disables legacy fallback. */
+  exportAge?: number | null;
+  ageWarning?: string | null;
+  registrationId?: string;
+  approvalStatusLabel?: string;
   type: string;
   level: string;
   birthday: string;
@@ -60,7 +65,10 @@ const thaiFieldMapping = {
  */
 const mapColorToThai = (color: string): string => {
   const lowerColor = color.toLowerCase();
-  return thaiFieldMapping.color[lowerColor as keyof typeof thaiFieldMapping.color] ?? color;
+  return (
+    thaiFieldMapping.color[lowerColor as keyof typeof thaiFieldMapping.color] ??
+    color
+  );
 };
 
 /**
@@ -68,7 +76,9 @@ const mapColorToThai = (color: string): string => {
  */
 const mapSexToThai = (sex: string): string => {
   const lowerSex = sex.toLowerCase();
-  return thaiFieldMapping.sex[lowerSex as keyof typeof thaiFieldMapping.sex] ?? sex;
+  return (
+    thaiFieldMapping.sex[lowerSex as keyof typeof thaiFieldMapping.sex] ?? sex
+  );
 };
 
 /**
@@ -78,10 +88,10 @@ const createTableCell = (
   content: string,
   options: {
     bold?: boolean;
-    alignment?: typeof AlignmentType[keyof typeof AlignmentType];
-    verticalAlign?: typeof VerticalAlign[keyof typeof VerticalAlign];
+    alignment?: (typeof AlignmentType)[keyof typeof AlignmentType];
+    verticalAlign?: (typeof VerticalAlign)[keyof typeof VerticalAlign];
     columnSpan?: number;
-  } = {}
+  } = {},
 ): TableCell => {
   return new TableCell({
     children: [
@@ -107,15 +117,17 @@ const createTableCell = (
  */
 export const generateBuffaloRegistrationDoc = async (
   data: EventRegisterData,
-  index: number
+  index: number,
 ): Promise<Buffer> => {
   // Map fields to Thai
   const colorThai = mapColorToThai(data.color);
   const sexThai = mapSexToThai(data.sex);
   const ageInMonths =
-    data.buffaloAge && data.buffaloAge > 0
-      ? data.buffaloAge
-      : calculateAgeInMonthsCeiling(data.birthday, data.event?.eventAt);
+    data.exportAge !== undefined
+      ? data.exportAge
+      : data.buffaloAge && data.buffaloAge > 0
+        ? data.buffaloAge
+        : calculateAgeInMonthsCeiling(data.birthday, data.event?.eventAt);
   const birthdayFormatted = data.birthday
     ? dayjs(data.birthday).format("DD/MM/YYYY")
     : "-";
@@ -248,7 +260,11 @@ export const generateBuffaloRegistrationDoc = async (
               new TableRow({
                 children: [
                   createTableCell("อายุ (เดือน)", { bold: true }),
-                  createTableCell(ageInMonths.toString()),
+                  createTableCell(
+                    ageInMonths === null
+                      ? "ไม่ทราบอายุ — ต้องตรวจสอบ"
+                      : ageInMonths.toString(),
+                  ),
                 ],
               }),
 
@@ -301,6 +317,45 @@ export const generateBuffaloRegistrationDoc = async (
           }),
 
           // Footer spacing
+          ...(data.approvalStatusLabel
+            ? [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `สถานะใบสมัคร: ${data.approvalStatusLabel}`,
+                      font: "TH Sarabun New",
+                      size: 28,
+                    }),
+                  ],
+                }),
+              ]
+            : []),
+          ...(data.ageWarning
+            ? [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `หมายเหตุอายุ: ${data.ageWarning}`,
+                      font: "TH Sarabun New",
+                      size: 28,
+                    }),
+                  ],
+                }),
+              ]
+            : []),
+          ...(data.registrationId
+            ? [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `อ้างอิงใบสมัคร: ${data.registrationId}`,
+                      font: "TH Sarabun New",
+                      size: 24,
+                    }),
+                  ],
+                }),
+              ]
+            : []),
           new Paragraph({
             text: "",
             spacing: { after: 400 },
@@ -320,7 +375,7 @@ export const generateBuffaloRegistrationDoc = async (
  * Optimized for large datasets to avoid timeouts
  */
 export const generateDocxZipBundle = async (
-  eventData: EventRegisterData[]
+  eventData: EventRegisterData[],
 ): Promise<Buffer> => {
   return new Promise((resolve, reject) => {
     // Use faster compression for better performance
@@ -347,17 +402,20 @@ export const generateDocxZipBundle = async (
         const batchSize = 50;
         for (let i = 0; i < eventData.length; i += batchSize) {
           const batch = eventData.slice(i, i + batchSize);
-          
+
           // Generate DOCX files for this batch in parallel
           const batchPromises = batch.map(async (buffalo, batchIndex) => {
             const index = i + batchIndex;
-            const docxBuffer = await generateBuffaloRegistrationDoc(buffalo, index);
+            const docxBuffer = await generateBuffaloRegistrationDoc(
+              buffalo,
+              index,
+            );
             const filename = `${index + 1}_${buffalo.name ?? buffalo.microchip ?? "unknown"}.docx`;
             return { buffer: docxBuffer, filename };
           });
 
           const batchResults = await Promise.all(batchPromises);
-          
+
           // Append all files from this batch to archive
           for (const { buffer, filename } of batchResults) {
             archive.append(buffer, { name: filename });
