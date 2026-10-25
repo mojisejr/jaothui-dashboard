@@ -2,241 +2,16 @@
 import { z } from "zod";
 import { createTRPCRouter, protectProcedure } from "~/server/api/trpc";
 import { sanityClient } from "~/server/sanity";
-import { utils, write } from "xlsx";
-import dayjs from "dayjs";
-import archiver from "archiver";
-import { calculateAgeInMonthsCeiling } from "~/utils/age-calculator";
 import {
-  generateDocxZipBundle,
-  type EventRegisterData as DocxEventRegisterData,
-} from "~/server/services/docx-export.service";
+  createLegacyCompetitionExport,
+  legacyExportError,
+} from "~/server/services/legacy-competition-export.service";
 
-export interface ExportRowData {
-  ลำดับ: number;
-  เลขไมโครชิพ: string;
-  ชื่อควาย: string;
-  "วัน/เดือน/ปีเกิด": string;
-  "อายุ (เดือน)": number;
-  พ่อ: string;
-  แม่: string;
-  ชื่อฟาร์ม: string;
-  ชื่อเจ้าของ: string;
-  เบอร์โทรศัพท์: string;
-}
-
-export interface SanityEvent {
-  _id: string;
-  title: string;
-  _type: string;
-}
-
-export interface EventRegisterData {
-  ownerName: string;
-  farmName: string;
-  ownerTel: string;
-  microchip: string;
-  name: string;
-  color: string;
-  sex: string;
-  buffaloAge: number;
-  type: string;
-  level: string;
-  birthday: string;
-  father: string;
-  mother: string;
-  event: {
-    title: string;
-    eventAt?: string;
-  };
-}
-
-// Task 1: Age range parsing function
-const parseAgeRange = (typeString: string): string => {
-  // Parse "มากกว่า X เดือน ถึง Y เดือน" → X-Y
-  const rangeMatch1 = typeString.match(/มากกว่า\s*(\d+)\s*เดือน\s*ถึง\s*(\d+)\s*เดือน/);
-  if (rangeMatch1) {
-    return `${rangeMatch1[1]}-${rangeMatch1[2]}`;
-  }
-
-  // Parse "X เดือน ถึง Y เดือน" → X-Y
-  const rangeMatch2 = typeString.match(/(\d+)\s*เดือน\s*ถึง\s*(\d+)\s*เดือน/);
-  if (rangeMatch2) {
-    return `${rangeMatch2[1]}-${rangeMatch2[2]}`;
-  }
-
-  // Parse "ไม่เกิน X เดือน" → 0-X
-  const maxMatch = typeString.match(/ไม่เกิน\s*(\d+)\s*เดือน/);
-  if (maxMatch) {
-    return `0-${maxMatch[1]}`;
-  }
-
-  // Parse "มากกว่า X เดือน" → X-999
-  const minMatch = typeString.match(/มากกว่า\s*(\d+)\s*เดือน/);
-  if (minMatch) {
-    return `${minMatch[1]}-999`;
-  }
-
-  // Default fallback
-  return "unknown";
-};
-
-// Task 2: Data grouping algorithm
-interface GroupedData {
-  type: string;
-  ageRange: string;
-  color: string;
-  sex: string;
-  buffaloes: EventRegisterData[];
-}
-
-const groupEventData = (eventData: EventRegisterData[]): GroupedData[] => {
-  const groups = new Map<string, GroupedData>();
-
-  eventData.forEach((item) => {
-    const type = item.type || "ไม่ระบุประเภท";
-    const ageRange = parseAgeRange(type);
-    const color = item.color || "ไม่ระบุสี";
-    const sex = item.sex || "ไม่ระบุเพศ";
-    
-    // Create unique key for Type-Color-Sex combination
-    const key = `${type}|||${color}|||${sex}`;
-    
-    if (!groups.has(key)) {
-      groups.set(key, {
-        type,
-        ageRange,
-        color,
-        sex,
-        buffaloes: [],
-      });
-    }
-    
-    groups.get(key)!.buffaloes.push(item);
-  });
-
-  // Convert to array and sort by type importance
-  return Array.from(groups.values());
-};
-
-// Task 3: Hierarchical sheet creation function
-const createHierarchicalSheet = (
-  group: GroupedData,
-  exportReferenceDate?: string,
-) => {
-  const sheetData: any[] = [];
-  
-  // Row 1: Competition Type (merged A1:J1)
-  sheetData.push([`ประเภทการแข่งขัน: ${group.type}`, '', '', '', '', '', '', '', '', '']);
-  
-  // Row 2: Buffalo Color (merged A2:J2)
-  sheetData.push([`สีควาย: ${group.color}`, '', '', '', '', '', '', '', '', '']);
-  
-  // Row 3: Sex (merged A3:J3)
-  sheetData.push([`เพศ: ${group.sex}`, '', '', '', '', '', '', '', '', '']);
-  
-  // Row 4: Data headers
-  sheetData.push([
-    'ลำดับ',
-    'เลขไมโครชิพ',
-    'ชื่อควาย',
-    'วัน/เดือน/ปีเกิด',
-    'อายุ (เดือน)',
-    'พ่อ',
-    'แม่',
-    'ชื่อฟาร์ม',
-    'ชื่อเจ้าของ',
-    'เบอร์โทรศัพท์'
-  ]);
-  
-  // Row 5+: Buffalo data or "ไม่มีข้อมูล"
-  if (group.buffaloes.length === 0) {
-    sheetData.push(['ไม่มีข้อมูล', '', '', '', '', '', '', '', '', '']);
-  } else {
-    group.buffaloes.forEach((buffalo, index) => {
-      // Priority: locked registration age from data source (prevents floating age).
-      // Fallback: calculate with ceiling logic using event reference date.
-      const ageInMonths =
-        buffalo.buffaloAge > 0
-          ? buffalo.buffaloAge
-          : calculateAgeInMonthsCeiling(buffalo.birthday, exportReferenceDate);
-      
-      sheetData.push([
-        index + 1,
-        buffalo.microchip || '',
-        buffalo.name || '',
-        buffalo.birthday ? dayjs(buffalo.birthday).format('DD/MM/YYYY') : '',
-        ageInMonths,
-        buffalo.father || '',
-        buffalo.mother || '',
-        buffalo.farmName || '',
-        buffalo.ownerName || '',
-        buffalo.ownerTel || ''
-      ]);
-    });
-  }
-  
-  // Create worksheet
-  const ws = utils.aoa_to_sheet(sheetData);
-  
-  // Apply cell merging for hierarchical headers
-  ws['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } }, // Row 1 (Type)
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } }, // Row 2 (Color)
-    { s: { r: 2, c: 0 }, e: { r: 2, c: 9 } }, // Row 3 (Sex)
-  ];
-  
-  // Apply bold formatting to headers (rows 1-4)
-  // Note: XLSX library has limited styling support
-  // More advanced styling would require xlsx-style or similar
-  
-  return ws;
-};
-
-// Compression utility function
-const createCompressedExport = async (excelBuffer: Buffer, filename: string): Promise<{
-  buffer: Buffer;
-  filename: string;
-  isCompressed: boolean;
-}> => {
-  const fileSizeMB = excelBuffer.length / (1024 * 1024);
-  
-  // Return original file if under 10MB
-  if (fileSizeMB <= 10) {
-    return {
-      buffer: excelBuffer,
-      filename: filename,
-      isCompressed: false,
-    };
-  }
-
-  // Create ZIP file for files larger than 10MB
-  return new Promise((resolve, reject) => {
-    const archive = archiver('zip', { zlib: { level: 9 } });
-    const chunks: Buffer[] = [];
-
-    archive.on('data', (chunk) => {
-      chunks.push(chunk);
-    });
-
-    archive.on('end', () => {
-      const zipBuffer = Buffer.concat(chunks);
-      const zipFilename = filename.replace('.xlsx', '.zip');
-      
-      resolve({
-        buffer: zipBuffer,
-        filename: zipFilename,
-        isCompressed: true,
-      });
-    });
-
-    archive.on('error', (error) => {
-      reject(error);
-    });
-
-    archive.append(excelBuffer, { name: filename });
-    void archive.finalize();
-  });
-};
+const eventId = z
+  .string()
+  .min(1)
+  .max(200)
+  .regex(/^[a-zA-Z0-9_-][a-zA-Z0-9_.-]*$/);
 
 export const sanityRouter = createTRPCRouter({
   // Get all available events from eventRegister documents (deprecated - use getEventsForExport)
@@ -366,7 +141,7 @@ export const sanityRouter = createTRPCRouter({
   getEventsForExport: protectProcedure.query(async () => {
     try {
       const events = await sanityClient.fetch(
-        `*[_type == "event"]{
+        `*[_type == "event" && !(_id in path("drafts.**")) && (!defined(competitionState) || competitionState != "draft")]{
           _id,
           title,
           _type
@@ -386,223 +161,29 @@ export const sanityRouter = createTRPCRouter({
     }
   }),
 
-  // Export event data to Excel
+  // Keep the legacy download envelope; the source competition API owns the data and ages.
   exportEventData: protectProcedure
-    .input(z.object({
-      eventId: z.string(),
-    }))
+    .input(z.object({ eventId }))
     .mutation(async ({ input }) => {
       try {
-        // Query eventRegister data with event reference
-        const eventData = await sanityClient.fetch(
-          `*[_type == "eventRegister" && event._ref == "${input.eventId}"]{
-            ownerName,
-            farmName,
-            ownerTel,
-            microchip,
-            name,
-            color,
-            sex,
-            buffaloAge, 
-            type,
-            level,
-            birthday,
-            "father": fatherName,
-            "mother": motherName,
-            "event": event->{title, eventAt}
-          }`
-        );
-
-        
-        console.log("Export query result:", { 
-          eventId: input.eventId, 
-          resultCount: eventData.length,
-          sampleData: eventData.slice(0, 2) // Log first 2 results for debugging
-        });
-
-        if (eventData.length === 0) {
-          return {
-            success: false,
-            error: "No event registration data found for this event. This could be due to: 1) Wrong event ID, 2) No registrations for this event, 3) Field name mismatch in schema.",
-            data: null,
-          };
-        }
-
-        const exportReferenceDate = eventData[0]?.event?.eventAt;
-
-        // Task 4 & 5: Multi-sheet Excel generation
-        // Group data by Type-Color-Sex combinations
-        const groupedData = groupEventData(eventData);
-        
-        // Create workbook
-        const wb = utils.book_new();
-        
-        // Track used sheet names to ensure uniqueness
-        const usedSheetNames = new Set<string>();
-        
-        // Create one sheet per group
-        groupedData.forEach((group, index) => {
-          // Generate Thai-only sheet name: [Type]-[AgeRange]-[Color]-[Sex]
-          const baseSheetName = `${group.type}-${group.ageRange}-${group.color}-${group.sex}`;
-          
-          // Excel limits sheet names to 31 characters
-          let sheetName = baseSheetName;
-          
-          if (sheetName.length > 31) {
-            // Smart truncation: prioritize keeping distinguishing parts
-            // Strategy: Keep end parts (ageRange-color-sex) and truncate type
-            const suffix = `-${group.ageRange}-${group.color}-${group.sex}`;
-            const maxTypeLength = 31 - suffix.length;
-            
-            if (maxTypeLength > 0) {
-              const truncatedType = group.type.substring(0, maxTypeLength);
-              sheetName = `${truncatedType}${suffix}`;
-            } else {
-              // If suffix itself is too long, use index-based naming
-              sheetName = `Sheet${index + 1}-${group.ageRange}-${group.color.substring(0, 3)}-${group.sex.substring(0, 3)}`;
-              if (sheetName.length > 31) {
-                sheetName = `Sheet${index + 1}`;
-              }
-            }
-          }
-          
-          // Ensure uniqueness by adding numeric suffix if needed
-          let finalSheetName = sheetName;
-          let counter = 1;
-          while (usedSheetNames.has(finalSheetName)) {
-            const suffix = `-${counter}`;
-            const maxLength = 31 - suffix.length;
-            finalSheetName = sheetName.substring(0, maxLength) + suffix;
-            counter++;
-          }
-          
-          usedSheetNames.add(finalSheetName);
-          
-          // Create hierarchical sheet
-          const ws = createHierarchicalSheet(group, exportReferenceDate);
-          
-          // Add sheet to workbook
-          utils.book_append_sheet(wb, ws, finalSheetName);
-        });
-
-        // Generate filename with event name and timestamp
-        const eventName = eventData[0]?.event?.title || "event";
-        const timestamp = dayjs().format("YYYY-MM-DD_HH-mm-ss");
-        const filename = `${eventName}_${timestamp}.xlsx`;
-
-        // Convert to buffer for download
-        const excelBuffer = write(wb, { type: 'buffer', bookType: 'xlsx' });
-
-        // Apply compression if needed
-        const exportResult = await createCompressedExport(excelBuffer, filename);
-
         return {
           success: true,
-          data: {
-            buffer: exportResult.buffer.toString('base64'),
-            filename: exportResult.filename,
-            recordCount: eventData.length,
-            sheetCount: groupedData.length,
-            isCompressed: exportResult.isCompressed,
-            originalSize: excelBuffer.length,
-            compressedSize: exportResult.isCompressed ? exportResult.buffer.length : excelBuffer.length,
-          },
+          data: await createLegacyCompetitionExport(input.eventId, "xlsx"),
         };
       } catch (error) {
-        console.error("Error exporting event data:", {
-          error: error,
-          eventId: input.eventId,
-          errorMessage: error instanceof Error ? error.message : 'Unknown error',
-          errorStack: error instanceof Error ? error.stack : undefined
-        });
-        return {
-          success: false,
-          error: `Failed to export event data: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          data: null,
-        };
+        return { success: false, error: legacyExportError(error), data: null };
       }
     }),
-
-  // Export event data to DOCX (ZIP bundle of individual registration forms)
   exportEventDataToDocx: protectProcedure
-    .input(
-      z.object({
-        eventId: z.string(),
-      })
-    )
+    .input(z.object({ eventId }))
     .mutation(async ({ input }) => {
       try {
-        // Query eventRegister data with event reference (same query as Excel export)
-        const eventData = await sanityClient.fetch(
-          `*[_type == "eventRegister" && event._ref == "${input.eventId}"]{
-            ownerName,
-            ownerTel,
-            microchip,
-            name,
-            color,
-            sex,
-            buffaloAge, 
-            type,
-            level,
-            birthday,
-            "father": fatherName,
-            "mother": motherName,
-            "event": event->{title, eventAt}
-          }`
-        );
-
-        console.log("DOCX Export query result:", {
-          eventId: input.eventId,
-          resultCount: eventData.length,
-          sampleData: eventData.slice(0, 2),
-        });
-
-        if (eventData.length === 0) {
-          return {
-            success: false,
-            error:
-              "No event registration data found for this event. This could be due to: 1) Wrong event ID, 2) No registrations for this event, 3) Field name mismatch in schema.",
-            data: null,
-          };
-        }
-
-        // Generate DOCX ZIP bundle
-        console.log(`Starting DOCX generation for ${eventData.length} buffalo...`);
-        const eventName = eventData[0]?.event?.title ?? "event";
-        const startTime = Date.now();
-        
-        const zipBuffer = await generateDocxZipBundle(
-          eventData as DocxEventRegisterData[]
-        );
-        
-        const duration = Date.now() - startTime;
-        console.log(`DOCX ZIP bundle generated successfully in ${duration}ms (${(duration / 1000).toFixed(2)}s)`);
-
-        // Generate filename with event name and timestamp
-        const timestamp = dayjs().format("YYYY-MM-DD_HH-mm-ss");
-        const filename = `${eventName}_registrations_${timestamp}.zip`;
-
         return {
           success: true,
-          data: {
-            buffer: zipBuffer.toString("base64"),
-            filename: filename,
-            recordCount: eventData.length,
-            fileCount: eventData.length,
-          },
+          data: await createLegacyCompetitionExport(input.eventId, "docx"),
         };
       } catch (error) {
-        console.error("Error exporting event data to DOCX:", {
-          error: error,
-          eventId: input.eventId,
-          errorMessage: error instanceof Error ? error.message : "Unknown error",
-          errorStack: error instanceof Error ? error.stack : undefined,
-        });
-        return {
-          success: false,
-          error: `Failed to export event data to DOCX: ${error instanceof Error ? error.message : "Unknown error"}`,
-          data: null,
-        };
+        return { success: false, error: legacyExportError(error), data: null };
       }
     }),
 });

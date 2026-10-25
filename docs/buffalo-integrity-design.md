@@ -1,0 +1,94 @@
+# jaothui-dashboard — DESIGN.md
+
+## 1. Visual Theme & Atmosphere
+
+Internal livestock registry tools use the existing dark Halloween theme, orange actions and Kanit typography. Creation is a practical four-step form with factual transaction progress. Preserve the existing navigation and form vocabulary.
+
+## 2. Color Palette & Roles
+
+| Token             | Value                   | Role                                    |
+| ----------------- | ----------------------- | --------------------------------------- |
+| primary           | #FF8C00                 | Navbar, active step and primary actions |
+| secondary         | #9D00FF                 | Existing secondary theme role           |
+| base-100          | #0f0f11                 | Main dark canvas                        |
+| base-content      | DaisyUI halloween theme | Body text                               |
+| warning / success | DaisyUI halloween theme | Recoverable issue / verified completion |
+
+## 3. Typography
+
+Kanit 300–600 is loaded in \_app with Inter fallback. Body uses 16px, headings 24px semibold, supporting form labels and transaction IDs 14px. Hashes wrap, avoiding horizontal overflow.
+
+## 4. Component Stylings
+
+Reuse DaisyUI `.input.input-bordered`, `.select.select-bordered`, `.file-input`, `.btn.btn-primary` and `.btn.btn-outline`. Form controls are full width. Disabled actions remain visibly disabled while a request is pending or its server stage forbids the action. Owned images use object-contain and preserve the whole animal.
+
+## 5. Layout Principles
+
+Creation uses one centered max-w-3xl column, 16px mobile and 24px wider padding, with 16–24px gaps. Form fields become two columns at the existing sm breakpoint. Review and status remain in one bordered surface.
+
+## 6. Depth & Elevation
+
+Keep BaseLayout's existing navbar shadow and lower rounded corners. Creation adds thin orange borders and ordinary rounded corners, without new gradients, blur or elevation layers.
+
+## 7. Do's & Don'ts
+
+- Do keep the two explicit Mint NFT / Mint Metadata actions and show receipt-derived status.
+- Do preserve the operation number and permit reload/re-auth recovery.
+- Don't show a guessed token ID, countdown as confirmation, or a success message before publication verification.
+- Don't introduce another UI library, font package or shell redesign.
+
+## 8. Responsive Behavior
+
+At 390px controls stack and hashes wrap; step labels form two columns. At 768px and 1440px fields and step labels use the wider layout while the content width stays capped. New controls target at least 44px; uploaded images scale within the viewport without cropping.
+
+## 9. Measurable Quality Gates
+
+| Gate          | PASS                                                                | FAIL                                        |
+| ------------- | ------------------------------------------------------------------- | ------------------------------------------- |
+| Accessibility | Visible control labels, keyboard actions, announced errors/progress | Missing labels or unreadable progress       |
+| Spacing       | 4px scale and no horizontal overflow at 390/768/1440                | Clipped actions or overflow                 |
+| Typography    | Body16/support14 and wrapped hashes                                 | Small body text or clipped IDs              |
+| Touch         | New controls44px minimum                                            | Unreachable or small actions                |
+| Workflow      | Actual receipt, durable resume and published image render           | New signature on repeat or false completion |
+
+The parent CUA run records rendered evidence. Strict DESIGN schema validation is a source-contract check; it does not itself establish visual or axe compliance.
+
+## 10. Agent Prompt Guide
+
+Reuse the current BaseLayout and DaisyUI Halloween controls with orange actions, Kanit text and a dark canvas. Keep creation at four steps and preserve the two intentional blockchain actions. Every action must reflect the durable server job, with a recoverable status and wrapping transaction identifiers. Review the actual rendered page at all three widths through the parent CUA gate.
+
+## Primitives (reuse-first)
+
+| Primitive        | File                                              | Variants                                 |
+| ---------------- | ------------------------------------------------- | ---------------------------------------- |
+| BaseLayout       | src/components/layout/BaseLayout.tsx              | Dashboard/inner navigation               |
+| DurableCreate    | src/components/new-buffalo-info/DurableCreate.tsx | Draft/upload/review/chain/completed      |
+| DaisyUI controls | tailwind.config.ts                                | input/select/file-input/btn/alert/status |
+
+## Known Drift
+
+- The inherited navbar back action is btn-sm with an icon and lacks an explicit accessible label; this phase scopes new form controls, and the parent must report inherited drift.
+- Existing legacy forms contain smaller text and unlabeled placeholders. They are retained outside isolated creation until the release cutover.
+- Legacy orange navbar text contrast and theme-derived colors require rendered review; no automatic axe pass is claimed.
+
+## Design Brain Links
+
+This scoped creation contract is grounded in the repository's existing design sources:
+
+- [Tailwind and DaisyUI theme tokens](tailwind.config.ts) define the palette and reusable control styles.
+- [Global styles](src/styles/globals.css) provide the shared page styling.
+- [Application font setup](src/pages/_app.tsx) defines the loaded typography.
+- [BaseLayout](src/components/layout/BaseLayout.tsx) provides the existing dashboard navigation and shell.
+- [Creation page](src/pages/dashboard/new-buffalo-info/index.tsx) retains the legacy four-step flow and selects the isolated durable flow.
+- [DurableCreate](src/components/new-buffalo-info/DurableCreate.tsx) implements the scoped form, review, upload and transaction status controls described here.
+
+## Buffalo edit contract (Phase4)
+
+The existing lookup → DB details → field dialog → one confirm flow remains. Reuse BaseLayout and DaisyUI Halloween controls; every supported field stays visible, and an identity-conflicting record is readable with disabled edit actions and a factual reason. Current field values prefill the dialog. Parent inputs are prefilled independently, so adding one parent preserves the other.
+
+Selectors: `[data-buffalo-edit]`, `#edit-search`, `[data-edit-details]`, `[data-edit-field=name]`, `[data-edit-field=color]`, `[data-edit-dialog]`, `#edit-value`, `#edit-file`, `[data-edit-operation]`, `[data-edit-image]`. New inputs/actions are48px minimum; labels14px/body16px; dialog uses8px corners, orange primary, Kanit/Inter and 4px spacing. Hashes and identifiers wrap. An operation status states requested-field scope and existing discrepancies, with real per-step receipt states. A batch with nonempty DNA shows its restoration stage and keeps the old public DB until verified. Recovery resumes the saved operation after reload/re-auth. Ordinary editing requires no mint or extra confirmation.
+
+Root CUA edit eye must close setter name, batch→DNA pause/reload/re-auth, projection failure/recovery, DB refetch/reopen, wrong-identity read-only, image rendering and390/768/1440 no-overflow at `/dashboard/update-buffalo-info` (DNA upload also uses `/dashboard/update-buffalo-dna`). Evidence: `/Users/non/dev/opilot/.playwright-mcp/jaothui-dashboard/buffalo-integrity/phase-4/2026-10-18_21-17/`. These source selectors are not a browser pass by themselves. Inherited navbar contrast/back-label/touch drift remains scoped as documented above.
+
+- [DurableEdit](src/components/update-buffalo-info/DurableEdit.tsx) owns the shared lookup/dialog/status layout.
+- [Edit field contract](src/server/services/buffalo-integrity/edit/contract.ts) declares supported patches and storage/database bounds.

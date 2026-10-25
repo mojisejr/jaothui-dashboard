@@ -2,18 +2,81 @@
 design_md_version: 3
 body: canonical
 project: jaothui-dashboard
-token_source: tailwind.config.ts; src/styles/globals.css; src/pages/_app.tsx
+token_source: "tailwind.config.ts; src/styles/globals.css"
 verify_tokens:
-  - name: primary
-    expect: "#ff8c00"
-    probe: "background-color on [data-buffalo-create] .btn-primary"
-  - name: base-100
+  - name: --bg-dark
     expect: "#0f0f11"
-    probe: "background-color on [data-theme=halloween]"
-  - name: form-radius
-    expect: "8px"
-    probe: "border-radius on #create-name"
+    probe: "background-color on body"
+  - name: --primary-orange
+    expect: "#FF8C00"
+    probe: "background-color on .bg-primary-orange"
+  - name: --primary-orange-glow
+    expect: "#FFA500"
+    probe: "background-color on .bg-primary-orange-glow"
+  - name: --accent-purple
+    expect: "#9D00FF"
+    probe: "background-color on .bg-accent-purple"
+  - name: --accent-purple-glow
+    expect: "#B847FF"
+    probe: "background-color on .bg-accent-purple-glow"
+  - name: --glass-border
+    expect: "rgba(255, 255, 255, 0.1)"
+    probe: "border-top-color on .glass-card"
+  - name: --text-muted
+    expect: "rgba(255, 255, 255, 0.6)"
+    probe: "color on .text-text-muted"
+  - name: rounded-3xl
+    expect: "24px"
+    probe: "border-top-left-radius on .glass-header.rounded-3xl"
+verify_eyes:
+  - kind: web-eye
+    gate: required
+    sees:
+      - "Rendered web DOM, computed styles, responsive layout, focus, interactions and browser downloads"
+      - "Competition workspace at 390, 768 and 1440 CSS pixels using a designated synthetic test event"
+      - "Draft, cover, catalog, publish, public visibility, manual registration close and locked-rule UI"
+    does_not_see:
+      - "Source-only inspection and this document do not close rendered browser claims"
+      - "Transaction atomicity, server authorization, timezone boundaries and concurrency require deterministic tests"
+      - "Physical LINE delivery and operator acceptance require separate approved recipient and operator evidence"
+      - "No native or React Native rendering claims"
+    artifact_sink: "/Users/non/dev/opilot/.playwright-mcp/jaothui-dashboard/competition-admin/phase-5/"
+    commands:
+      - "Run npm run dev from the isolated dashboard worktree on an available local port; record the actual URL"
+      - "Use the plan canonical Codex cua_repl owned browser session/tab; obtain operator login readiness when needed"
+      - "Open /dev/tokens-showcase for the existing color, glass and radius probes; inspect computed styles"
+      - "Open the actual competition routes and verify create/edit/list/filter/closure flows at 390/768/1440px"
+      - "Record viewport, URLs, commit IDs, synthetic entity IDs, sanitized console/network results and screenshots in artifact_sink"
+      - "Require documentElement.scrollWidth <= documentElement.clientWidth; inspect local table scroll separately"
+    claim_label: EVENT_WORKSPACE_WEB_EYE_CLOSED
+  - kind: web-eye
+    gate: required
+    sees:
+      - "Existing production buffalo create/edit DOM, receipt progress, upload, reload and re-auth recovery at390/768/1440px"
+    does_not_see:
+      - "Source-only validation does not establish runtime recovery or actual mainnet acceptance"
+      - "No native rendering claims"
+    artifact_sink: "/Users/non/dev/opilot/.playwright-mcp/jaothui-dashboard/buffalo-integrity/"
+    commands:
+      - "Use the source-selected isolated buffalo runtime only for genuine create/edit recovery tests; never use mainnet as an incidental regression fixture"
+      - "For competition-only changes, verify existing buffalo route/read/disabled-write guards and retain earlier qualified runtime evidence with its exact scope"
+    claim_label: BUFFALO_REGISTRY_WEB_EYE_CLOSED
 primitives:
+  - name: Header
+    file: src/components/ui/Header.tsx
+    variants: [default]
+  - name: AmbientOrbs
+    file: src/components/ui/AmbientOrbs.tsx
+    variants: [default]
+  - name: DashboardCard
+    file: src/components/ui/DashboardCard.tsx
+    variants: [orange, purple]
+  - name: CardGrid
+    file: src/components/ui/CardGrid.tsx
+    variants: [default]
+  - name: Icon
+    file: src/components/ui/Icon.tsx
+    variants: [sm, md, lg, xl, orange-glow, purple-glow]
   - name: BaseLayout
     file: src/components/layout/BaseLayout.tsx
     variants: [dashboard, inner-page]
@@ -22,126 +85,244 @@ primitives:
     variants: [form, upload, review, pending, completed]
   - name: DurableEdit
     file: src/components/update-buffalo-info/DurableEdit.tsx
-    variants:
-      [
-        details,
-        field-dialog,
-        pending,
-        recovery,
-        scoped-completed,
-        read-only-conflict,
-      ]
+    variants: [details, field-dialog, pending, recovery, scoped-completed, read-only-conflict]
 quality_gates:
   accessibility:
-    contrast: "WCAG AA >=4.5:1 body and >=3:1 large text; inherited theme exceptions must be reported"
-    labels_roles: "Every new control has a visible label; errors use role=alert and progress role=status; axe is unclaimed unless run"
+    contrast: "WCAG AA; zero critical or serious axe violations on changed surfaces"
+    labels_roles: "Every control has an accessible name; form labels, keyboard navigation and visible focus"
   spacing:
-    scale: "New form gaps/padding use Tailwind 4px scale"
+    scale: "4px Tailwind spacing scale; document intentional existing exceptions"
   typography:
+    body_min: "16px"
+    label_min: "14px"
     family: "Kanit, Inter, sans-serif"
-    body_min: "16px body; 14px supporting labels and status"
-    numeric: "No predicted token input; receipt-bound token appears as text"
+    numeric: "tabular numerals for aligned operational counts and comparable numeric columns"
   touch:
-    target_min: "New buttons, inputs and selects >=44x44 CSS px"
-verify_eyes:
-  owner: root CUA gate of record
-  route: http://127.0.0.1:3153/dashboard/new-buffalo-info
-  widths: [390, 768, 1440]
-  evidence: /Users/non/dev/opilot/.playwright-mcp/jaothui-dashboard/buffalo-integrity/phase-3
-  required: "Real upload, receipt pause, reload and re-auth resume, projection recovery, two tabs, rendered image naturalWidth>0"
+    target_min: "44px"
+patterns:
+  - atmospheric-canvas-background
+  - tinted-shadow-glow
+  - status-chip-badge
 ---
 
-# jaothui-dashboard — DESIGN.md
+# Jaothui Dashboard — DESIGN.md
+
+Extracted for competition-admin issue #56 from the existing dashboard. This is a
+read contract, not a redesign or a claim that browser verification has passed.
+Sources: `tailwind.config.ts`, `src/styles/globals.css`, `src/pages/_app.tsx`,
+`src/components/ui/*`, and `src/pages/dashboard/news-events/index.tsx`.
+`docs/DESIGN_TOKENS.md` and `docs/dashboard-template.html` are supporting history.
 
 ## 1. Visual Theme & Atmosphere
 
-Internal livestock registry tools use the existing dark Halloween theme, orange actions and Kanit typography. Creation is a practical four-step form with factual transaction progress. Preserve the existing navigation and form vocabulary.
+Near-black glass surfaces, warm orange primary actions and purple secondary
+accents create the dashboard identity. Kanit supports Thai operational content.
+The existing hub uses floating ambient light, rounded cards, duotone icons,
+hover tilt and click ripples. Preserve this shell while keeping dense competition
+forms and application review quiet, legible and predictable.
+
+Reuse the existing system before creating components. Do not import the separate
+gold/cream/Prompt theme from jaothui-event into this dashboard.
 
 ## 2. Color Palette & Roles
 
-| Token             | Value                   | Role                                    |
-| ----------------- | ----------------------- | --------------------------------------- |
-| primary           | #FF8C00                 | Navbar, active step and primary actions |
-| secondary         | #9D00FF                 | Existing secondary theme role           |
-| base-100          | #0f0f11                 | Main dark canvas                        |
-| base-content      | DaisyUI halloween theme | Body text                               |
-| warning / success | DaisyUI halloween theme | Recoverable issue / verified completion |
+| CSS variable / Tailwind name | Actual value | Existing role |
+| --- | --- | --- |
+| `--bg-dark` / `dark` | `#0f0f11` | Main background |
+| `--primary-orange` / `primary-orange` | `#FF8C00` | Primary actions and accents |
+| `--primary-orange-glow` / `primary-orange-glow` | `#FFA500` | Orange hover/light |
+| `--accent-purple` / `accent-purple` | `#9D00FF` | Secondary accents |
+| `--accent-purple-glow` / `accent-purple-glow` | `#B847FF` | Purple hover/light |
+| `--glass-bg` / `glass` | `rgba(255,255,255,0.03)` | Transparent fill token |
+| `--glass-border` / `glass-border` | `rgba(255,255,255,0.1)` | Surface outline |
+| `--glass-highlight` / `glass-highlight` | `rgba(255,255,255,0.15)` | Hover highlight |
+| `--text-main` / `text-main` | `#ffffff` | Primary text |
+| `--text-muted` / `text-muted` | `rgba(255,255,255,0.6)` | Supporting text |
+
+DaisyUI 4 extends `halloween` with `base-100`, `primary`, and `secondary`
+overridden to the dark/orange/purple values above. Other DaisyUI semantic roles
+remain inherited; do not assume they equal custom tokens. The news screen uses
+emerald published, red archived and white draft badges with tinted fills and
+borders. Competition statuses must include explicit Thai text and closure reasons,
+with separate event and registration status; color alone cannot convey state.
 
 ## 3. Typography
 
-Kanit 300–600 is loaded in \_app with Inter fallback. Body uses 16px, headings 24px semibold, supporting form labels and transaction IDs 14px. Hashes wrap, avoiding horizontal overflow.
+`src/pages/_app.tsx` loads Kanit weights 300/400/500/600 for Thai and Latin and
+Inter 400/600 for Latin through `next/font/google`. Their variables are
+`--font-kanit` and `--font-inter`. The app wrapper applies `font-kanit`;
+`font-sans` is Kanit, Inter, then Tailwind defaults. Global body CSS also declares
+literal Kanit/Inter; see Known Drift before changing font ownership.
+
+Existing scales use Tailwind defaults: headings `text-2xl md:text-3xl`, section
+headings `text-lg`/`text-xl`, ordinary form labels and controls `text-sm`, and some
+metadata `text-xs`. This extraction does not claim those legacy sizes satisfy the
+quality floor. New operational body content uses at least 16px and labels/support
+at least 14px; keep long Thai names wrapping and operational numerals aligned.
 
 ## 4. Component Stylings
 
-Reuse DaisyUI `.input.input-bordered`, `.select.select-bordered`, `.file-input`, `.btn.btn-primary` and `.btn.btn-outline`. Form controls are full width. Disabled actions remain visibly disabled while a request is pending or its server stage forbids the action. Owned images use object-contain and preserve the whole animal.
+- `.glass-card`: 135-degree white gradient from 8% to 2%, 1px glass border,
+  backdrop blur 10px and soft black shadow. It is a CSS surface, not a React export.
+- `.glass-header`: dark `rgba(20,20,20,0.6)`, glass border, blur 20px and header
+  shadow. `Header` is sticky, rounded and includes the existing logout control.
+- The news screen uses `rounded-3xl` panels, `rounded-xl` inputs/buttons,
+  `bg-black/30` fields, orange focus borders, 44px actions, and 48px search fields.
+- Primary buttons are orange with black text; secondary actions use tinted glass
+  and a border. Show disabled, pending, success and failure feedback explicitly.
+- Pills use `rounded-full`, semantic text, tinted fills and subtle borders.
+- Navigation cards support orange/purple glow and tilt/ripple. Those interactions
+  belong to navigation, not applicant rows, save actions or approval decisions.
+- The existing cover preview is 16:9. Preserve image aspect ratio and meaningful
+  accessible text where an image carries applicant/review information.
+
+No general Button/Input/Dialog React library exists here. DaisyUI classes and
+page-local markup supply controls. New shared competition components may compose
+these styles; do not add a UI library or claim page-local code is a shared primitive.
 
 ## 5. Layout Principles
 
-Creation uses one centered max-w-3xl column, 16px mobile and 24px wider padding, with 16–24px gaps. Form fields become two columns at the existing sm breakpoint. Review and status remain in one bordered surface.
+The authenticated news screen is the current operational reference: `max-w-7xl`,
+full-width content, mobile padding 16px and wider padding 24px, section gap 24px.
+Its search/filter controls compose in a responsive grid; lists have loading,
+error and empty states. The hub uses `CardGrid` with `max-w-3xl`, 20px gap and one
+mobile/two desktop columns. Use that grid for navigation only.
+
+Use Tailwind's 4px spacing scale. Long names require `min-w-0` and wrapping;
+flex/grid tracks should use `minmax(0,1fr)` when content can grow. Competition
+creation and applications require their own route context rather than squeezing
+all operations into the news editor's fixed 420px side panel. Preserve event
+context through tabs, detail actions and export. Search and filters must compose
+and have a clear reset; display why an event or registration is closed.
 
 ## 6. Depth & Elevation
 
-Keep BaseLayout's existing navbar shadow and lower rounded corners. Creation adds thin orange borders and ordinary rounded corners, without new gradients, blur or elevation layers.
+Existing tokens: `shadow-glass-card` is `0 4px 6px rgba(0,0,0,0.1)`;
+`shadow-glass-header` is `0 8px 32px rgba(0,0,0,0.3)`;
+`shadow-glass-card-hover` is `0 20px 40px rgba(0,0,0,0.4)`.
+Orange/purple glow combines a 20px/40px outer shadow at 15% opacity with a 20px
+inset at 10%; matching inset outline tokens also exist. Keep their current mixed
+black/tinted model; linked Design Brain patterns do not authorize replacing it.
+
+Surfaces use 24px `rounded-3xl`, 16px `rounded-2xl`, 12px `rounded-xl`, or pills.
+Decorative orbs are non-interactive in a fixed clipped background at z-0; content
+uses relative z-10 and Header z-50. Ensure dialogs and focus are not clipped by
+scroll containers or placed behind the sticky header.
 
 ## 7. Do's & Don'ts
 
-- Do keep the two explicit Mint NFT / Mint Metadata actions and show receipt-derived status.
-- Do preserve the operation number and permit reload/re-auth recovery.
-- Don't show a guessed token ID, countdown as confirmation, or a success message before publication verification.
-- Don't introduce another UI library, font package or shell redesign.
+- Reuse Header/AmbientOrbs for the existing shell and DashboardCard/CardGrid/Icon
+  for navigation. Read their props before composing them.
+- Keep Thai day-only inputs and label signup dates, event dates and age cutoff
+  independently. Explain inclusive Bangkok closing day beside signup fields.
+- Display event lifecycle and registration availability separately, including
+  manual/date closure reason. Show locked rules and impact-review requirements.
+- Keep draft/save/publish actions distinct; preserve entered values after errors
+  and warn about unsaved edits. Prevent accidental duplicate writes.
+- Use visible textual pending/approved/rejected states and rejection reasons.
+- Do not change branding, add whole-dashboard chrome, or copy event's gold theme.
+- Do not communicate status with color alone, animate destructive decisions, hide
+  invalid legacy data, or infer a named operator from the shared login.
+- Respect reduced-motion preference on changed surfaces; existing motion support
+  is a recorded gap, not already-proven compliance.
 
 ## 8. Responsive Behavior
 
-At 390px controls stack and hashes wrap; step labels form two columns. At 768px and 1440px fields and step labels use the wider layout while the content width stays capped. New controls target at least 44px; uploaded images scale within the viewport without cropping.
+Tailwind default breakpoints apply: sm 640px, md 768px, lg 1024px, xl 1280px.
+News filters become columns at md; list/editor becomes two columns only at lg.
+Header currently has fixed margins/padding and brand plus logout on one line;
+its narrow-screen fit must be checked before claiming reuse is responsive.
 
-## 9. Measurable Quality Gates
+For competition issue #56, verify 390/768/1440px with long Thai names and catalogs.
+No horizontal page overflow: `documentElement.scrollWidth <= clientWidth`.
+Wide tables may scroll only inside a labeled local container, or become readable
+mobile rows. Controls must remain reachable without hover. Sticky header and any
+sticky actions must not obscure fields or keyboard focus. Existing shell has no
+explicit safe-area handling; do not claim device safe-area evidence from source.
 
-| Gate          | PASS                                                                | FAIL                                        |
-| ------------- | ------------------------------------------------------------------- | ------------------------------------------- |
-| Accessibility | Visible control labels, keyboard actions, announced errors/progress | Missing labels or unreadable progress       |
-| Spacing       | 4px scale and no horizontal overflow at 390/768/1440                | Clipped actions or overflow                 |
-| Typography    | Body16/support14 and wrapped hashes                                 | Small body text or clipped IDs              |
-| Touch         | New controls44px minimum                                            | Unreachable or small actions                |
-| Workflow      | Actual receipt, durable resume and published image render           | New signature on repeat or false completion |
+## 9. Agent Prompt Guide
 
-The parent CUA run records rendered evidence. Strict DESIGN schema validation is a source-contract check; it does not itself establish visual or axe compliance.
+> Continue the existing near-black, orange/purple glass dashboard using Kanit and
+> the real Header, AmbientOrbs and navigation primitives. Treat the news screen
+> as the current operational style reference. Keep dense competition content
+> quiet and readable, separate event/registration status, clearly label date-only
+> Bangkok semantics and age cutoff, preserve event context and support narrow
+> field-use screens. Reuse existing styles; do not import the legacy gold theme,
+> add a component library or redesign unrelated pages. Validate tokens and collect
+> actual browser evidence before claiming the workspace is visually complete.
 
-## 10. Agent Prompt Guide
+## Measurable Quality Gates
 
-Reuse the current BaseLayout and DaisyUI Halloween controls with orange actions, Kanit text and a dark canvas. Keep creation at four steps and preserve the two intentional blockchain actions. Every action must reflect the durable server job, with a recoverable status and wrapping transaction identifiers. Review the actual rendered page at all three widths through the parent CUA gate.
+Quality gates above are requirements for changed surfaces, not assertions that
+legacy pages pass: WCAG AA contrast, zero critical/serious axe findings, labeled
+controls and visible keyboard focus, 4px spacing scale with documented intentional
+exceptions, body at least 16px, labels/support at least 14px, and interactive targets
+at least 44 by 44 CSS pixels. Record violations and fix those affecting the changed
+flows; do not quietly lower the floor to match old compact controls.
+
+`verify_tokens` can be probed on the existing `/dev/tokens-showcase` surface;
+header radius can also be probed on authenticated dashboard screens. Normalize
+browser hex/RGB serialization before comparing. A missing selector is an evidence
+gap, not a pass. This older showcase is not a complete competition state showcase.
+The required web-eye lane above closes only `EVENT_WORKSPACE_WEB_EYE_CLOSED` when
+its recorded flows pass. Applications/onsite/export and final operator acceptance
+remain separate plan phase claims; never promote static validation into web proof.
 
 ## Primitives (reuse-first)
 
-| Primitive        | File                                              | Variants                                 |
-| ---------------- | ------------------------------------------------- | ---------------------------------------- |
-| BaseLayout       | src/components/layout/BaseLayout.tsx              | Dashboard/inner navigation               |
-| DurableCreate    | src/components/new-buffalo-info/DurableCreate.tsx | Draft/upload/review/chain/completed      |
-| DaisyUI controls | tailwind.config.ts                                | input/select/file-input/btn/alert/status |
+| Export | File | Actual props/variants |
+| --- | --- | --- |
+| Header | `src/components/ui/Header.tsx` | Default brand/logout shell |
+| AmbientOrbs | `src/components/ui/AmbientOrbs.tsx` | Default orange/purple/red decoration |
+| DashboardCard | `src/components/ui/DashboardCard.tsx` | `variant: orange/purple`; href or onClick |
+| CardGrid | `src/components/ui/CardGrid.tsx` | Children and className; responsive navigation grid |
+| Icon | `src/components/ui/Icon.tsx` | size sm/md/lg/xl; glow orange/purple; color/className |
 
-## Known Drift
-
-- The inherited navbar back action is btn-sm with an icon and lacks an explicit accessible label; this phase scopes new form controls, and the parent must report inherited drift.
-- Existing legacy forms contain smaller text and unlabeled placeholders. They are retained outside isolated creation until the release cutover.
-- Legacy orange navbar text contrast and theme-derived colors require rendered review; no automatic axe pass is claimed.
+`BaseLayout` in `src/components/layout/BaseLayout.tsx` is the older orange navbar
+shell; it coexists with Header rather than being the new operational default.
+`EventSelector` in `src/components/event-export/EventSelector.tsx` sends an event
+name and has limited custom-dropdown semantics; it is not the competition ID
+selector contract. Reuse export download behavior without depending on name IDs.
 
 ## Design Brain Links
 
-This scoped creation contract is grounded in the repository's existing design sources:
+- [Atmospheric canvas](/Users/non/dev/opilot/ψ/memory/learnings/patterns/ui/atmospheric-canvas-background.md): analogous radial-light atmosphere; dashboard uses separate orb elements.
+- [Tinted glow](/Users/non/dev/opilot/ψ/memory/learnings/patterns/ui/tinted-shadow-glow.md): orange/purple emphasis; dashboard also keeps black neutral shadows.
+- [Status chips](/Users/non/dev/opilot/ψ/memory/learnings/patterns/ui/status-chip-badge.md): analogous pill/status language; dashboard uses filled tinted badges without requiring a dot.
 
-- [Tailwind and DaisyUI theme tokens](tailwind.config.ts) define the palette and reusable control styles.
-- [Global styles](src/styles/globals.css) provide the shared page styling.
-- [Application font setup](src/pages/_app.tsx) defines the loaded typography.
-- [BaseLayout](src/components/layout/BaseLayout.tsx) provides the existing dashboard navigation and shell.
-- [Creation page](src/pages/dashboard/new-buffalo-info/index.tsx) retains the legacy four-step flow and selects the isolated durable flow.
-- [DurableCreate](src/components/new-buffalo-info/DurableCreate.tsx) implements the scoped form, review, upload and transaction status controls described here.
+Patterns explain similarities, not exact conformance or permission to restyle.
 
-## Buffalo edit contract (Phase4)
+## Known Drift
 
-The existing lookup → DB details → field dialog → one confirm flow remains. Reuse BaseLayout and DaisyUI Halloween controls; every supported field stays visible, and an identity-conflicting record is readable with disabled edit actions and a factual reason. Current field values prefill the dialog. Parent inputs are prefilled independently, so adding one parent preserves the other.
+- Colors and some keyframes are duplicated between Tailwind config and globals;
+  utilities often use literal Tailwind values rather than CSS variables. Keep
+  both sources aligned when an authorized future change touches them.
+- `docs/DESIGN_TOKENS.md` contains stale class examples and breakpoint commentary;
+  prefer the actual config and component implementation when they disagree.
+- Modern glass Header and legacy BaseLayout/DaisyUI export pages coexist.
+  News controls/status badges are page-local markup, not shared React primitives.
+- Header brand icon uses raw `orange-400`, logout uses red; news uses raw
+  white/emerald/red shades and 12px metadata. Semantic typography/status tokens
+  and a complete component abstraction do not exist yet.
+- `rounded-3xl` is 24px but navigation cards use `rounded-2xl`; do not report a
+  universal 24px card radius. Font variables and literal body families coexist;
+  `font-bold` requests weight 700 although Kanit only loads through 600.
+- Navigation card/icon class strings contain duplicate sizes and a custom
+  `scale-120` class with no matching scale extension; trust rendered CSS over comments.
+- Global motion lacks a complete reduced-motion rule. Dense legacy tables and
+  Header mobile fit remain browser risks; no runtime pass is claimed here.
+- Hub source filename is `src/pages/dashboard/index..tsx` with two dots. Check
+  actual routing before wiring the competition entry; do not normalize it as an
+  unrelated change. Existing `/dev/tokens-showcase` is not a newly-built showcase.
 
-Selectors: `[data-buffalo-edit]`, `#edit-search`, `[data-edit-details]`, `[data-edit-field=name]`, `[data-edit-field=color]`, `[data-edit-dialog]`, `#edit-value`, `#edit-file`, `[data-edit-operation]`, `[data-edit-image]`. New inputs/actions are48px minimum; labels14px/body16px; dialog uses8px corners, orange primary, Kanit/Inter and 4px spacing. Hashes and identifiers wrap. An operation status states requested-field scope and existing discrepancies, with real per-step receipt states. A batch with nonempty DNA shows its restoration stage and keeps the old public DB until verified. Recovery resumes the saved operation after reload/re-auth. Ordinary editing requires no mint or extra confirmation.
+## Buffalo registry scope
 
-Root CUA edit eye must close setter name, batch→DNA pause/reload/re-auth, projection failure/recovery, DB refetch/reopen, wrong-identity read-only, image rendering and390/768/1440 no-overflow at `/dashboard/update-buffalo-info` (DNA upload also uses `/dashboard/update-buffalo-dna`). Evidence: `/Users/non/dev/opilot/.playwright-mcp/jaothui-dashboard/buffalo-integrity/phase-4/2026-10-18_21-17/`. These source selectors are not a browser pass by themselves. Inherited navbar contrast/back-label/touch drift remains scoped as documented above.
-
-- [DurableEdit](src/components/update-buffalo-info/DurableEdit.tsx) owns the shared lookup/dialog/status layout.
-- [Edit field contract](src/server/services/buffalo-integrity/edit/contract.ts) declares supported patches and storage/database bounds.
+The production buffalo forms keep their existing BaseLayout/DaisyUI four-step
+creation flow and field-dialog edit flow. Their8px form corners and ordinary
+bordered surfaces are scoped to buffalo forms; the competition workspace retains
+its existing24px glass panels. Preserve both instead of restyling one domain to
+match the other. The full inherited production contract and selectors are kept
+in [Buffalo integrity design](docs/buffalo-integrity-design.md). Competition work
+must not restore legacy buffalo write routes, change receipt/recovery semantics,
+or replace the durable create/edit components. Production canary acceptance is
+not implied by a competition regression run.
