@@ -41,8 +41,8 @@
     "workflow"
   ],
   "templates": {
-    "book.html": "8dc689376e18b32ece3fe262b909e542e08dfca7024f020a8fa173c86f1d3d65",
-    "print.css": "c6c263b415d28cec683aa13b6917d8bb9220eba05af71c95da8f01102f3be17e"
+    "book.html": "d9aa2fc6c3a5981962fed27c6c147e6268fb7579233c8d835157cd8366f8faf9",
+    "print.css": "d600cc6d254db242195d5cba2160d72d01ad20eb25a1fa9ef3809533f9ee9686"
   },
   "fonts": {
     "Sarabun-Regular.ttf": "226d4f368fbc0457990ddef2692679badfd2c1a4e89e5ac4d43c10ba7743b2f1",

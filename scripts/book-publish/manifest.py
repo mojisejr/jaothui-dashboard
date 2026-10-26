@@ -62,12 +62,33 @@ def load_book(path: Path) -> Book:
         if chapter['id'] in ids:
             raise BookError(f'Duplicate chapter id: {chapter["id"]}')
         ids.add(chapter['id'])
+        if data.get('frontmatter') and chapter['id'] in {'cover', 'contents'}:
+            raise BookError('frontmatter reserves the chapter ids cover and contents')
         if not isinstance(chapter.get('title'), str) or not chapter['title'].strip():
             raise BookError(f'Chapter {chapter["id"]} needs a title')
         source = local_path(path.parent, chapter.get('source'), 'chapter')
         if source.suffix != '.md':
             raise BookError('Chapter sources must be .md files')
         resolved_chapters.append({**chapter, 'path': source})
+    if 'navigation' in data:
+        navigation = data['navigation']
+        if not isinstance(navigation, list) or not navigation:
+            raise BookError('navigation must be a non-empty list of groups')
+        for group in navigation:
+            if (not isinstance(group, dict) or not isinstance(group.get('title'), str)
+                    or not group['title'].strip()):
+                raise BookError('navigation groups need a non-empty title')
+            links = group.get('links')
+            if not isinstance(links, list) or not links:
+                raise BookError('navigation groups need a non-empty links list')
+            for link in links:
+                if (not isinstance(link, dict) or not isinstance(link.get('label'), str)
+                        or not link['label'].strip()):
+                    raise BookError('navigation links need a non-empty label')
+                if not isinstance(link.get('chapter'), str) or link['chapter'] not in ids:
+                    raise BookError('navigation link targets must name a known chapter id')
+                if 'summary' in link and (not isinstance(link['summary'], str) or not link['summary'].strip()):
+                    raise BookError('navigation summary must be non-empty text when provided')
     assets = data.get('assets', {})
     if not isinstance(assets, dict):
         raise BookError('assets must be an object')

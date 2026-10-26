@@ -99,6 +99,58 @@ class PublisherContracts(unittest.TestCase):
             self.raw.pop('frontmatter', None)
             self.raw.pop('cover', None)
 
+    def test_navigation_rejects_invalid_types_and_unknown_targets(self):
+        invalid = [None, [], 'wrong', [{'title': '', 'links': []}],
+                   [{'title': 'Tasks', 'links': 'wrong'}],
+                   [{'title': 'Tasks', 'links': [{'label': 'Open', 'chapter': 'missing'}]}],
+                   [{'title': 'Tasks', 'links': [{'label': 1, 'chapter': 'intro'}]}],
+                   [{'title': 'Tasks', 'links': [{'label': 'Open', 'chapter': 'intro', 'summary': []}]}]]
+        for value in invalid:
+            self.raw['navigation'] = value
+            self.write()
+            with self.subTest(navigation=value), self.assertRaisesRegex(BookError, 'navigation'):
+                load_book(self.manifest)
+
+    def test_actual_grouped_navigation_resolves_page_destinations(self):
+        from pypdf import PdfReader
+        self.raw.update({'frontmatter': True, 'expected_pages': 5,
+                         'navigation': [
+                             {'title': 'Main tasks', 'links': [{'label': 'Start task', 'chapter': 'intro', 'summary': 'One complete job'}]},
+                             {'title': 'Optional reference', 'links': [{'label': 'Details', 'chapter': 'reference'}]}]})
+        self.raw['chapters'].append({'id': 'reference', 'title': 'Reference target', 'source': 'reference.md'})
+        (self.book / 'reference.md').write_text('ข้อมูลเสริม\n\n[Return to chooser](#contents)\n')
+        (self.book / 'intro.md').write_text('\n\n'.join(f'Line {n}. ข้อมูลทดลองหนึ่งบรรทัด' for n in range(45)) + '\n\n[Details](#reference)\n')
+        self.write()
+        report = build_book(self.manifest, work_dir=self.base / 'work')
+        reader = PdfReader(self.book / 'test.pdf')
+        self.assertEqual(report['pages'], 5)
+        chooser = reader.pages[1].extract_text()
+        self.assertIn('Main tasks', chooser)
+        self.assertIn('Optional reference', chooser)
+        target = reader.named_destinations['reference']
+        self.assertEqual(reader.get_destination_page_number(target), 4)
+        self.assertIn(semantic_text('หน้า 5'), semantic_text(reader.pages[3].extract_text()))
+        self.assertTrue(any(str(ref.get_object().get('/Dest')) == 'reference'
+                            for ref in reader.pages[1].get('/Annots', [])))
+        self.assertTrue(any(str(ref.get_object().get('/Dest')) == 'contents'
+                            for ref in reader.pages[4].get('/Annots', [])))
+
+    def test_unknown_internal_fragment_preserves_existing_pdf(self):
+        output = self.book / 'test.pdf'
+        output.write_bytes(b'previous-good-pdf')
+        for fragment in ['#missing', '#contents', '#cover', '#intro%20bad']:
+            (self.book / 'intro.md').write_text(f'[Go]({fragment})')
+            with self.subTest(fragment=fragment), self.assertRaisesRegex(BookError, 'unknown internal'):
+                build_book(self.manifest, work_dir=self.base / 'work')
+            self.assertEqual(output.read_bytes(), b'previous-good-pdf')
+
+    def test_frontmatter_reserved_ids_cannot_collide_with_chapters(self):
+        self.raw['frontmatter'] = True
+        self.raw['chapters'][0]['id'] = 'contents'
+        self.write()
+        with self.assertRaisesRegex(BookError, 'reserves'):
+            load_book(self.manifest)
+
     def test_manifest_rejects_remote_image(self):
         self.raw['assets'] = {'remote': {'src': 'https://example.test/a.png', 'alt': 'test', 'caption': 'test'}}
         self.write()

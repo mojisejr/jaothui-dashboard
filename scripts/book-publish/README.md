@@ -153,3 +153,31 @@ These checks establish retained text semantics, not identical extracted codepoin
 sequences or identical Find behavior in every PDF viewer. If a viewer does not
 normalize Sara Am when searching, use the linked contents or a shorter search
 term without Sara Am. Visual page review remains mandatory after this change.
+
+## Optional task navigation and print references
+
+A book can present a few jobs before its deeper references. Set optional
+`navigation` to non-empty groups, for example:
+
+```json
+"navigation": [
+  {"title": "Main tasks", "links": [
+    {"label": "Open an event", "chapter": "task-new", "summary": "Prepare, publish, verify"}
+  ]},
+  {"title": "Optional detail", "links": [
+    {"label": "Reference index", "chapter": "reference-guide"}
+  ]}
+]
+```
+
+Titles/labels and optional summaries are non-empty text. Targets must name existing
+chapter IDs; invalid types/targets fail before rendering. Omitting navigation
+keeps the original complete contents behavior, including the four-page sample.
+A separate cover/chooser is enabled by `frontmatter` as before.
+
+Write cross-references as `[More detail](#chapter-id)` in Markdown. They become
+clickable PDF links with an automatically computed `(หน้า X)` for print. Unknown
+internal targets fail instead of producing broken links. `#contents` and `#cover`
+are allowed only when frontmatter exists and cannot collide with chapter IDs.
+External URLs and resource attributes remain exact. Raw HTML is still disabled;
+there is no hand-coded page-number or page-range system.

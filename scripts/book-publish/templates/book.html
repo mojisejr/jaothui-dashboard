@@ -17,7 +17,7 @@
   <p class="cover-subtitle">{{ book.subtitle }}</p>
   <p class="cover-edition">{{ book.edition }}<br>{{ book.publication_date }}</p>
   <div class="cover-route">
-    <h2>อ่านตามเส้นทางงาน</h2>
+    <h2>{{ cover.route_heading | default('อ่านตามเส้นทางงาน') }}</h2>
     <p class="pre-line">{{ cover.route | default(book.subtitle) }}</p>
   </div>
   <p class="pre-line">{{ cover.reading_help | default('อ่านตามบท หรือเลือกเรื่องจากสารบัญ') }}</p>
@@ -25,9 +25,18 @@
   <p class="cover-note pre-line">{{ cover.note | default('') }}</p>
 </section>
 <section class="book-contents" id="contents">
-  <header class="chapter-header"><p class="eyebrow">เปิดเรื่องที่ต้องการ แล้วกลับมาต่อเส้นทางเดิม</p><h1>สารบัญ</h1></header>
+  <header class="chapter-header"><p class="eyebrow">{{ cover.contents_intro | default('เปิดเรื่องที่ต้องการ แล้วกลับมาต่อเส้นทางเดิม') }}</p><h1>{{ cover.contents_title | default('สารบัญ') }}</h1></header>
   <nav class="contents full-contents" aria-label="สารบัญ">
+    {% if book.navigation %}
+    {% for group in book.navigation %}
+    <div class="navigation-group">
+      <h2>{{ group.title }}</h2>
+      {% for link in group.links %}<a href="#{{ link.chapter }}"><span>{{ link.label }}</span></a>{% if link.summary %}<p class="navigation-summary">{{ link.summary }}</p>{% endif %}{% endfor %}
+    </div>
+    {% endfor %}
+    {% else %}
     {% for item in chapters %}<a href="#{{ item.id }}"><span>{{ loop.index }}. {{ item.title }}</span></a>{% endfor %}
+    {% endif %}
   </nav>
   <p>ตัวเลขขวามือคือหน้าหนังสือ กดชื่อบทได้เมื่ออ่าน PDF บนคอมพิวเตอร์</p>
   {% if cover.contents_notice %}<blockquote><p>{{ cover.contents_notice }}</p></blockquote>{% endif %}
@@ -43,7 +52,15 @@
   </header>
   {% if loop.first and not book.frontmatter %}
   <nav class="contents" aria-label="สารบัญ">
+    {% if book.navigation %}
+    {% for group in book.navigation %}
+    <div class="navigation-group"><h2>{{ group.title }}</h2>
+      {% for link in group.links %}<a href="#{{ link.chapter }}"><span>{{ link.label }}</span></a>{% if link.summary %}<p class="navigation-summary">{{ link.summary }}</p>{% endif %}{% endfor %}
+    </div>
+    {% endfor %}
+    {% else %}
     {% for item in chapters %}<a href="#{{ item.id }}"><span>{{ loop.index }}. {{ item.title }}</span></a>{% endfor %}
+    {% endif %}
   </nav>
   {% endif %}
   <main>{{ chapter.html | safe }}</main>

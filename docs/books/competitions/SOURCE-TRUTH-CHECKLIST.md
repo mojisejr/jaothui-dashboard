@@ -78,3 +78,10 @@ The onsite form illustration records actual filled dev UI. The duplicate/retry
 illustration is explicitly a source-backed decision diagram, not reconstructed
 UI or proof that an onsite save/retry was executed in this slice. Prior app QA
 is separate evidence. No real LINE delivery was attempted for the book.
+
+## Task-based amendment 0.3
+
+The23 reference chapters retain these source facts and now link back to their
+primary job. Six front task chapters and the reference guide are mapped in
+`TASK-PATHS-SOURCE-MATRIX.md`. This original0.2 map is retained as source lineage;
+current pagination/navigation evidence is in `VALIDATION-TASK-PATHS.md`.

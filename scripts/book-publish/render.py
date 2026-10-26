@@ -93,6 +93,18 @@ def chapter_html(book, chapter):
     parser = MarkdownIt('commonmark', {'html': False}).enable('table')
     tokens = parser.parse(chapter['path'].read_text(encoding='utf-8'))
     figures = set()
+    known_ids = {item['id'] for item in book.chapters}
+    if book.data.get('frontmatter'):
+        known_ids.update({'cover', 'contents'})
+
+    def link_rule(tokens, index, options, env):
+        token = tokens[index]
+        href = token.attrGet('href') or ''
+        if href.startswith('#'):
+            if href[1:] not in known_ids:
+                raise BookError(f'{chapter["id"]}: unknown internal chapter link {href}')
+            token.attrJoin('class', 'chapter-link')
+        return parser.renderer.renderToken(tokens, index, options, env)
 
     def image_rule(tokens, index, options, env):
         token = tokens[index]
@@ -132,6 +144,7 @@ def chapter_html(book, chapter):
         normalized.append(tokens[index])
         index += 1
     parser.renderer.rules['image'] = image_rule
+    parser.renderer.rules['link_open'] = link_rule
     rendered = parser.renderer.render(normalized, parser.options, {})
     return rendered, figures
 
@@ -191,7 +204,9 @@ def build_book(manifest_path, *, work_dir=None, font_dir=None):
         if handler.errors:
             raise BookError('Renderer warnings must be resolved: ' + '; '.join(handler.errors))
         report = verify_pdf(candidate, book.data['expected_pages'])
-        if report['internal_links'] < len(chapters):
+        required_contents_links = (sum(len(group['links']) for group in book.data['navigation'])
+                                   if book.data.get('navigation') else len(chapters))
+        if report['internal_links'] < required_contents_links:
             raise BookError('PDF table of contents has missing internal links')
         report.update({'schema_version': 1, 'book': book.path.name, 'edition': book.data['edition'],
                        'python': platform.python_version(), 'weasyprint': weasyprint.__version__,

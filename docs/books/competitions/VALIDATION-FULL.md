@@ -1,5 +1,9 @@
 # Full manual: Phase 2 validation — Issue #62
 
+Historical baseline for edition0.2 at commit52611c4. The current task-based0.3
+revision is tracked in `VALIDATION-TASK-PATHS.md`; the older hash and page review
+below describe the original0.2 artifact, not the replacement PDF.
+
 Verified 26 October 2026 (Asia/Bangkok). **PHASE_2_EDITORIAL_BUILD_VERIFIED**.
 Review edition 0.2 is ready for the Phase 3 acceptance exercise. First-time-reader
 acceptance and physical printing have not been performed.
