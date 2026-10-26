@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="150" viewBox="0 0 900 150" role="img" aria-label="เส้นทางทีมงานจากร่างถึงปิดงาน">
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="#a46820"/></marker></defs>
+  <g fill="#fff3e2" stroke="#d8be9c" stroke-width="2">
+    <rect x="2" y="18" width="190" height="105" rx="15"/>
+    <rect x="237" y="18" width="190" height="105" rx="15"/>
+    <rect x="472" y="18" width="190" height="105" rx="15"/>
+    <rect x="707" y="18" width="190" height="105" rx="15"/>
+  </g>
+  <g stroke="#a46820" stroke-width="3" marker-end="url(#arrow)">
+    <path d="M198 70 H226"/><path d="M433 70 H461"/><path d="M668 70 H696"/>
+  </g>
+  <g font-family="Sarabun" font-size="27" font-weight="bold" fill="#24211d" text-anchor="middle">
+    <text x="97" y="64">สร้างร่าง</text><text x="332" y="64">เผยแพร่</text><text x="567" y="64">พิจารณา</text><text x="802" y="64">ปิดงาน</text>
+  </g>
+  <g font-family="Sarabun" font-size="20" fill="#625343" text-anchor="middle">
+    <text x="97" y="98">ตรวจข้อมูล</text><text x="332" y="98">รับสมัครตามวัน</text><text x="567" y="98">ส่ง LINE แยก</text><text x="802" y="98">ตรวจและ export</text>
+  </g>
+</svg>

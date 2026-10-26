@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "dataset": "dev",
+  "fixture_event_id": "competition-e154e08a-8af1-4054-84f2-e5596880f448",
+  "settings_capture_clone_id": "competition-dfaa8477-e1ca-47ae-a896-bf29685f4506",
+  "fixture_notes": [
+    "No production event or participant changed.",
+    "Settings use a config-identical dev clone with zero entrants so controls remain editable.",
+    "Review uses non-routable fake applicant and actual deliveryEnabled=false; no message sent.",
+    "Initial CUA screenshot clip API ignored x/y; rejected crops retained in external evidence only.",
+    "All source PNGs are unchanged full screenshots; SVG viewports perform document-layer framing."
+  ],
+  "captures": [
+    {
+      "file": "assets/screenshots/date-picker.svg",
+      "raw_file": "assets/screenshots/date-context.png",
+      "display_region": {
+        "x": 40,
+        "y": 447,
+        "width": 595,
+        "height": 150
+      },
+      "sha256": "9131fa5e524ee191434bd514fcab9cdc98a27ae0b8aa424d783e511cd9cade7c",
+      "raw_sha256": "fb0e0542a790293f4318a1ec06e27efd43ff6e99f2fd489294b3ee7e978223ef",
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-dfaa8477-e1ca-47ae-a896-bf29685f4506",
+      "source_ui_revision": "9af49351edcc95fb2e142df22e2aee18f2a09a59",
+      "source_backend_revision": "291193f480d8b76cd572084e3cc966585eed5d75",
+      "viewport": {
+        "width": 1280,
+        "height": 720,
+        "scale": 1
+      },
+      "captured_at": "2026-10-26T10:33:29+07:00",
+      "data_classification": "synthetic-development",
+      "capture_method": "cua_repl full viewport screenshot; SVG document viewport clips unchanged raw bitmap"
+    },
+    {
+      "file": "assets/screenshots/class-rule.svg",
+      "raw_file": "assets/screenshots/class-context.png",
+      "display_region": {
+        "x": 56,
+        "y": 164,
+        "width": 582,
+        "height": 166
+      },
+      "sha256": "de974a69daaff06da35b2fcaa4989da3cf76bc8fee84d2db2c925fa9caf60132",
+      "raw_sha256": "1c281b49717e2190cfe181483b4f72b804a92fca2f130687365f8111deee4796",
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-dfaa8477-e1ca-47ae-a896-bf29685f4506",
+      "source_ui_revision": "9af49351edcc95fb2e142df22e2aee18f2a09a59",
+      "source_backend_revision": "291193f480d8b76cd572084e3cc966585eed5d75",
+      "viewport": {
+        "width": 1280,
+        "height": 720,
+        "scale": 1
+      },
+      "captured_at": "2026-10-26T10:33:42+07:00",
+      "data_classification": "synthetic-development",
+      "capture_method": "cua_repl full viewport screenshot; SVG document viewport clips unchanged raw bitmap"
+    },
+    {
+      "file": "assets/screenshots/class-minimum.svg",
+      "raw_file": "assets/screenshots/class-context.png",
+      "display_region": {
+        "x": 643,
+        "y": 164,
+        "width": 582,
+        "height": 82
+      },
+      "sha256": "569970f81bc4cd67ec94c41feef1be4199b0098085cfb258814149638238744b",
+      "raw_sha256": "1c281b49717e2190cfe181483b4f72b804a92fca2f130687365f8111deee4796",
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-dfaa8477-e1ca-47ae-a896-bf29685f4506",
+      "source_ui_revision": "9af49351edcc95fb2e142df22e2aee18f2a09a59",
+      "source_backend_revision": "291193f480d8b76cd572084e3cc966585eed5d75",
+      "viewport": {
+        "width": 1280,
+        "height": 720,
+        "scale": 1
+      },
+      "captured_at": "2026-10-26T10:33:42+07:00",
+      "data_classification": "synthetic-development",
+      "capture_method": "cua_repl full viewport screenshot; SVG document viewport clips unchanged raw bitmap"
+    },
+    {
+      "file": "assets/screenshots/review-line.svg",
+      "raw_file": "assets/screenshots/review-context.png",
+      "display_region": {
+        "x": 36,
+        "y": 401,
+        "width": 610,
+        "height": 157
+      },
+      "sha256": "82dbe2b3556bb226b97ac35914cde4262a1f93d48af1394aa4c6884791857b3f",
+      "raw_sha256": "ef23621974f666855c02d4270160f6723cf23bc4999001cff1feb1324e43858a",
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-e154e08a-8af1-4054-84f2-e5596880f448/applications/competition-entry-6b0e73ac-1a86-4c46-b941-2e907574320f",
+      "source_ui_revision": "9af49351edcc95fb2e142df22e2aee18f2a09a59",
+      "source_backend_revision": "291193f480d8b76cd572084e3cc966585eed5d75",
+      "viewport": {
+        "width": 1280,
+        "height": 720,
+        "scale": 1
+      },
+      "captured_at": "2026-10-26T10:32:34+07:00",
+      "data_classification": "synthetic-development",
+      "capture_method": "cua_repl full viewport screenshot; SVG document viewport clips unchanged raw bitmap"
+    },
+    {
+      "file": "assets/screenshots/review-save.svg",
+      "raw_file": "assets/screenshots/review-context.png",
+      "display_region": {
+        "x": 36,
+        "y": 287,
+        "width": 425,
+        "height": 64
+      },
+      "sha256": "edaf8e5b3601bdd81b86cd66947cbd070c365c9691890b82754326ef287d7810",
+      "raw_sha256": "ef23621974f666855c02d4270160f6723cf23bc4999001cff1feb1324e43858a",
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-e154e08a-8af1-4054-84f2-e5596880f448/applications/competition-entry-6b0e73ac-1a86-4c46-b941-2e907574320f",
+      "source_ui_revision": "9af49351edcc95fb2e142df22e2aee18f2a09a59",
+      "source_backend_revision": "291193f480d8b76cd572084e3cc966585eed5d75",
+      "viewport": {
+        "width": 1280,
+        "height": 720,
+        "scale": 1
+      },
+      "captured_at": "2026-10-26T10:32:34+07:00",
+      "data_classification": "synthetic-development",
+      "capture_method": "cua_repl full viewport screenshot; SVG document viewport clips unchanged raw bitmap"
+    },
+    {
+      "file": "assets/screenshots/review-send.svg",
+      "raw_file": "assets/screenshots/review-context.png",
+      "display_region": {
+        "x": 36,
+        "y": 595,
+        "width": 425,
+        "height": 64
+      },
+      "sha256": "680bde086266276295a14bd3456ea37a373abb7120dff27e89efe12b726feb45",
+      "raw_sha256": "ef23621974f666855c02d4270160f6723cf23bc4999001cff1feb1324e43858a",
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-e154e08a-8af1-4054-84f2-e5596880f448/applications/competition-entry-6b0e73ac-1a86-4c46-b941-2e907574320f",
+      "source_ui_revision": "9af49351edcc95fb2e142df22e2aee18f2a09a59",
+      "source_backend_revision": "291193f480d8b76cd572084e3cc966585eed5d75",
+      "viewport": {
+        "width": 1280,
+        "height": 720,
+        "scale": 1
+      },
+      "captured_at": "2026-10-26T10:32:34+07:00",
+      "data_classification": "synthetic-development",
+      "capture_method": "cua_repl full viewport screenshot; SVG document viewport clips unchanged raw bitmap"
+    }
+  ]
+}

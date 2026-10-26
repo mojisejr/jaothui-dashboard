@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="{{ book.language }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ book.title }}</title>
+  <meta name="author" content="Jaothui">
+  <meta name="description" content="{{ book.subtitle | default('') }}">
+</head>
+<body>
+<footer class="running-footer">{{ book.title }} · {{ book.publication_date }}</footer>
+{% if book.frontmatter %}
+{% set cover = book.cover | default({}) %}
+<section class="book-cover" id="cover">
+  <p class="cover-brand">{{ cover.brand | default(book.title) }}</p>
+  <p class="eyebrow">{{ cover.audience | default(book.language) }}</p>
+  <h1>{{ book.title }}</h1>
+  <p class="cover-subtitle">{{ book.subtitle }}</p>
+  <p class="cover-edition">{{ book.edition }}<br>{{ book.publication_date }}</p>
+  <div class="cover-route">
+    <h2>{{ cover.route_heading | default('อ่านตามเส้นทางงาน') }}</h2>
+    <p class="pre-line">{{ cover.route | default(book.subtitle) }}</p>
+  </div>
+  <p class="pre-line">{{ cover.reading_help | default('อ่านตามบท หรือเลือกเรื่องจากสารบัญ') }}</p>
+  {% if cover.notice %}<blockquote><p>{{ cover.notice }}</p></blockquote>{% endif %}
+  <p class="cover-note pre-line">{{ cover.note | default('') }}</p>
+</section>
+<section class="book-contents" id="contents">
+  <header class="chapter-header"><p class="eyebrow">{{ cover.contents_intro | default('เปิดเรื่องที่ต้องการ แล้วกลับมาต่อเส้นทางเดิม') }}</p><h1>{{ cover.contents_title | default('สารบัญ') }}</h1></header>
+  <nav class="contents full-contents" aria-label="สารบัญ">
+    {% if book.navigation %}
+    {% for group in book.navigation %}
+    <div class="navigation-group">
+      <h2>{{ group.title }}</h2>
+      {% for link in group.links %}<a href="#{{ link.chapter }}"><span>{{ link.label }}</span></a>{% if link.summary %}<p class="navigation-summary">{{ link.summary }}</p>{% endif %}{% endfor %}
+    </div>
+    {% endfor %}
+    {% else %}
+    {% for item in chapters %}<a href="#{{ item.id }}"><span>{{ loop.index }}. {{ item.title }}</span></a>{% endfor %}
+    {% endif %}
+  </nav>
+  <p>ตัวเลขขวามือคือหน้าหนังสือ กดชื่อบทได้เมื่ออ่าน PDF บนคอมพิวเตอร์</p>
+  {% if cover.contents_notice %}<blockquote><p>{{ cover.contents_notice }}</p></blockquote>{% endif %}
+</section>
+{% endif %}
+{% for chapter in chapters %}
+<section class="chapter chapter-{{ chapter.id }}" id="{{ chapter.id }}">
+  <header class="chapter-header">
+    <p class="eyebrow">{{ book.edition }} · {{ loop.index }} / {{ chapters | length }}</p>
+    {% if loop.first and not book.frontmatter %}<p class="book-title">{{ book.title }}</p>{% endif %}
+    <h1>{{ chapter.title }}</h1>
+    {% if chapter.intro %}<p class="standfirst">{{ chapter.intro }}</p>{% endif %}
+  </header>
+  {% if loop.first and not book.frontmatter %}
+  <nav class="contents" aria-label="สารบัญ">
+    {% if book.navigation %}
+    {% for group in book.navigation %}
+    <div class="navigation-group"><h2>{{ group.title }}</h2>
+      {% for link in group.links %}<a href="#{{ link.chapter }}"><span>{{ link.label }}</span></a>{% if link.summary %}<p class="navigation-summary">{{ link.summary }}</p>{% endif %}{% endfor %}
+    </div>
+    {% endfor %}
+    {% else %}
+    {% for item in chapters %}<a href="#{{ item.id }}"><span>{{ loop.index }}. {{ item.title }}</span></a>{% endfor %}
+    {% endif %}
+  </nav>
+  {% endif %}
+  <main>{{ chapter.html | safe }}</main>
+</section>
+{% endfor %}
+</body>
+</html>

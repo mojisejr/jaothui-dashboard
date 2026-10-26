@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="280" viewBox="0 0 640 280">
+<rect width="640" height="280" rx="12" fill="#fff8ee"/>
+<g font-family="Sarabun" font-size="20" fill="#24211d">
+<text x="24" y="34" font-size="23" font-weight="bold">ตรวจไมโครชิพก่อนบันทึก</text>
+<rect x="24" y="51" width="592" height="49" rx="8" fill="#ffe0ac"/>
+<text x="42" y="82">ค้นหาในงาน → ตรวจข้อมูลและใบสมัครที่พบ</text>
+<path d="M177 101v22 M458 101v22" stroke="#a15b10" stroke-width="3"/>
+<rect x="24" y="125" width="286" height="131" rx="9" fill="white" stroke="#d9b88e"/>
+<rect x="328" y="125" width="288" height="131" rx="9" fill="white" stroke="#d9b88e"/>
+<text x="42" y="154" font-weight="bold">พบเลขเดิม</text>
+<text x="42" y="184">ตรวจใบสมัครเดิมก่อน</text>
+<text x="42" y="213">เพิ่มใหม่เฉพาะที่มีเหตุผล</text>
+<text x="42" y="241">อย่าเพิ่มเพราะยังไม่เห็นผล</text>
+<text x="346" y="154" font-weight="bold">ยังไม่ยืนยันผลบันทึก</text>
+<text x="346" y="184">คงข้อมูลในฟอร์มไว้</text>
+<text x="346" y="213">กลับไปใช้รายการเดิม</text>
+<text x="346" y="241">ตรวจผลก่อนเริ่มตัวถัดไป</text>
+</g></svg>
