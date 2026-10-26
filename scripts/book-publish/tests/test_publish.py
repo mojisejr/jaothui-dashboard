@@ -7,13 +7,20 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import re
+import unicodedata
 from unittest.mock import patch
 from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ENGINE))
 from manifest import BookError, load_book
-from render import build_book
+from render import build_book, render_text_equivalents
+
+
+def semantic_text(value):
+    # Extractors add layout whitespace around Thai combining glyphs/line wraps.
+    return re.sub(r'\s+', '', unicodedata.normalize('NFKC', value))
 
 
 class PublisherContracts(unittest.TestCase):
@@ -42,6 +49,55 @@ class PublisherContracts(unittest.TestCase):
         (self.book / 'intro.md').unlink()
         with self.assertRaisesRegex(BookError, 'intro.md'):
             load_book(self.manifest)
+
+    def test_separate_frontmatter_keeps_chapter_on_third_page(self):
+        from pypdf import PdfReader
+        self.raw.update({'frontmatter': True, 'expected_pages': 3,
+                         'cover': {'brand': 'SECOND BOOK', 'audience': 'ผู้อ่านใหม่',
+                                   'route': 'เตรียม → ทำ → ตรวจ',
+                                   'notice': 'ข้อมูลตัวอย่างของหนังสืออีกเล่ม'}})
+        self.write()
+        report = build_book(self.manifest, work_dir=self.base / 'work')
+        reader = PdfReader(self.book / 'test.pdf')
+        self.assertEqual(report['pages'], 3)
+        self.assertIn('SECOND BOOK', reader.pages[0].extract_text())
+        self.assertIn('ข้อมูลตัวอย่างของหนังสืออีกเล่ม', reader.pages[0].extract_text())
+        self.assertIn('สารบัญ', reader.pages[1].extract_text())
+        self.assertIn(semantic_text('ทดลองสร้างหนังสือภาษาไทย'),
+                      semantic_text(reader.pages[2].extract_text()))
+        self.assertNotIn('LINE', reader.pages[0].extract_text())
+        self.assertGreaterEqual(len(reader.pages[1].get('/Annots', [])), 1)
+
+    def test_thai_sara_am_is_complete_in_real_pdf_text(self):
+        from pypdf import PdfReader
+        corpus = 'คำนวณ กำหนดวันที่ ทีมงาน ทำตามลำดับ สมัคร ควาย กำลังทำงาน ลำดับ สำเร็จ อำเภอ น้ำ ค่ำ ดำ กำ คำ'
+        self.raw['chapters'][0]['title'] = corpus  # Kanit SemiBold heading.
+        (self.book / 'intro.md').write_text(f'{corpus}\n\n**{corpus}**\n\n## {corpus}\n')
+        self.write()
+        build_book(self.manifest, work_dir=self.base / 'work')
+        target = semantic_text(corpus)
+        result = PdfReader(self.book / 'test.pdf').pages[0].extract_text()
+        self.assertGreaterEqual(semantic_text(result).count(target), 4)
+        if shutil.which('pdftotext'):
+            poppler = subprocess.check_output(['pdftotext', '-raw', str(self.book / 'test.pdf'), '-']).decode()
+            self.assertGreaterEqual(semantic_text(poppler).count(target), 4)
+
+    def test_render_normalization_preserves_attributes_and_source_urls(self):
+        markup = '<!doctype html><p title="คำ"><a href="คำ.pdf">คำ &amp; กำ</a><img src="คำ.png" alt="คำ"></p>'
+        normalized = render_text_equivalents(markup)
+        self.assertIn('title="คำ"', normalized)
+        self.assertIn('href="คำ.pdf"', normalized)
+        self.assertIn('src="คำ.png" alt="คำ"', normalized)
+        self.assertIn('ค\u0e4d\u0e32 &amp; ก\u0e4d\u0e32', normalized)
+
+    def test_frontmatter_configuration_rejects_wrong_types(self):
+        for invalid in [{'frontmatter': 'yes'}, {'cover': {'route': ['wrong']}}]:
+            self.raw.update(invalid)
+            self.write()
+            with self.assertRaisesRegex(BookError, 'frontmatter|cover'):
+                load_book(self.manifest)
+            self.raw.pop('frontmatter', None)
+            self.raw.pop('cover', None)
 
     def test_manifest_rejects_remote_image(self):
         self.raw['assets'] = {'remote': {'src': 'https://example.test/a.png', 'alt': 'test', 'caption': 'test'}}

@@ -1,6 +1,7 @@
 """Offline authored-book renderer; no application imports or network fetches."""
 import hashlib
 import html
+from html.parser import HTMLParser
 import json
 import logging
 import os
@@ -24,6 +25,48 @@ from verify import verify_pdf
 
 ENGINE = Path(__file__).resolve().parent
 FONT_FILES = ['Sarabun-Regular.ttf', 'Sarabun-Bold.ttf', 'Kanit-Regular.ttf', 'Kanit-SemiBold.ttf']
+
+
+def render_text_equivalents(document):
+    """Avoid empty Thai Sara Am cluster mappings in the pinned PDF renderer.
+
+    U+0E33 has the NFKC-equivalent sequence U+0E4D U+0E32. Only visible
+    HTML text changes; source files, attributes and resource URLs stay exact.
+    This preserves glyph appearance without modifying a font or a PDF CMap.
+    """
+    class TextNodes(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=False)
+            self.parts = []
+
+        def handle_data(self, data):
+            self.parts.append(data.replace('\u0e33', '\u0e4d\u0e32'))
+
+        def handle_starttag(self, tag, attrs):
+            self.parts.append(self.get_starttag_text())
+
+        def handle_startendtag(self, tag, attrs):
+            self.parts.append(self.get_starttag_text())
+
+        def handle_endtag(self, tag):
+            self.parts.append(f'</{tag}>')
+
+        def handle_decl(self, decl):
+            self.parts.append(f'<!{decl}>')
+
+        def handle_entityref(self, name):
+            self.parts.append(f'&{name};')
+
+        def handle_charref(self, name):
+            self.parts.append(f'&#{name};')
+
+        def handle_comment(self, data):
+            self.parts.append(f'<!--{data}-->')
+
+    parser = TextNodes()
+    parser.feed(document)
+    parser.close()
+    return ''.join(parser.parts)
 
 
 def digest(path):
@@ -107,7 +150,7 @@ def build_book(manifest_path, *, work_dir=None, font_dir=None):
     book = load_book(Path(manifest_path))
     font_dir = Path(font_dir or ENGINE / 'assets' / 'fonts').resolve()
     text = '\n'.join(c['path'].read_text(encoding='utf-8') + c['title'] for c in book.chapters)
-    check_fonts(font_dir, text + book.data['title'])
+    check_fonts(font_dir, text + json.dumps(book.data, ensure_ascii=False))
     chapters, used_figures = [], set()
     for chapter in book.chapters:
         content, figures = chapter_html(book, chapter)
@@ -130,7 +173,7 @@ def build_book(manifest_path, *, work_dir=None, font_dir=None):
     environment = Environment(loader=FileSystemLoader(ENGINE / 'templates'),
                               autoescape=select_autoescape(['html']))
     template = environment.get_template('book.html')
-    document = template.render(book=book.data, chapters=chapters)
+    document = render_text_equivalents(template.render(book=book.data, chapters=chapters))
     css_source = (ENGINE / 'templates' / 'print.css').read_text(encoding='utf-8')
     css_source = css_source.replace('__FONT_ROOT__', font_dir.as_uri())
     scratch = Path(work_dir or ENGINE.parents[1] / '.tmp' / 'book-publish')
@@ -152,6 +195,7 @@ def build_book(manifest_path, *, work_dir=None, font_dir=None):
             raise BookError('PDF table of contents has missing internal links')
         report.update({'schema_version': 1, 'book': book.path.name, 'edition': book.data['edition'],
                        'python': platform.python_version(), 'weasyprint': weasyprint.__version__,
+                       'text_normalization': 'Thai Sara Am NFKC-equivalent sequence in HTML text nodes only',
                        'pdf_sha256': digest(candidate), 'manifest_sha256': digest(book.path),
                        'inputs': {str(c['path'].relative_to(book.root)): digest(c['path']) for c in book.chapters},
                        # SVG figures can reference declared PNG context images.

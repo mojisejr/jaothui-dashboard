@@ -1,0 +1,461 @@
+{
+  "schema_version": 1,
+  "dataset": "dev",
+  "source_ui_revision": "9af49351edcc95fb2e142df22e2aee18f2a09a59",
+  "source_backend_revision": "291193f480d8b76cd572084e3cc966585eed5d75",
+  "fixtures": {
+    "royalId": "competition-ff73396a-9358-4de8-b87f-9f07846fb46e",
+    "royalRegistrationId": "competition-entry-9aa8b739-7c74-4810-859e-e6307a386436",
+    "mainId": "competition-e154e08a-8af1-4054-84f2-e5596880f448",
+    "captureCloneId": "competition-dfaa8477-e1ca-47ae-a896-bf29685f4506",
+    "mainRegistrationId": "competition-entry-6b0e73ac-1a86-4c46-b941-2e907574320f",
+    "createdIn": "dev",
+    "deliveryEnabled": false
+  },
+  "notes": [
+    "Owner accepted Slice1 format before Phase2.",
+    "All screens are actual local UI with synthetic records; no production writes or real LINE.",
+    "Normal main event, identical editable draft clone, and separately named Royal variant.",
+    "Original screenshot bytes are preserved; SVG document frames only select regions.",
+    "Date/review images reused from accepted Slice1 with lineage in capture-manifest.json.",
+    "One native confirmation blocked mouse/keyboard activation; a separate read-only tab captured remaining scenes. No current-slice onsite save/retry or provider delivery claimed.",
+    "Duplicate/retry illustration is a source-backed conceptual diagram, not simulated UI.",
+    "After captures, normal and Royal dev events were closed; draft clone retained. No fixture documents deleted.",
+    "Owner cancelled stale native confirmation; all owned browser tabs closed.",
+    "Full-page Login capture mispositioned centered flex content; rejected and replaced with verified original viewport capture.",
+    "Every screenshot frame has an explicit SVG clipPath; this prevents overflowing fragments when print CSS constrains image height."
+  ],
+  "captures": [
+    {
+      "name": "list-search-context",
+      "raw_file": "assets/full-screenshots/list-search-context.jpg",
+      "raw_sha256": "8510a8551be0cdfc8feb084c1bb2985aef0e89e3f8c1075534db35ac9e0139a6",
+      "viewport": {
+        "width": 1265,
+        "height": 712
+      },
+      "route": "http://127.0.0.1:3027/dashboard/competitions",
+      "captured_at": "2026-10-26T05:16:40.640Z",
+      "classification": "synthetic-dev",
+      "regions": [
+        {
+          "key": "list-search",
+          "x": 24,
+          "y": 326,
+          "width": 602,
+          "height": 201,
+          "file": "assets/full-screenshots/list-search.svg",
+          "sha256": "a9795338a0be77394ff5b5ad43e247dbee8e96e527389189ce5459c86bef367f"
+        }
+      ]
+    },
+    {
+      "name": "list-card-context",
+      "raw_file": "assets/full-screenshots/list-card-context.jpg",
+      "raw_sha256": "997e157e2e1c6469b24e81f4046ef204b775c683d7c97ac22387b40ce521dfeb",
+      "viewport": {
+        "width": 1265,
+        "height": 712
+      },
+      "route": "http://127.0.0.1:3027/dashboard/competitions",
+      "captured_at": "2026-10-26T05:17:13.093Z",
+      "classification": "synthetic-dev",
+      "regions": [
+        {
+          "key": "list-card",
+          "x": 638,
+          "y": 273,
+          "width": 590,
+          "height": 321,
+          "file": "assets/full-screenshots/list-card.svg",
+          "sha256": "664b794d0e07b5916402268256e6c58a4a43711687b677269fc953b72101eef8"
+        }
+      ]
+    },
+    {
+      "name": "draft-top-context",
+      "raw_file": "assets/full-screenshots/draft-top-context.jpg",
+      "raw_sha256": "0b86a5e9f587d2fec509255cb3c3307b7ec5e129db18aa689ad89d65415ac909",
+      "viewport": {
+        "width": 1265,
+        "height": 712
+      },
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-dfaa8477-e1ca-47ae-a896-bf29685f4506",
+      "captured_at": "2026-10-26T05:17:42.297Z",
+      "classification": "synthetic-dev",
+      "regions": [
+        {
+          "key": "workspace-nav",
+          "x": 35,
+          "y": 270,
+          "width": 600,
+          "height": 132,
+          "file": "assets/full-screenshots/workspace-nav.svg",
+          "sha256": "a2be377a1ee26d648ace6554b16f485d333a1a7cb8ae7731b6b6224c1a68f763"
+        }
+      ]
+    },
+    {
+      "name": "draft-fields-context",
+      "raw_file": "assets/full-screenshots/draft-fields-context.jpg",
+      "raw_sha256": "ecc682595f18c7b86e3b6ccaf23af647ed54e9cb805433e4efc8ae2bdcf981e9",
+      "viewport": {
+        "width": 1265,
+        "height": 712
+      },
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-dfaa8477-e1ca-47ae-a896-bf29685f4506",
+      "captured_at": "2026-10-26T05:17:52.987Z",
+      "classification": "synthetic-dev",
+      "regions": [
+        {
+          "key": "draft-fields",
+          "x": 40,
+          "y": 244,
+          "width": 590,
+          "height": 244,
+          "file": "assets/full-screenshots/draft-fields.svg",
+          "sha256": "6d78480754ba991f50c8aa87894dbf3fad83e45d6adeb33f0c1511be1cc0917f"
+        }
+      ]
+    },
+    {
+      "name": "cover-context",
+      "raw_file": "assets/full-screenshots/cover-context.jpg",
+      "raw_sha256": "7007f6346cda51e53bf1664137a6b9049ff2a6d2879ee629e5ea9baad0e7a237",
+      "viewport": {
+        "width": 1265,
+        "height": 712
+      },
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-dfaa8477-e1ca-47ae-a896-bf29685f4506",
+      "captured_at": "2026-10-26T05:18:25.942Z",
+      "classification": "synthetic-dev",
+      "regions": [
+        {
+          "key": "cover-upload",
+          "x": 40,
+          "y": 303,
+          "width": 590,
+          "height": 86,
+          "file": "assets/full-screenshots/cover-upload.svg",
+          "sha256": "87bfe0a9d7c147a1b2b79c6a0fa13be5c50eadccd8b239fc7baadd1115bd2a3c"
+        }
+      ]
+    },
+    {
+      "name": "class-editor-context",
+      "raw_file": "assets/full-screenshots/class-editor-context.jpg",
+      "raw_sha256": "629f8a2bfd2b11f79405e55297098cc3438d80464976728fb073dabc0cc6e605",
+      "viewport": {
+        "width": 1265,
+        "height": 712
+      },
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-dfaa8477-e1ca-47ae-a896-bf29685f4506",
+      "captured_at": "2026-10-26T05:19:22.281Z",
+      "classification": "synthetic-dev",
+      "regions": [
+        {
+          "key": "class-editor",
+          "x": 55,
+          "y": 233,
+          "width": 568,
+          "height": 155,
+          "file": "assets/full-screenshots/class-editor.svg",
+          "sha256": "331a93dc999cf5ebdc3d2408fefe17b651dabddafbc96bc452fff59ac2b2d1a9"
+        }
+      ]
+    },
+    {
+      "name": "copy-classes-context",
+      "raw_file": "assets/full-screenshots/copy-classes-context.jpg",
+      "raw_sha256": "293def77382a7e1fe59b7b2ceff0e28f9e478f6930faecf50dfaee66d767d333",
+      "viewport": {
+        "width": 1265,
+        "height": 712
+      },
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-dfaa8477-e1ca-47ae-a896-bf29685f4506",
+      "captured_at": "2026-10-26T05:19:53.532Z",
+      "classification": "synthetic-dev",
+      "regions": [
+        {
+          "key": "copy-classes",
+          "x": 40,
+          "y": 336,
+          "width": 590,
+          "height": 144,
+          "file": "assets/full-screenshots/copy-classes.svg",
+          "sha256": "8dfc490b81ff448b72c0c10be55f97163d1ce44cf52c0718fbfb0aa5b93decdb"
+        },
+        {
+          "key": "copy-action",
+          "x": 1104,
+          "y": 389,
+          "width": 109,
+          "height": 64,
+          "file": "assets/full-screenshots/copy-action.svg",
+          "sha256": "14ed08d78ea31437a39cbd50663cd973d182c222668dd027e50893f13a31a0b2"
+        }
+      ]
+    },
+    {
+      "name": "age-tester-context",
+      "raw_file": "assets/full-screenshots/age-tester-context.jpg",
+      "raw_sha256": "06cbcf4f91d5a6fcef62769dd00cf80d36cab5353f4b206c32a12354eda526cc",
+      "viewport": {
+        "width": 1265,
+        "height": 712
+      },
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-dfaa8477-e1ca-47ae-a896-bf29685f4506",
+      "captured_at": "2026-10-26T05:20:23.526Z",
+      "classification": "synthetic-dev",
+      "regions": [
+        {
+          "key": "age-tester",
+          "x": 36,
+          "y": 334,
+          "width": 590,
+          "height": 213,
+          "file": "assets/full-screenshots/age-tester.svg",
+          "sha256": "71251d1798802da7f3488ebcd175e8335060a9dc74d7cddd04a3b4b85b81bbe9"
+        }
+      ]
+    },
+    {
+      "name": "event-status-context",
+      "raw_file": "assets/full-screenshots/event-status-context.jpg",
+      "raw_sha256": "1107742276534d1e5cbe8d079a2435d0d89e81f569197dcc977524df73cdb813",
+      "viewport": {
+        "width": 1265,
+        "height": 712
+      },
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-e154e08a-8af1-4054-84f2-e5596880f448",
+      "captured_at": "2026-10-26T05:20:54.445Z",
+      "classification": "synthetic-dev",
+      "regions": [
+        {
+          "key": "event-status",
+          "x": 40,
+          "y": 237,
+          "width": 705,
+          "height": 98,
+          "file": "assets/full-screenshots/event-status.svg",
+          "sha256": "c3a7e1fa8665110a9a8ccfcbf199ee1cf6b8300e40a5b9c3a7a2f2167909f0d2"
+        },
+        {
+          "key": "signup-control",
+          "x": 40,
+          "y": 304,
+          "width": 575,
+          "height": 95,
+          "file": "assets/full-screenshots/signup-control.svg",
+          "sha256": "08d8a7cfc0f056427b171908f89885f93fdf46145e1f24d846939cc715221746"
+        }
+      ]
+    },
+    {
+      "name": "applications-filter-context",
+      "raw_file": "assets/full-screenshots/applications-filter-context.jpg",
+      "raw_sha256": "31eae74e0440eae95cf12840dda5e9f6f23e53898c7e63b097f9c450ede0fd4f",
+      "viewport": {
+        "width": 1265,
+        "height": 712
+      },
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-e154e08a-8af1-4054-84f2-e5596880f448/applications",
+      "captured_at": "2026-10-26T05:26:08.457Z",
+      "classification": "synthetic-dev",
+      "regions": [
+        {
+          "key": "applications-filter",
+          "x": 39,
+          "y": 508,
+          "width": 389,
+          "height": 78,
+          "file": "assets/full-screenshots/applications-filter.svg",
+          "sha256": "2705706d69f81791dd45915274f4cb4397541c239b69e5949da95c1f4506c030"
+        }
+      ]
+    },
+    {
+      "name": "application-detail-context",
+      "raw_file": "assets/full-screenshots/application-detail-context.jpg",
+      "raw_sha256": "1c53fdda42ab22b4e895758ccabc3aed08c1eb3eca2cb64e6c53d39e7eb9808e",
+      "screenshot_size": {
+        "width": 1265,
+        "height": 2066
+      },
+      "capture_mode": "full-page-original-with-SVG-document-frames",
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-e154e08a-8af1-4054-84f2-e5596880f448/applications/competition-entry-6b0e73ac-1a86-4c46-b941-2e907574320f",
+      "captured_at": "2026-10-26T05:34:57.964Z",
+      "classification": "synthetic-dev",
+      "regions": [
+        {
+          "key": "application-detail",
+          "x": 39,
+          "y": 539,
+          "width": 385,
+          "height": 180,
+          "file": "assets/full-screenshots/application-detail.svg",
+          "sha256": "9a5eb56627e22db6c51c46a1bf0388c1e5f43466b5d27ae360d1b69d413054ff"
+        },
+        {
+          "key": "application-age",
+          "x": 432,
+          "y": 650,
+          "width": 365,
+          "height": 62,
+          "file": "assets/full-screenshots/application-age.svg",
+          "sha256": "f507e292676a2f7ae08845dc790bdcf97830d21c4f3da2ad1a753021ae2a79ad"
+        }
+      ]
+    },
+    {
+      "name": "royal-detail-context",
+      "raw_file": "assets/full-screenshots/royal-detail-context.jpg",
+      "raw_sha256": "83ede0a92a62a906ba018d329e9ca6a8d4f2354771da37f84f65a1eb504b6229",
+      "screenshot_size": {
+        "width": 1265,
+        "height": 2006
+      },
+      "capture_mode": "full-page-original-with-SVG-document-frames",
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-ff73396a-9358-4de8-b87f-9f07846fb46e/applications/competition-entry-9aa8b739-7c74-4810-859e-e6307a386436",
+      "captured_at": "2026-10-26T05:36:40.850Z",
+      "classification": "synthetic-dev",
+      "regions": [
+        {
+          "key": "royal-detail",
+          "x": 39,
+          "y": 539,
+          "width": 385,
+          "height": 180,
+          "file": "assets/full-screenshots/royal-detail.svg",
+          "sha256": "65e8374272e86820f1fdffb73bbd950d664a03ca5fce25e7816df32a180528ab"
+        }
+      ]
+    },
+    {
+      "name": "onsite-form-context",
+      "raw_file": "assets/full-screenshots/onsite-form-context.jpg",
+      "raw_sha256": "cda7a3b63f5429bcf9699ef65fb8f01951c27df8afb8542b1dde72f0393900d5",
+      "screenshot_size": {
+        "width": 1265,
+        "height": 1472
+      },
+      "capture_mode": "full-page-original-with-SVG-document-frames",
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-e154e08a-8af1-4054-84f2-e5596880f448/onsite",
+      "captured_at": "2026-10-26T05:38:21.645Z",
+      "classification": "synthetic-dev",
+      "regions": [
+        {
+          "key": "onsite-fields",
+          "x": 44,
+          "y": 595,
+          "width": 584,
+          "height": 168,
+          "file": "assets/full-screenshots/onsite-fields.svg",
+          "sha256": "8f899f21f6f1ede8994b0ca3543a5ecdcbc5aef1b9e447abf1add7f9ec810dc2"
+        }
+      ]
+    },
+    {
+      "name": "login-correct-context",
+      "raw_file": "assets/full-screenshots/login-correct-context.jpg",
+      "raw_sha256": "09239bd6ec58e3c714c0b189ebd14065cf0b0cdddc0b6d53bf818bc5316600aa",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "route": "http://127.0.0.1:3027/",
+      "captured_at": "2026-10-26T08:30:02.966Z",
+      "classification": "synthetic-dev",
+      "regions": [
+        {
+          "key": "login",
+          "x": 520,
+          "y": 375,
+          "width": 242,
+          "height": 176,
+          "file": "assets/full-screenshots/login.svg",
+          "sha256": "90809c6e943e3ce4fc3dfdc6d48dfd0407074e837b41f05b3a1e7e5e8df3bd67"
+        }
+      ]
+    },
+    {
+      "name": "publish-context",
+      "raw_file": "assets/full-screenshots/publish-context.jpg",
+      "raw_sha256": "823d7732996d2a02815bf4dd4e3b16b037cce7dc70dd927ceb505a8dbd0639a9",
+      "screenshot_size": {
+        "width": 1265,
+        "height": 4472
+      },
+      "capture_mode": "full-page-original-with-SVG-document-frames",
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-dfaa8477-e1ca-47ae-a896-bf29685f4506",
+      "captured_at": "2026-10-26T05:41:51.325Z",
+      "classification": "synthetic-dev",
+      "regions": [
+        {
+          "key": "readiness-publish",
+          "x": 40,
+          "y": 639,
+          "width": 292,
+          "height": 62,
+          "file": "assets/full-screenshots/readiness-publish.svg",
+          "sha256": "4d2d81755601d6df5c90a43bea714559b22f078e2976191f91c78f8e723702ec"
+        }
+      ]
+    },
+    {
+      "name": "export-context",
+      "raw_file": "assets/full-screenshots/export-context.jpg",
+      "raw_sha256": "76d6d0ab7b662f6018a88995df0de7200967c00b166adef34c0f4c5e4a88e1fd",
+      "screenshot_size": {
+        "width": 1265,
+        "height": 838
+      },
+      "capture_mode": "full-page-original-with-SVG-document-frames",
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-e154e08a-8af1-4054-84f2-e5596880f448/export",
+      "captured_at": "2026-10-26T05:42:12.802Z",
+      "classification": "synthetic-dev",
+      "regions": [
+        {
+          "key": "export-options",
+          "x": 42,
+          "y": 669,
+          "width": 430,
+          "height": 64,
+          "file": "assets/full-screenshots/export-options.svg",
+          "sha256": "d84e28434d69b79bdd4eeaf731a666635097a657c4ab98dc08ea33d359749e47"
+        }
+      ]
+    },
+    {
+      "name": "closed-event-context",
+      "raw_file": "assets/full-screenshots/closed-event-context.jpg",
+      "raw_sha256": "8d59f02fccad25a74d78a0b55b393a29d15b61106f26bcb9ba17c97de2d5b694",
+      "screenshot_size": {
+        "width": 1265,
+        "height": 4626
+      },
+      "capture_mode": "full-page-original-with-SVG-document-frames",
+      "route": "http://127.0.0.1:3027/dashboard/competitions/competition-e154e08a-8af1-4054-84f2-e5596880f448",
+      "captured_at": "2026-10-26T05:44:05.460Z",
+      "classification": "synthetic-dev",
+      "regions": [
+        {
+          "key": "event-close",
+          "x": 40,
+          "y": 537,
+          "width": 710,
+          "height": 103,
+          "file": "assets/full-screenshots/event-close.svg",
+          "sha256": "768954a9776ee99c2cc9790e037596cccaaeb5019c50a22fdb498d942809fe79"
+        }
+      ]
+    }
+  ],
+  "diagrams": [
+    {
+      "file": "assets/diagrams/onsite-decision.svg",
+      "sha256": "cf47d40bb84a625f922a3c23c965505e25b9c2eb4fbfe9a136ccb7263a405472",
+      "source": "src/components/competitions/OnsiteRegistrationForm.tsx and src/lib/competition-onsite.ts"
+    }
+  ]
+}

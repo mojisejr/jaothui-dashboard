@@ -111,3 +111,45 @@ copyright/license files remain beside the font files. Source:
 Typography can vary across operating systems and native-library versions. The
 build report records content/font hashes and renderer versions; it does not
 promise byte-identical PDFs across different environments.
+
+## Full books with a separate cover and contents
+
+The short sample keeps its original inline contents. Set `frontmatter: true` for
+an additional cover page and separate linked contents page. `expected_pages`
+includes those two pages. Optional `cover` text fields are `brand`, `audience`,
+`route`, `reading_help`, `notice`, `note`, and `contents_notice`; the book owns
+these words, so the renderer does not import a particular application's story.
+Newlines in the route/help/note fields appear as document line breaks. All values
+are plain escaped text, not HTML. A non-boolean `frontmatter` or non-text cover
+value fails validation.
+
+The full competition review edition uses its own manifest and chapters:
+
+```sh
+.tmp/book-publish-venv/bin/python scripts/book-publish/publish.py \
+  --book docs/books/competitions/manual.json
+
+.tmp/book-publish-venv/bin/python scripts/book-publish/publish.py \
+  --check docs/books/competitions/jaothui-competition-manual.pdf
+```
+
+Do not replace `book.json`, `chapters/`, or `preview.pdf` when editing the full
+manual. Full-book editorial traceability is in
+`docs/books/competitions/SOURCE-TRUTH-CHECKLIST.md`. Render and inspect both the
+short preview and the full book after changing shared templates.
+
+## Thai text semantics
+
+The pinned renderer can cache an empty Unicode mapping for a Thai consonant when
+it first appears in a Sara Am cluster. Before rendering, the engine therefore
+uses the Unicode compatibility-equivalent sequence U+0E4D U+0E32 for U+0E33 in
+**HTML text nodes only**. Authored Markdown/metadata remain unchanged, as do HTML
+attributes, links, image paths and the fonts. No generated PDF character map is
+rewritten. The report records this normalization.
+
+A real-render contract checks complete Thai phrases across heading/body/bold with
+pypdf and, when installed, Poppler after NFKC and layout-whitespace normalization.
+These checks establish retained text semantics, not identical extracted codepoint
+sequences or identical Find behavior in every PDF viewer. If a viewer does not
+normalize Sara Am when searching, use the linked contents or a shorter search
+term without Sara Am. Visual page review remains mandatory after this change.

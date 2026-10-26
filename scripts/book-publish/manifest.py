@@ -47,6 +47,11 @@ def load_book(path: Path) -> Book:
             raise BookError(f'book.json needs non-empty {name}')
     if not isinstance(data.get('expected_pages'), int) or not 1 <= data['expected_pages'] <= 500:
         raise BookError('expected_pages must be between 1 and 500')
+    if 'frontmatter' in data and not isinstance(data['frontmatter'], bool):
+        raise BookError('frontmatter must be true or false')
+    if 'cover' in data and (not isinstance(data['cover'], dict)
+                            or any(not isinstance(v, str) for v in data['cover'].values())):
+        raise BookError('cover must be an object with text values')
     chapters = data.get('chapters')
     if not isinstance(chapters, list) or not chapters:
         raise BookError('chapters must be a non-empty ordered list')

@@ -3,14 +3,15 @@
   "embedded_fonts": 4,
   "internal_links": 12,
   "external_links": 0,
-  "selectable_characters": 4392,
+  "selectable_characters": 4494,
   "bookmarks": 8,
   "schema_version": 1,
   "book": "book.json",
   "edition": "ฉบับทดลองรูปเล่ม 0.1",
   "python": "3.12.14",
   "weasyprint": "70.0",
-  "pdf_sha256": "af4a0851873a513df862d557c1b2e762d987648062664b5a4518f93b17fb9913",
+  "text_normalization": "Thai Sara Am NFKC-equivalent sequence in HTML text nodes only",
+  "pdf_sha256": "a4ea26e0bcdf45bd2e681c068f4a33d18ae363992a5e5ee5bb343ae95a9fa852",
   "manifest_sha256": "b64a15e3f013fb189dbf77e61db9687723aaa249f9230ce7e8e7b1a519abf814",
   "inputs": {
     "chapters/01-start.md": "32a4fbfd549223f4939b5f5132c15215a72b35dbea08f2e99e48f0fe8a53c3ed",
@@ -40,8 +41,8 @@
     "workflow"
   ],
   "templates": {
-    "book.html": "bbac72cc4d0e897b28510f2ac32ea26224a2a5804d52919f30edfd1bb5f6ef88",
-    "print.css": "38670a699e3448246ef011b30577238239725b2c4948a57866d723ccd0e6056b"
+    "book.html": "8dc689376e18b32ece3fe262b909e542e08dfca7024f020a8fa173c86f1d3d65",
+    "print.css": "c6c263b415d28cec683aa13b6917d8bb9220eba05af71c95da8f01102f3be17e"
   },
   "fonts": {
     "Sarabun-Regular.ttf": "226d4f368fbc0457990ddef2692679badfd2c1a4e89e5ac4d43c10ba7743b2f1",

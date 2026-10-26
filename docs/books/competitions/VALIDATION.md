@@ -39,3 +39,12 @@ not the completed competition manual.
 - Structural checks and this page review do not prove first-time-reader usability.
   A novice trial and the complete book belong to later slices. Paper printing has
   not been physically tested.
+
+## Phase 2 rebuilt-preview follow-up
+
+The original hash above identifies the Slice1 commit's PDF. The current preview
+was rebuilt after the Thai Sara Am text-node repair, preserving the same source
+chapters, manifest and four-page layout. Its current SHA-256 is
+`a4ea26e0bcdf45bd2e681c068f4a33d18ae363992a5e5ee5bb343ae95a9fa852`. All four new pages passed visual review; the document
+contracts now total16 passing cases. See VALIDATION-FULL.md for the Unicode/viewer
+limit and complete Phase2 evidence.

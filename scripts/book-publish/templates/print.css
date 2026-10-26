@@ -47,3 +47,17 @@ th, td { border-bottom: 0.6pt solid #ddd5cd; padding: 2mm 2.5mm; text-align: lef
 th { background: #f3eee7; font-weight: 700; }
 .running-footer { position: running(footer); font-size: 8pt; color: #6c6258; }
 code { font-family: Sarabun; background: #f3eee7; padding: 0 0.8mm; }
+.book-cover { padding-top: 20mm; }
+.cover-brand { font-family: Kanit; font-weight: 600; font-size: 18pt; letter-spacing: 2pt; color: #763b00; border-top: 6pt solid #ff8c00; padding-top: 8mm; margin-bottom: 10mm; }
+.book-cover h1 { font-size: 34pt; line-height: 1.25; max-width: 150mm; }
+.cover-subtitle { font-size: 17pt; margin-top: 5mm; }
+.cover-edition { color: #625b53; margin: 7mm 0 12mm; }
+.cover-route { padding: 5mm 6mm; background: #f3eee7; margin: 0 0 8mm; }
+.cover-route h2 { margin-top: 0; }
+.cover-note { margin-top: 7mm; font-size: 10.5pt; color: #625b53; }
+.book-contents { break-before: page; }
+.full-contents a { font-size: 11.5pt; padding: 1.3mm 0; }
+
+.pre-line { white-space: pre-line; }
+
+figure.narrow img { width: 52%; }

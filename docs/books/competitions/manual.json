@@ -1,0 +1,497 @@
+{
+  "schema_version": 1,
+  "title": "คู่มือจัดการแข่งขัน Jaothui",
+  "subtitle": "จากเตรียมงานจนส่งมอบไฟล์ สำหรับทีมงานภายใน",
+  "language": "th-TH",
+  "edition": "ฉบับทบทวน 0.2",
+  "publication_date": "26 ตุลาคม 2569",
+  "output": "jaothui-competition-manual.pdf",
+  "expected_pages": 25,
+  "frontmatter": true,
+  "chapters": [
+    {
+      "id": "login",
+      "title": "เข้าใช้และหาทางกลับ",
+      "intro": "ทีมงานทำงานใน Dashboard ส่วนผู้สมัครยังเข้า LINE ตามเดิม",
+      "source": "full-chapters/01-login.md"
+    },
+    {
+      "id": "states",
+      "title": "อ่านสถานะก่อนกดปุ่ม",
+      "intro": "สถานะงานและสถานะรับสมัครตอบคนละคำถาม",
+      "source": "full-chapters/02-states.md"
+    },
+    {
+      "id": "find-events",
+      "title": "ค้นหาและกรองรายการงาน",
+      "intro": "หางานเดิมให้แน่ใจก่อนสร้างใหม่หรือแก้ข้อมูล",
+      "source": "full-chapters/03-find-events.md"
+    },
+    {
+      "id": "draft",
+      "title": "สร้างงานร่างหนึ่งงาน",
+      "intro": "เก็บข้อมูลให้ทีมตรวจ ก่อนผู้สมัครเห็นงาน",
+      "source": "full-chapters/04-draft.md"
+    },
+    {
+      "id": "cover-image",
+      "title": "ใส่รูปปกแล้วบันทึกงาน",
+      "intro": "อัปโหลดรูปสำเร็จ ยังต้องบันทึกเพื่อผูกกับงาน",
+      "source": "full-chapters/05-cover-image.md"
+    },
+    {
+      "id": "thai-dates",
+      "title": "เลือกวัน พ.ศ. ให้ตรงหน้าที่",
+      "intro": "ใช้วันไทยที่อ่านง่าย โดยระบบแปลงปีให้เอง",
+      "source": "full-chapters/06-thai-dates.md"
+    },
+    {
+      "id": "copy-classes",
+      "title": "คัดลอกงานหรือเฉพาะชุดรุ่น",
+      "intro": "เริ่มจากต้นแบบได้ แต่ต้องตรวจเงื่อนไขก่อนใช้",
+      "source": "full-chapters/07-copy-classes.md"
+    },
+    {
+      "id": "class-rules",
+      "title": "เพิ่มรุ่นด้วยชื่อและช่วงอายุ",
+      "intro": "ทำทีละแถว โดยแยกชื่อแสดงออกจากเกณฑ์จริง",
+      "source": "full-chapters/08-class-rules.md"
+    },
+    {
+      "id": "age-and-special",
+      "title": "ลองอายุและตรวจรุ่นพิเศษ",
+      "intro": "ทดลองที่วันตัดอายุ ก่อนมีผู้สมัครจริง",
+      "source": "full-chapters/09-age-and-special.md"
+    },
+    {
+      "id": "publish",
+      "title": "ตรวจความพร้อมแล้วเผยแพร่",
+      "intro": "เปิดให้ผู้ใช้เห็นเมื่อข้อมูลและกติกาตรวจแล้ว",
+      "source": "full-chapters/10-publish.md"
+    },
+    {
+      "id": "applications",
+      "title": "หาใบสมัครที่ต้องตรวจ",
+      "intro": "ค้นด้วยชื่อหรือไมโครชิพ และแยกผลพิจารณา",
+      "source": "full-chapters/11-applications.md"
+    },
+    {
+      "id": "application-detail",
+      "title": "ตรวจรายละเอียดก่อนตัดสิน",
+      "intro": "อายุในใบสมัครเป็นค่าที่บันทึกไว้ ไม่คำนวณทับเอง",
+      "source": "full-chapters/12-application-detail.md"
+    },
+    {
+      "id": "royal",
+      "title": "งาน Royal: ตรวจตัวอย่างแยก",
+      "intro": "ใช้ฟอร์มที่ถูกตั้งไว้ตั้งแต่ก่อนรับสมัคร",
+      "source": "full-chapters/13-royal.md"
+    },
+    {
+      "id": "decision",
+      "title": "บันทึกอนุมัติหรือไม่อนุมัติ",
+      "intro": "ทำหลังตรวจเอกสาร แล้วอ่านผลกลับให้ตรง",
+      "source": "full-chapters/14-decision.md"
+    },
+    {
+      "id": "line",
+      "title": "ส่ง LINE เป็นอีกขั้นตอน",
+      "intro": "ผลพิจารณายังคงอยู่ แม้การส่งข้อความมีปัญหา",
+      "source": "full-chapters/15-line.md"
+    },
+    {
+      "id": "signup-control",
+      "title": "ปิดรับสมัครและเปิดตามกำหนด",
+      "intro": "ปิดเฉพาะผู้ใช้ทั่วไป โดยหน้างานยังทำต่อได้",
+      "source": "full-chapters/16-signup-control.md"
+    },
+    {
+      "id": "onsite",
+      "title": "ลงทะเบียนหน้างานอย่างรอบคอบ",
+      "intro": "ตรวจไมโครชิพก่อนทุกครั้ง แม้กรอกข้อมูลเอง",
+      "source": "full-chapters/17-onsite.md"
+    },
+    {
+      "id": "onsite-duplicate",
+      "title": "พบไมโครชิพซ้ำหรือผลยังไม่แน่ชัด",
+      "intro": "ตรวจรายการก่อนอนุญาตซ้ำ และใช้คำขอเดิมเมื่อผลค้าง",
+      "source": "full-chapters/17b-onsite-duplicate.md"
+    },
+    {
+      "id": "close-event",
+      "title": "ปิดงานเมื่อผู้จัดยืนยัน",
+      "intro": "หยุดรายการใหม่ แต่ประวัติและไฟล์ยังใช้งานได้",
+      "source": "full-chapters/18-close-event.md"
+    },
+    {
+      "id": "export",
+      "title": "ส่งออก Excel และใบสมัคร DOCX",
+      "intro": "ตรวจชื่องานและจำนวน ก่อนส่งไฟล์ให้ผู้จัด",
+      "source": "full-chapters/19-export.md"
+    },
+    {
+      "id": "recovery",
+      "title": "เจอข้อมูลเก่าหรือค้าง ทำอย่างไร",
+      "intro": "อ่านผลเดิมก่อนส่งคำขอใหม่ ป้องกันการทำซ้ำ",
+      "source": "full-chapters/20-recovery.md"
+    },
+    {
+      "id": "quick-reference",
+      "title": "แผ่นอ้างอิงวันทำงาน",
+      "intro": "ตรวจจุดสำคัญให้ครบ โดยย้อนเปิดบทที่เกี่ยวข้อง",
+      "source": "full-chapters/21-quick-reference.md"
+    },
+    {
+      "id": "admin-appendix",
+      "title": "ภาคผนวกสำหรับผู้ดูแลระบบ",
+      "intro": "ทีมปฏิบัติงานอ่านข้ามได้ ไม่ต้องตั้งค่าเอง",
+      "source": "full-chapters/22-admin-appendix.md"
+    }
+  ],
+  "assets": {
+    "workflow": {
+      "src": "assets/diagrams/workflow.svg",
+      "alt": "เส้นทางทีมงานจากสร้างร่าง เผยแพร่ พิจารณา ถึงปิดงานและส่งออก",
+      "caption": "เริ่มจากข้อมูลที่ตรวจแล้ว และตรวจผลหลังแต่ละขั้น",
+      "class": "workflow"
+    },
+    "date-picker": {
+      "src": "assets/screenshots/date-picker.svg",
+      "alt": "ตัวเลือกวัน เดือนภาษาไทย และปี พ.ศ. ในฟอร์มงานแข่งขัน",
+      "caption": "ตัวอย่างจากหน้าจอจริง เลือกวัน เดือน และปีให้ครบก่อนบันทึก",
+      "labels": [
+        "1"
+      ],
+      "class": "compact"
+    },
+    "class-rule": {
+      "src": "assets/screenshots/class-rule.svg",
+      "alt": "ตัวเลือกขอบเขตขั้นต่ำมากกว่าและอายุสูงสุด 15 เดือนในฟอร์มรุ่น",
+      "caption": "เลือก มากกว่า เพื่อไม่รวมเดือนขั้นต่ำ และกำหนดอายุสูงสุด 15 เดือน",
+      "labels": [
+        "2"
+      ],
+      "class": "compact"
+    },
+    "class-minimum": {
+      "src": "assets/screenshots/class-minimum.svg",
+      "alt": "ช่องอายุขั้นต่ำกำหนด 12 เดือน",
+      "caption": "ระบุขั้นต่ำ 12 เดือน จึงได้ช่วงมากกว่า 12 ถึงไม่เกิน 15 เดือน",
+      "labels": [
+        "3"
+      ],
+      "class": "compact"
+    },
+    "review-line": {
+      "src": "assets/screenshots/review-line.svg",
+      "alt": "ส่วนส่ง LINE แสดงสถานะบันทึกผลแล้วแต่ยังไม่ส่ง และข้อความปิดส่งจริงใน local",
+      "caption": "ภาพ local/dev ใช้ข้อมูลจำลองและปิดการส่งจริง จึงยังไม่ได้ส่ง LINE",
+      "class": "review",
+      "labels": [
+        "ภาพ 15"
+      ]
+    },
+    "review-save": {
+      "src": "assets/screenshots/review-save.svg",
+      "alt": "ปุ่มบันทึกอนุมัติและบันทึกไม่อนุมัติ",
+      "caption": "บันทึกผลพิจารณาให้เรียบร้อยก่อน",
+      "labels": [
+        "1"
+      ],
+      "class": "action"
+    },
+    "review-send": {
+      "src": "assets/screenshots/review-send.svg",
+      "alt": "ปุ่มส่งหรือลองส่ง LINE ซึ่งปิดใช้งานในการถ่ายภาพ local",
+      "caption": "ส่ง LINE เป็นอีกปุ่ม ภาพตัวอย่างปิดส่งจริงไว้",
+      "labels": [
+        "2"
+      ],
+      "class": "action"
+    },
+    "date-context": {
+      "src": "assets/screenshots/date-context.png",
+      "alt": "ต้นฉบับภาพหน้าจอเต็ม ใช้แสดงบางส่วนผ่านกรอบ SVG ในเอกสาร"
+    },
+    "class-context": {
+      "src": "assets/screenshots/class-context.png",
+      "alt": "ต้นฉบับภาพหน้าจอเต็ม ใช้แสดงบางส่วนผ่านกรอบ SVG ในเอกสาร"
+    },
+    "review-context": {
+      "src": "assets/screenshots/review-context.png",
+      "alt": "ต้นฉบับภาพหน้าจอเต็ม ใช้แสดงบางส่วนผ่านกรอบ SVG ในเอกสาร"
+    },
+    "list-search-context": {
+      "src": "assets/full-screenshots/list-search-context.jpg",
+      "alt": "ต้นฉบับภาพ list-search-context ใช้ข้อมูลจำลองใน local/dev"
+    },
+    "list-filters": {
+      "src": "assets/full-screenshots/list-search.svg",
+      "alt": "ค้นหาชื่องาน แล้วกรองสถานะและวันเริ่มงานได้ในแผงเดียวกัน",
+      "caption": "ค้นหาชื่องาน แล้วกรองสถานะและวันเริ่มงานได้ในแผงเดียวกัน",
+      "class": "compact",
+      "labels": [
+        "ภาพ 3"
+      ]
+    },
+    "list-card-context": {
+      "src": "assets/full-screenshots/list-card-context.jpg",
+      "alt": "ต้นฉบับภาพ list-card-context ใช้ข้อมูลจำลองใน local/dev"
+    },
+    "list-results": {
+      "src": "assets/full-screenshots/list-card.svg",
+      "alt": "บัตรงานตัวอย่างที่เปิดรับสมัคร พร้อมวันจัดงานและจำนวนใบสมัคร",
+      "caption": "บัตรงานตัวอย่างที่เปิดรับสมัคร พร้อมวันจัดงานและจำนวนใบสมัคร",
+      "class": "compact"
+    },
+    "draft-top-context": {
+      "src": "assets/full-screenshots/draft-top-context.jpg",
+      "alt": "ต้นฉบับภาพ draft-top-context ใช้ข้อมูลจำลองใน local/dev"
+    },
+    "workspace-nav": {
+      "src": "assets/full-screenshots/workspace-nav.svg",
+      "alt": "เมนูทั้งสี่ของงานเดียวกัน: ตั้งค่างาน ใบสมัคร หน้างาน และส่งออก",
+      "caption": "เมนูทั้งสี่ของงานเดียวกัน: ตั้งค่างาน ใบสมัคร หน้างาน และส่งออก",
+      "class": "compact"
+    },
+    "draft-fields-context": {
+      "src": "assets/full-screenshots/draft-fields-context.jpg",
+      "alt": "ต้นฉบับภาพ draft-fields-context ใช้ข้อมูลจำลองใน local/dev"
+    },
+    "draft-fields": {
+      "src": "assets/full-screenshots/draft-fields.svg",
+      "alt": "ภาพขยายช่องชื่องานและรายละเอียดในงานร่าง",
+      "caption": "ภาพจากสำเนาร่างที่ยังไม่มีผู้สมัคร ช่องข้อมูลเหมือนงานหลัก",
+      "class": "",
+      "labels": [
+        "ภาพ 4"
+      ]
+    },
+    "cover-context": {
+      "src": "assets/full-screenshots/cover-context.jpg",
+      "alt": "ต้นฉบับภาพ cover-context ใช้ข้อมูลจำลองใน local/dev"
+    },
+    "cover-upload": {
+      "src": "assets/full-screenshots/cover-upload.svg",
+      "alt": "ช่องรูปปกระบุชนิดไฟล์ที่รองรับและขนาดไม่เกิน 4 MB",
+      "caption": "ช่องรูปปกระบุชนิดไฟล์ที่รองรับและขนาดไม่เกิน 4 MB",
+      "class": "compact",
+      "labels": [
+        "ภาพ 5"
+      ]
+    },
+    "class-editor-context": {
+      "src": "assets/full-screenshots/class-editor-context.jpg",
+      "alt": "ต้นฉบับภาพ class-editor-context ใช้ข้อมูลจำลองใน local/dev"
+    },
+    "class-editor": {
+      "src": "assets/full-screenshots/class-editor.svg",
+      "alt": "ขอบเขตขั้นต่ำแบบตั้งแต่ และอายุสูงสุด 12 เดือนในรุ่นตัวอย่าง",
+      "caption": "ขอบเขตขั้นต่ำแบบตั้งแต่ และอายุสูงสุด 12 เดือนในรุ่นตัวอย่าง",
+      "class": "compact",
+      "labels": [
+        "ภาพ 8"
+      ]
+    },
+    "copy-classes-context": {
+      "src": "assets/full-screenshots/copy-classes-context.jpg",
+      "alt": "ต้นฉบับภาพ copy-classes-context ใช้ข้อมูลจำลองใน local/dev"
+    },
+    "copy-classes": {
+      "src": "assets/full-screenshots/copy-classes.svg",
+      "alt": "เลือกงานต้นแบบเพื่อคัดลอกเฉพาะชุดรุ่น ใบสมัครไม่ถูกคัดลอก",
+      "caption": "เลือกงานต้นแบบเพื่อคัดลอกเฉพาะชุดรุ่น ใบสมัครไม่ถูกคัดลอก",
+      "class": "compact",
+      "labels": [
+        "ภาพ 7"
+      ]
+    },
+    "copy-action": {
+      "src": "assets/full-screenshots/copy-action.svg",
+      "alt": "ปุ่มใช้ชุดรุ่นนี้ หลังเลือกงานต้นแบบ",
+      "caption": "ปุ่มใช้ชุดรุ่นนี้ หลังเลือกงานต้นแบบ",
+      "class": "compact"
+    },
+    "age-tester-context": {
+      "src": "assets/full-screenshots/age-tester-context.jpg",
+      "alt": "ต้นฉบับภาพ age-tester-context ใช้ข้อมูลจำลองใน local/dev"
+    },
+    "age-tester": {
+      "src": "assets/full-screenshots/age-tester.svg",
+      "alt": "วันเกิด 25 ต.ค. 2568 ได้อายุ 13 เดือนและรุ่นมากกว่า 12 ถึง 15 เดือน",
+      "caption": "วันเกิด 25 ต.ค. 2568 ได้อายุ 13 เดือนและรุ่นมากกว่า 12 ถึง 15 เดือน",
+      "class": "compact",
+      "labels": [
+        "ภาพ 9"
+      ]
+    },
+    "event-status-context": {
+      "src": "assets/full-screenshots/event-status-context.jpg",
+      "alt": "ต้นฉบับภาพ event-status-context ใช้ข้อมูลจำลองใน local/dev"
+    },
+    "event-status": {
+      "src": "assets/full-screenshots/event-status.svg",
+      "alt": "สถานะงานกับการรับสมัครแสดงแยกกัน งานนี้กำลังจัดและเปิดรับสมัคร",
+      "caption": "สถานะงานกับการรับสมัครแสดงแยกกัน งานนี้กำลังจัดและเปิดรับสมัคร",
+      "class": "compact",
+      "labels": [
+        "ภาพ 2"
+      ]
+    },
+    "signup-control": {
+      "src": "assets/full-screenshots/signup-control.svg",
+      "alt": "ปุ่มปิดรับสมัคร เปิดรับสมัครตามกำหนด และปิดงาน ขณะงานยังเปิดอยู่",
+      "caption": "ปุ่มปิดรับสมัคร เปิดรับสมัครตามกำหนด และปิดงาน ขณะงานยังเปิดอยู่",
+      "class": "compact",
+      "labels": [
+        "ภาพ 16"
+      ]
+    },
+    "applications-filter-context": {
+      "src": "assets/full-screenshots/applications-filter-context.jpg",
+      "alt": "ต้นฉบับภาพ applications-filter-context ใช้ข้อมูลจำลองใน local/dev"
+    },
+    "applications-filter": {
+      "src": "assets/full-screenshots/applications-filter.svg",
+      "alt": "ช่องค้นหาชื่อควาย เจ้าของ หรือไมโครชิพในรายการใบสมัคร",
+      "caption": "ช่องค้นหาชื่อควาย เจ้าของ หรือไมโครชิพในรายการใบสมัคร",
+      "class": "compact",
+      "labels": [
+        "ภาพ 11"
+      ]
+    },
+    "application-detail-context": {
+      "src": "assets/full-screenshots/application-detail-context.jpg",
+      "alt": "ต้นฉบับภาพ application-detail-context ใช้ข้อมูลจำลองใน local/dev"
+    },
+    "application-detail": {
+      "src": "assets/full-screenshots/application-detail.svg",
+      "alt": "ส่วนชื่อ รุ่น และวันเกิดของฟ้าครามตัวอย่างจากใบสมัครที่บันทึกไว้",
+      "caption": "ส่วนชื่อ รุ่น และวันเกิดของฟ้าครามตัวอย่างจากใบสมัครที่บันทึกไว้",
+      "class": "action",
+      "labels": [
+        "ภาพ 12"
+      ]
+    },
+    "application-age": {
+      "src": "assets/full-screenshots/application-age.svg",
+      "alt": "อายุที่บันทึกในใบสมัครตัวอย่างคือ 13 เดือน",
+      "caption": "อายุที่บันทึกในใบสมัครตัวอย่างคือ 13 เดือน",
+      "class": "compact"
+    },
+    "royal-detail-context": {
+      "src": "assets/full-screenshots/royal-detail-context.jpg",
+      "alt": "ต้นฉบับภาพ royal-detail-context ใช้ข้อมูลจำลองใน local/dev"
+    },
+    "royal-detail": {
+      "src": "assets/full-screenshots/royal-detail.svg",
+      "alt": "นิลมงคลตัวอย่างอยู่ในอีกงานหนึ่งแบบ Royal และใช้รุ่นตั้งแต่ 10 ถึง 12 เดือน",
+      "caption": "นิลมงคลตัวอย่างอยู่ในอีกงานหนึ่งแบบ Royal และใช้รุ่นตั้งแต่ 10 ถึง 12 เดือน",
+      "class": "action",
+      "labels": [
+        "ภาพ 13"
+      ]
+    },
+    "onsite-form-context": {
+      "src": "assets/full-screenshots/onsite-form-context.jpg",
+      "alt": "ต้นฉบับภาพ onsite-form-context ใช้ข้อมูลจำลองใน local/dev"
+    },
+    "onsite-fields": {
+      "src": "assets/full-screenshots/onsite-fields.svg",
+      "alt": "ตัวอย่างช่องไมโครชิพและชื่อควายในฟอร์มหน้างาน ก่อนบันทึก",
+      "caption": "ตัวอย่างช่องไมโครชิพและชื่อควายในฟอร์มหน้างาน ก่อนบันทึก",
+      "class": "compact",
+      "labels": [
+        "ภาพ 17"
+      ]
+    },
+    "login-context": {
+      "src": "assets/full-screenshots/login-correct-context.jpg",
+      "alt": "ต้นฉบับภาพ login-context ใช้ข้อมูลจำลองใน local/dev"
+    },
+    "login": {
+      "src": "assets/full-screenshots/login.svg",
+      "alt": "ช่อง username / password และปุ่ม Login โดยยังไม่ได้กรอกบัญชี",
+      "caption": "ช่อง username / password และปุ่ม Login โดยยังไม่ได้กรอกบัญชี",
+      "class": "narrow",
+      "labels": [
+        "ภาพ 1"
+      ]
+    },
+    "publish-context": {
+      "src": "assets/full-screenshots/publish-context.jpg",
+      "alt": "ต้นฉบับภาพ publish-context ใช้ข้อมูลจำลองใน local/dev"
+    },
+    "readiness-publish": {
+      "src": "assets/full-screenshots/readiness-publish.svg",
+      "alt": "ปุ่มเผยแพร่งานกับคัดลอกเป็นงานใหม่ในงานร่าง",
+      "caption": "ปุ่มเผยแพร่งานกับคัดลอกเป็นงานใหม่ในงานร่าง",
+      "class": "action",
+      "labels": [
+        "ภาพ 10"
+      ]
+    },
+    "export-context": {
+      "src": "assets/full-screenshots/export-context.jpg",
+      "alt": "ต้นฉบับภาพ export-context ใช้ข้อมูลจำลองใน local/dev"
+    },
+    "export-options": {
+      "src": "assets/full-screenshots/export-options.svg",
+      "alt": "เลือกดาวน์โหลด Excel หรือใบสมัคร DOCX ที่รวมอยู่ใน ZIP",
+      "caption": "เลือกดาวน์โหลด Excel หรือใบสมัคร DOCX ที่รวมอยู่ใน ZIP",
+      "class": "action",
+      "labels": [
+        "ภาพ 20"
+      ]
+    },
+    "closed-event-context": {
+      "src": "assets/full-screenshots/closed-event-context.jpg",
+      "alt": "ต้นฉบับภาพ closed-event-context ใช้ข้อมูลจำลองใน local/dev"
+    },
+    "event-close": {
+      "src": "assets/full-screenshots/event-close.svg",
+      "alt": "หลังปิดงาน สถานะเป็นปิดงานด้วยมือและไม่เปิดรับลงทะเบียนหน้างาน",
+      "caption": "หลังปิดงาน สถานะเป็นปิดงานด้วยมือและไม่เปิดรับลงทะเบียนหน้างาน",
+      "class": "compact",
+      "labels": [
+        "ภาพ 19"
+      ]
+    },
+    "dates-panel": {
+      "src": "assets/screenshots/date-picker.svg",
+      "alt": "ตัวเลือกวัน เดือนภาษาไทย และปี พ.ศ. ในฟอร์มงานแข่งขัน",
+      "caption": "ตัวอย่างจากหน้าจอจริง เลือกวัน เดือน และปีให้ครบก่อนบันทึก",
+      "labels": [
+        "ภาพ 6"
+      ],
+      "class": "compact"
+    },
+    "review-decision": {
+      "src": "assets/screenshots/review-save.svg",
+      "alt": "ปุ่มบันทึกอนุมัติและบันทึกไม่อนุมัติ",
+      "caption": "บันทึกผลพิจารณาให้เรียบร้อยก่อน",
+      "labels": [
+        "ภาพ 14"
+      ],
+      "class": "action"
+    },
+    "onsite-duplicate": {
+      "src": "assets/diagrams/onsite-decision.svg",
+      "alt": "แผนผังแยกกรณีพบไมโครชิพเดิมกับยังไม่ยืนยันผลบันทึก",
+      "caption": "แผนผังอ้างอิงโค้ดสำหรับรายการซ้ำและผลค้าง ไม่ใช่ภาพหน้าจอ",
+      "class": "workflow",
+      "labels": [
+        "ภาพ 18"
+      ]
+    }
+  },
+  "cover": {
+    "brand": "JAOTHUI",
+    "audience": "คู่มือทีมงานภายใน · A4",
+    "route": "เตรียมงาน → สร้างรุ่น → เผยแพร่ → ตรวจใบสมัคร\nบันทึกผล → ส่ง LINE → หน้างาน → ปิดงานและส่งออก",
+    "reading_help": "สำหรับผู้เริ่มใช้: อ่านหน้าเข้าใช้และสถานะก่อน แล้วทำตามบทเรียงลำดับ\nสำหรับวันที่หน้างาน: เปิดสารบัญไปยังเรื่องที่ต้องทำได้ทันที",
+    "notice": "ภาพในเล่มมาจากหน้าจอ local/dev และข้อมูลสมมติทั้งหมด ปิดการส่ง LINE จริงระหว่างถ่ายภาพ โปรดใช้ข้อมูลจริงที่ตรวจแล้วเมื่อปฏิบัติงาน ไม่คัดลอกข้อมูลจำลองลง production",
+    "note": "ฉบับทบทวนเนื้อหาและรูปเล่ม ยังรอการทดลองอ่านโดยผู้ใช้ใหม่\nคู่มือนี้ครอบคลุมเฉพาะโซนการแข่งขันใน Dashboard",
+    "contents_notice": "ก่อนกดปุ่มที่เปลี่ยนข้อมูล ให้ตรวจชื่องานที่แถบเมนูงานเสมอ งานร่างกับงานเผยแพร่ และผลพิจารณากับผลการส่ง LINE เป็นคนละสถานะ"
+  }
+}
