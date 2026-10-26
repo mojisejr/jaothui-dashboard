@@ -1,0 +1,49 @@
+@font-face { font-family: Sarabun; src: url('__FONT_ROOT__/Sarabun-Regular.ttf'); font-weight: 400; }
+@font-face { font-family: Sarabun; src: url('__FONT_ROOT__/Sarabun-Bold.ttf'); font-weight: 700; }
+@font-face { font-family: Kanit; src: url('__FONT_ROOT__/Kanit-Regular.ttf'); font-weight: 400; }
+@font-face { font-family: Kanit; src: url('__FONT_ROOT__/Kanit-SemiBold.ttf'); font-weight: 600; }
+@page {
+  size: A4 portrait;
+  margin: 16mm 18mm 17mm;
+  @top-left { content: 'JAOTHUI  /  คู่มือทีมงาน'; font-family: Kanit; font-size: 8.5pt; color: #605b55; }
+  @top-right { content: string(chapter); font-family: Sarabun; font-size: 8.5pt; color: #605b55; }
+  @bottom-left { content: element(footer); }
+  @bottom-right { content: counter(page); font-family: Kanit; font-size: 10pt; color: #24211d; }
+}
+* { box-sizing: border-box; }
+html { font-family: Sarabun, sans-serif; font-size: 12.5pt; line-height: 1.42; color: #24211d; }
+body { margin: 0; }
+.chapter { break-before: page; }
+.chapter:first-child { break-before: auto; }
+.chapter-header { border-top: 3.5pt solid #ff8c00; padding-top: 4mm; margin-bottom: 4mm; }
+.eyebrow { font-family: Kanit; font-size: 9pt; color: #625b53; margin: 0 0 1.5mm; }
+.book-title { font-family: Kanit; font-size: 11pt; color: #763b00; margin: 0 0 1mm; }
+h1 { font-family: Kanit; font-size: 23pt; line-height: 1.18; font-weight: 600; margin: 0; string-set: chapter content(); bookmark-level: 1; }
+h2 { font-family: Kanit; font-size: 15pt; line-height: 1.25; font-weight: 600; margin: 4mm 0 2mm; break-after: avoid; bookmark-level: 2; }
+h3 { font-family: Kanit; font-size: 12pt; margin: 3mm 0 1mm; break-after: avoid; }
+p { margin: 0 0 2.2mm; orphans: 3; widows: 3; }
+.standfirst { margin: 2mm 0 0; font-size: 13pt; color: #5c534b; }
+strong { font-weight: 700; }
+a { color: #763b00; text-decoration: none; }
+.contents { margin: 4mm 0 5mm; border: 1pt solid #ded6cd; border-left: 4pt solid #ff8c00; padding: 3mm 4mm; }
+.contents a { display: block; font-size: 10.5pt; padding: 0.8mm 0; }
+.contents a::after { content: target-counter(attr(href), page); float: right; font-weight: 700; }
+ul, ol { margin: 1mm 0 3mm; padding-left: 6mm; }
+li { margin-bottom: 1mm; padding-left: 0.5mm; }
+li::marker { color: #7d4200; font-weight: 700; }
+figure { margin: 3mm 0; break-inside: avoid; }
+figure img { display: block; width: 100%; height: auto; border: 0.7pt solid #d6cfc7; border-radius: 2mm; }
+figure.compact img { max-height: 65mm; object-fit: contain; object-position: left top; }
+figure.review img { max-height: 71mm; object-fit: contain; object-position: left top; }
+figure.action img { width: 72%; }
+figure.workflow { margin: 2mm 0 3mm; }
+figure.workflow img { border: none; }
+figcaption { margin: 1.5mm 0 0; font-size: 10.5pt; line-height: 1.35; color: #5c534b; }
+.figure-label { display: inline-block; padding: 0.3mm 2mm; margin-right: 1.5mm; font-family: Kanit; font-size: 9pt; border-radius: 2mm; background: #ffb454; color: #24211d; }
+blockquote { margin: 3mm 0; padding: 3mm 4mm; border-left: 3pt solid #e67e00; background: #fff3e2; break-inside: avoid; font-size: 11.5pt; }
+blockquote p:last-child { margin: 0; }
+table { width: 100%; border-collapse: collapse; font-size: 11.5pt; margin: 3mm 0; break-inside: avoid; }
+th, td { border-bottom: 0.6pt solid #ddd5cd; padding: 2mm 2.5mm; text-align: left; vertical-align: top; }
+th { background: #f3eee7; font-weight: 700; }
+.running-footer { position: running(footer); font-size: 8pt; color: #6c6258; }
+code { font-family: Sarabun; background: #f3eee7; padding: 0 0.8mm; }
