@@ -362,3 +362,78 @@ test("completed write remains completed when fresh details fail", async () => {
   ).toBeInTheDocument();
   expect(mockCreate).not.toHaveBeenCalled();
 });
+
+test.each(["TOKEN_MAPPING_CONFLICT", "CANONICAL_CHIP_CONFLICT"])(
+  "confirmed %s displays the read-only diagnosis entry without choosing desired identity",
+  (reason) => {
+    const conflicting = {
+      ...detail,
+      sync: { status: "identity_conflict", reason },
+    };
+    mockDetail = conflicting;
+    render(<DurableEdit />);
+    expect(
+      screen.getByRole("link", { name: "ตรวจตัวตนก่อนเสนอซ่อม" }),
+    ).toHaveAttribute(
+      "href",
+      `/dashboard/repair-buffalo?microchip=${detail.microchip}`,
+    );
+    expect(screen.getByRole("button", { name: "แก้ไขชื่อ" })).toBeDisabled();
+  },
+);
+test.each([
+  "DATABASE_READ_FAILED",
+  "CHAIN_CHECK_UNAVAILABLE",
+  "INTEGRITY_FEATURE_DISABLED",
+])("%s read/config error has no diagnosis entry", (reason) => {
+  const unavailable = { ...detail, sync: { status: "unavailable", reason } };
+  mockDetail = unavailable;
+  render(<DurableEdit />);
+  expect(
+    screen.queryByRole("link", { name: "ตรวจตัวตนก่อนเสนอซ่อม" }),
+  ).not.toBeInTheDocument();
+});
+test("stale cached identity after a failed details read does not offer a diagnosis link", () => {
+  const conflicting = {
+    ...detail,
+    sync: { status: "identity_conflict", reason: "TOKEN_MAPPING_CONFLICT" },
+  };
+  mockDetail = conflicting;
+  mockQueryError = readFailure;
+  render(<DurableEdit />);
+  expect(
+    screen.queryByRole("link", { name: "ตรวจตัวตนก่อนเสนอซ่อม" }),
+  ).not.toBeInTheDocument();
+});
+
+test("ambiguous DB token from edit preflight offers the source-only diagnosis link inside the dialog", async () => {
+  mockCreate.mockRejectedValue({
+    data: {
+      diagnostic: {
+        code: "AMBIGUOUS_DB_TOKEN",
+        stage: "identity",
+        reason: "ทะเบียนหลายตัวผูกกับ NFT เดียวกัน",
+        requestId: "ambiguous-ref",
+        outcome: "not_started",
+        nextAction: "contact_support",
+      },
+    },
+  });
+  render(<DurableEdit />);
+  fireEvent.click(screen.getByRole("button", { name: "แก้ไขชื่อ" }));
+  fireEvent.change(document.getElementById("edit-value")!, {
+    target: { value: "preserved proposed name" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "ยืนยันการแก้ไข" }));
+  const link = await screen.findByRole("link", {
+    name: "ตรวจตัวตนก่อนเสนอซ่อม",
+  });
+  expect(link).toHaveAttribute(
+    "href",
+    `/dashboard/repair-buffalo?microchip=${detail.microchip}`,
+  );
+  expect(document.getElementById("edit-value")).toHaveValue(
+    "preserved proposed name",
+  );
+  expect(mockAdvance).not.toHaveBeenCalled();
+});

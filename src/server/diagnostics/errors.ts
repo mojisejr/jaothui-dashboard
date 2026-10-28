@@ -413,7 +413,7 @@ register(["REPAIR_SCAN_INVALID"], {
 });
 register(["REPAIR_BASELINE_CHANGED"], {
   stage: "identity",
-  reason: "ข้อมูลทะเบียนเปลี่ยนหลังตรวจสอบ กรุณาโหลดข้อมูลล่าสุดก่อนดำเนินการ",
+  reason: "ผลตรวจเดิมเก่าเกินกำหนดหรือข้อมูลเปลี่ยน กรุณาตรวจสอบข้อมูลล่าสุดอีกครั้ง",
   nextAction: "refresh_record",
   outcome: "not_started",
 });

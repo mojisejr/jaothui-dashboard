@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { IdentityDiagnosisLink } from "../buffalo-repair/IdentityDiagnosisLink";
 import React, { useEffect, useRef, useState } from "react";
 import { api, type RouterOutputs } from "~/utils/api";
 import { type BusinessField } from "~/server/services/buffalo-integrity/field-policy";
@@ -121,6 +122,10 @@ export function EditProof({
           feedback={feedbackFor(new Error(job.reason), { operationId: job.id })}
         />
       )}
+      <IdentityDiagnosisLink
+        microchip={job.microchip}
+        code={job.diagnostic?.code ?? job.reason ?? undefined}
+      />
       <details>
         <summary className="min-h-12 cursor-pointer py-3">
           หลักฐานธุรกรรม ({job.steps.length})
@@ -512,6 +517,12 @@ export default function DurableEdit({
         </p>
       )}
       {error && !field && <FeedbackPanel feedback={error} />}
+      {error && !field && details.data && !details.error && (
+        <IdentityDiagnosisLink
+          microchip={details.data.microchip}
+          code={error.code}
+        />
+      )}
       {details.error && (
         <FeedbackPanel
           title="โหลดรายละเอียดไม่สำเร็จ"
@@ -617,6 +628,15 @@ export default function DurableEdit({
               busy={busy || authLost || details.isFetching}
             />
           )}
+          {details.data.sync.status === "identity_conflict" &&
+            !details.error && (
+              <IdentityDiagnosisLink
+                microchip={details.data.microchip}
+                code={
+                  details.data.sync.diagnostic?.code ?? details.data.sync.reason
+                }
+              />
+            )}
           {["identity_conflict", "unavailable"].includes(
             details.data.sync.status,
           ) &&
@@ -806,6 +826,12 @@ export default function DurableEdit({
                   }
                   retryLabel="โหลดรายละเอียดล่าสุด"
                   busy={busy || authLost || details.isFetching}
+                />
+              )}
+              {error && field && frozen.current && (
+                <IdentityDiagnosisLink
+                  microchip={frozen.current.microchip}
+                  code={error.code}
                 />
               )}
               <button
