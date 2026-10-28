@@ -1,3 +1,4 @@
+import { diagnosticTRPCError } from "~/server/diagnostics/transport";
 /**
  * YOU PROBABLY DON'T NEED TO EDIT THIS FILE, UNLESS:
  * 1. You want to modify request context (see Part 1).
@@ -13,6 +14,13 @@ import { ZodError } from "zod";
 
 import { db } from "~/server/db";
 import { isAuth } from "../services/auth.service";
+import {
+  bindOperationId,
+  diagnosticContext,
+  newRequestId,
+  reportDiagnostic,
+  runDiagnosticContext,
+} from "~/server/diagnostics/reporter";
 
 /**
  * 1. CONTEXT
@@ -65,13 +73,31 @@ export const createTRPCContext = (_opts: CreateNextContextOptions) => {
 
 const t = initTRPC.context<typeof createTRPCContext>().create({
   transformer: superjson,
-  errorFormatter({ shape, error }) {
+  errorFormatter({ shape, error, path }) {
+    const diagnostic = reportDiagnostic(error);
+    const buffalo =
+      !path ||
+      /^(buffaloCreate|buffaloEdit|buffaloOperations|buffaloRepair|metadata|ped|dna|reward)\./.test(
+        path,
+      );
     return {
       ...shape,
+      ...(buffalo || error.code === "INTERNAL_SERVER_ERROR"
+        ? { message: diagnostic.code }
+        : {}),
       data: {
         ...shape.data,
+        stack: undefined,
+        diagnostic,
         zodError:
-          error.cause instanceof ZodError ? error.cause.flatten() : null,
+          error.cause instanceof ZodError
+            ? buffalo
+              ? {
+                  formErrors: ["INPUT_INVALID"],
+                  fieldErrors: diagnostic.fieldErrors ?? {},
+                }
+              : error.cause.flatten()
+            : null,
       },
     };
   },
@@ -105,11 +131,48 @@ export const createTRPCRouter = t.router;
  * guarantee that a user querying is authorized, but you can still access user session data if they
  * are logged in.
  */
-export const publicProcedure = t.procedure;
-export const protectProcedure = t.procedure.use(async (_opts) => {
+// The first middleware runs before authentication and subsequent .input() validation.
+// A fresh child reference distinguishes even repeated paths inside a single HTTP batch.
+const diagnosticProcedure = t.procedure.use(async ({ path, type, next }) => {
+  const transport = diagnosticContext();
+  return runDiagnosticContext(
+    {
+      requestId: newRequestId(),
+      transportId: transport?.requestId,
+      route: path,
+      type,
+    },
+    async () => {
+      const result = await next();
+      if (!result.ok) {
+        const error =
+          /^(buffaloCreate|buffaloEdit|buffaloOperations|buffaloRepair|metadata|ped|dna|reward)\./.test(
+            path,
+          )
+            ? diagnosticTRPCError(result.error)
+            : result.error;
+        reportDiagnostic(error);
+        return { ...result, error };
+      }
+      return result;
+    },
+  );
+});
+export const publicProcedure = diagnosticProcedure;
+export const protectProcedure = diagnosticProcedure.use(async (_opts) => {
   const result = isAuth(_opts.ctx.token!);
   if (!result) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
+  const input: unknown = await _opts.getRawInput();
+  if (
+    /^(buffaloCreate|buffaloEdit|buffaloOperations|buffaloRepair)\./.test(
+      _opts.path,
+    ) &&
+    input &&
+    typeof input === "object" &&
+    "id" in input
+  )
+    bindOperationId(input.id);
   return _opts.next();
 });

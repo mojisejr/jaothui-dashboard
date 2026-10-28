@@ -1,27 +1,17 @@
 import { z } from "zod";
-import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectProcedure } from "~/server/api/trpc";
 import {
   getCreateRuntime,
   type CreateRuntime,
 } from "~/server/services/buffalo-integrity/create/runtime";
 import { draftInputSchema } from "~/server/services/buffalo-integrity/create/contract";
-import { IntegrityError } from "~/server/services/buffalo-integrity/operations/hash";
+import { diagnosticTRPCError } from "~/server/diagnostics/transport";
 export const sharedAccount = () => `shared:${process.env.username!}`;
 async function safe<T>(callback: () => Promise<T>) {
   try {
     return await callback();
   } catch (error) {
-    throw new TRPCError({
-      code:
-        error instanceof IntegrityError && error.code === "OPERATION_NOT_FOUND"
-          ? "NOT_FOUND"
-          : "PRECONDITION_FAILED",
-      message:
-        error instanceof IntegrityError
-          ? error.code
-          : "CREATE_SERVICE_UNAVAILABLE",
-    });
+    throw diagnosticTRPCError(error);
   }
 }
 const id = z.object({ id: z.string().uuid() }).strict();

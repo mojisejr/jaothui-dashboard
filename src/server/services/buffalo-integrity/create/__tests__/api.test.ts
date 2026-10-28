@@ -71,7 +71,8 @@ test("ownership and all mutation authority come from server; errors redact inter
   });
   expect(view).toHaveBeenCalledWith(id, "shared:phase3-shared", {});
   await expect(caller.view({ id })).rejects.toMatchObject({
-    message: "CREATE_SERVICE_UNAVAILABLE",
+    code: "INTERNAL_SERVER_ERROR",
+    message: "INTERNAL_ERROR",
   });
 });
 test("client cannot supply owner, timestamps, calldata, signer or an execution plan", async () => {
@@ -94,7 +95,7 @@ test("client cannot supply owner, timestamps, calldata, signer or an execution p
 test("production activation stays closed for create API", async () => {
   const caller = createBuffaloCreateRouter().createCaller(context());
   await expect(caller.create({ key: id, input })).rejects.toMatchObject({
-    code: "PRECONDITION_FAILED",
+    code: "SERVICE_UNAVAILABLE",
     message: "INTEGRITY_FEATURE_DISABLED",
   });
 });

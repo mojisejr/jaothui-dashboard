@@ -2,7 +2,10 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import DurableCreate from "../DurableCreate";
 const mockView = jest.fn();
 const mockAdvance = jest.fn();
-const mockCreate = jest.fn();
+const mockCreate = jest.fn(),
+  mockListRefetch = jest.fn(),
+  mockViewRefetch = jest.fn();
+let mockViewError: unknown;
 let mockList: { data?: unknown[]; isPending: boolean; error?: unknown };
 const job = {
   id: "00000000-0000-4000-8000-000000000031",
@@ -21,7 +24,7 @@ const job = {
 jest.mock("~/utils/api", () => ({
   api: {
     buffaloCreate: {
-      list: { useQuery: () => ({ ...mockList, refetch: jest.fn() }) },
+      list: { useQuery: () => ({ ...mockList, refetch: mockListRefetch }) },
       view: {
         useQuery: (input: { id: string }) => {
           mockView(input);
@@ -32,7 +35,8 @@ jest.mock("~/utils/api", () => ({
                     (item: unknown) => (item as { id: string }).id === job.id,
                   )
                 : undefined,
-            refetch: jest.fn(),
+            refetch: mockViewRefetch,
+            error: mockViewError,
           };
         },
       },
@@ -47,6 +51,7 @@ beforeEach(() => {
   localStorage.clear();
   jest.clearAllMocks();
   mockList = { data: [job], isPending: false };
+  mockViewError = undefined;
 });
 test("server-backed pending operation resumes after reload with no local selection and never mints again", async () => {
   const first = render(<DurableCreate />);
@@ -118,5 +123,45 @@ test("expired auth leaves a persistent live message and stops resume mutations",
   expect(
     screen.getByRole("combobox", { name: "รายการที่บันทึกไว้" }),
   ).toBeDisabled();
+  expect(mockAdvance).not.toHaveBeenCalled();
+});
+
+test("create inventory failure retries list, never disabled empty view", () => {
+  mockList = {
+    isPending: false,
+    error: {
+      data: {
+        diagnostic: {
+          code: "DATABASE_READ_FAILED",
+          reason: "อ่านทะเบียนไม่สำเร็จ",
+          stage: "database_read",
+          outcome: "not_started",
+          nextAction: "retry_read",
+          requestId: "list-ref",
+        },
+      },
+    },
+  };
+  render(<DurableCreate />);
+  fireEvent.click(
+    screen.getByRole("button", { name: "โหลดรายการที่บันทึกไว้อีกครั้ง" }),
+  );
+  expect(mockListRefetch).toHaveBeenCalledTimes(1);
+  expect(mockViewRefetch).not.toHaveBeenCalled();
+  expect(mockCreate).not.toHaveBeenCalled();
+});
+test("failed status read pauses mint and allows exactly status query retry", async () => {
+  mockViewError = Error("network");
+  render(<DurableCreate />);
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Mint Metadata" }),
+    ).toBeDisabled(),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "โหลดสถานะรายการเดิมอีกครั้ง" }),
+  );
+  expect(mockViewRefetch).toHaveBeenCalledTimes(1);
+  expect(mockListRefetch).not.toHaveBeenCalled();
   expect(mockAdvance).not.toHaveBeenCalled();
 });

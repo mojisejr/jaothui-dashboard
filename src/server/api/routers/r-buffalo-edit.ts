@@ -1,5 +1,5 @@
+import { getEditReadDetails } from "~/server/services/buffalo-integrity/edit/read-runtime";
 import { z } from "zod";
-import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectProcedure } from "~/server/api/trpc";
 import { sharedAccount } from "./r-buffalo-create";
 import {
@@ -7,26 +7,23 @@ import {
   type EditRuntime,
 } from "~/server/services/buffalo-integrity/edit/runtime";
 import { editInputSchema } from "~/server/services/buffalo-integrity/edit/contract";
-import { IntegrityError } from "~/server/services/buffalo-integrity/operations/hash";
+import { diagnosticTRPCError } from "~/server/diagnostics/transport";
 const id = z.object({ id: z.string().uuid() }).strict();
 async function safe<T>(fn: () => Promise<T>) {
   try {
     return await fn();
   } catch (e) {
-    throw new TRPCError({
-      code: "PRECONDITION_FAILED",
-      message:
-        e instanceof IntegrityError ? e.code : "EDIT_SERVICE_UNAVAILABLE",
-    });
+    throw diagnosticTRPCError(e);
   }
 }
 export function createBuffaloEditRouter(
   factory: () => EditRuntime = getEditRuntime,
+  readDetails = (chip: string) => getEditReadDetails()(chip),
 ) {
   return createTRPCRouter({
     details: protectProcedure
       .input(z.string().min(1))
-      .query(({ input }) => safe(() => factory().workflow.details(input))),
+      .query(({ input }) => safe(() => readDetails(input))),
     list: protectProcedure
       .input(z.string().regex(/^[1-9][0-9]*$/))
       .query(({ input }) =>

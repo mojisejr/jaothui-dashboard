@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectProcedure } from "~/server/api/trpc";
 import { operationIntentSchema } from "~/server/services/buffalo-integrity/operations/types";
 import { productOperationRuntime } from "~/server/services/buffalo-integrity/operations/runtime";
-import { IntegrityError } from "~/server/services/buffalo-integrity/operations/hash";
+import { diagnosticTRPCError } from "~/server/diagnostics/transport";
 import { type OperationEngine } from "~/server/services/buffalo-integrity/operations/engine";
 import { address as manager } from "~/server/blockchain/metadata-maneger/abi";
 import { address as nft } from "~/server/blockchain/nft/abi";
@@ -19,17 +19,7 @@ async function safe<T>(callback: () => Promise<T>): Promise<T> {
   try {
     return await callback();
   } catch (error) {
-    if (error instanceof TRPCError) throw error;
-    throw new TRPCError({
-      code:
-        error instanceof IntegrityError && error.code === "OPERATION_NOT_FOUND"
-          ? "NOT_FOUND"
-          : "PRECONDITION_FAILED",
-      message:
-        error instanceof IntegrityError
-          ? error.code
-          : "OPERATION_SERVICE_UNAVAILABLE",
-    });
+    throw diagnosticTRPCError(error);
   }
 }
 export function createBuffaloOperationsRouter(
