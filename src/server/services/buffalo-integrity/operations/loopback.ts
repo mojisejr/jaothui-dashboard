@@ -17,6 +17,7 @@ import { type RawMetadata } from "~/interfaces/i-metadata";
 import { chainSnapshot, managerManifest } from "../field-policy";
 import { IntegrityError, payloadHash, asJson } from "./hash";
 import { bindReceiptEvidence, receiptEvidence } from "./receipt-evidence";
+import { assertReceiptTransaction } from "./receipt-transaction";
 import {
   type ChainPorts,
   type Claim,
@@ -321,17 +322,12 @@ function configuredChainPorts(
       const transaction = await publicClient.getTransaction({
         hash: receipt.transactionHash as Hex,
       });
-      const envelope = step.envelope;
-      if (
-        !envelope ||
-        transaction.from.toLowerCase() !== envelope.from.toLowerCase() ||
-        transaction.to?.toLowerCase() !== envelope.to.toLowerCase() ||
-        transaction.nonce !== envelope.nonce ||
-        transaction.input.toLowerCase() !== envelope.data.toLowerCase() ||
-        transaction.value !== BigInt(envelope.value) ||
-        transaction.chainId !== envelope.chainId
-      )
-        throw new IntegrityError("RECEIPT_TRANSACTION_MISMATCH");
+      await assertReceiptTransaction(
+        transaction,
+        step,
+        receipt.transactionHash,
+        operation.plan,
+      );
       const rawReceipt = await publicClient.getTransactionReceipt({
         hash: receipt.transactionHash as Hex,
       });

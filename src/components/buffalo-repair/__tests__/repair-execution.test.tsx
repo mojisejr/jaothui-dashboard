@@ -199,6 +199,41 @@ test("persists UUID before prepare, shows exact review, and one case approval st
   expect(mockAdvance).toHaveBeenCalledWith({ id: key, expectedVersion: 1 });
   expect(mockPrepare).toHaveBeenCalledTimes(1);
 });
+test("receipt review uses the saved operation and never automatically advances or approves", async () => {
+  localStorage.setItem(REPAIR_PENDING_KEY, JSON.stringify({ version: 1, key }));
+  mockLookup.mockResolvedValue(
+    result({
+      state: "NEEDS_REVIEW",
+      canApprove: false,
+      canResume: false,
+      canReviewReceipt: true,
+    }),
+  );
+  mockAdvance.mockResolvedValue(
+    result({
+      state: "CHAIN_STEPS",
+      canApprove: false,
+      canResume: true,
+      canReviewReceipt: false,
+      version: 1,
+    }),
+  );
+  render(<Harness />);
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: "ตรวจหลักฐานธุรกรรมเดิมอีกครั้ง",
+    }),
+  );
+  await screen.findByRole("button", { name: "ดำเนินการต่อรายการเดิม" });
+  expect(mockAdvance).toHaveBeenCalledTimes(1);
+  expect(mockAdvance).toHaveBeenCalledWith({
+    id: key,
+    expectedVersion: 0,
+    reviewReceipt: true,
+  });
+  expect(mockApprove).not.toHaveBeenCalled();
+  expect(mockPrepare).not.toHaveBeenCalled();
+});
 test("lost prepare reload only looks up the same UUID and never automatically prepares or approves", async () => {
   mockPrepare.mockRejectedValue(new Error("network"));
   const first = render(<Harness />);

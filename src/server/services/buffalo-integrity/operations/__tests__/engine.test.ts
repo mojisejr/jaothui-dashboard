@@ -28,6 +28,82 @@ async function mintConfirmed(context: Awaited<ReturnType<typeof setup>>) {
   await context.engine.advance(context.id, context.owner, "mint");
   await context.engine.advance(context.id, context.owner, "resume");
 }
+async function reviewableReceipt() {
+  const c = await setup();
+  await c.engine.advance(c.id, c.owner, "mint");
+  c.allSteps.get(c.id)![0]!.kind = "batch";
+  const row = c.rows.get(c.id)!;
+  row.state = "NEEDS_REVIEW";
+  row.reason = "RECEIPT_TRANSACTION_MISMATCH";
+  c.chain.sign.mockClear();
+  c.chain.broadcast.mockClear();
+  c.chain.nextStep.mockClear();
+  return c;
+}
+test("receipt review verifies the existing canonical transaction without signing, broadcast or projection", async () => {
+  const c = await reviewableReceipt();
+  const version = c.rows.get(c.id)!.version;
+  expect((await c.engine.reviewReceipt(c.id, c.owner, version)).state).toBe(
+    "CHAIN_STEPS",
+  );
+  expect((await c.repo.steps(c.id))[0]!.state).toBe("CONFIRMED");
+  expect(c.chain.verifyEffects).toHaveBeenCalledTimes(1);
+  expect(c.chain.sign).not.toHaveBeenCalled();
+  expect(c.chain.broadcast).not.toHaveBeenCalled();
+  expect(c.chain.nextStep).not.toHaveBeenCalled();
+  expect(c.chain.project).not.toHaveBeenCalled();
+});
+test.each(["missing", "pending", "reverted", "noncanonical", "unconfirmed"])(
+  "receipt review keeps the stop for %s evidence",
+  async (variant) => {
+    const c = await reviewableReceipt();
+    const s = (await c.repo.steps(c.id))[0]!;
+    c.chain.observe.mockResolvedValue(
+      variant === "missing"
+        ? { state: "missing", latestNonce: 0, pendingNonce: 0 }
+        : variant === "pending"
+          ? { state: "pending" }
+          : {
+              state: "receipt",
+              canonical: variant !== "noncanonical",
+              confirmations: variant === "unconfirmed" ? 1 : 3,
+              receipt: {
+                transactionHash: s.hash!,
+                blockHash: `0x${"aa".repeat(32)}`,
+                blockNumber: "100",
+                status: variant === "reverted" ? "reverted" : "success",
+              },
+            },
+    );
+    expect(
+      (await c.engine.reviewReceipt(c.id, c.owner, c.rows.get(c.id)!.version))
+        .state,
+    ).toBe("NEEDS_REVIEW");
+    expect(c.chain.verifyEffects).not.toHaveBeenCalled();
+    expect(c.chain.sign).not.toHaveBeenCalled();
+    expect(c.chain.broadcast).not.toHaveBeenCalled();
+  },
+);
+test("receipt review rejects stale versions, unrelated review reasons and failed effect proofs", async () => {
+  const c = await reviewableReceipt();
+  const row = c.rows.get(c.id)!;
+  await expect(
+    c.engine.reviewReceipt(c.id, c.owner, row.version + 1),
+  ).rejects.toThrow("STALE_OPERATION_REVISION");
+  row.reason = "OTHER_REASON";
+  await expect(
+    c.engine.reviewReceipt(c.id, c.owner, row.version),
+  ).rejects.toThrow("INVALID_OPERATION_STAGE");
+  row.reason = "RECEIPT_TRANSACTION_MISMATCH";
+  c.chain.verifyEffects.mockRejectedValue(
+    new IntegrityError("RECEIPT_TRANSACTION_MISMATCH"),
+  );
+  await expect(
+    c.engine.reviewReceipt(c.id, c.owner, row.version),
+  ).rejects.toThrow("RECEIPT_TRANSACTION_MISMATCH");
+  expect(row.state).toBe("NEEDS_REVIEW");
+  expect(c.chain.broadcast).not.toHaveBeenCalled();
+});
 
 test("hash is pending, signed journal exists before broadcast, metadata needs explicit action", async () => {
   const c = await setup();

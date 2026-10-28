@@ -209,13 +209,17 @@ export function useRepairExecution() {
       setBusy(false);
     }
   }
-  async function action(kind: "approve" | "advance" | "cancel") {
+  async function action(
+    kind: "approve" | "advance" | "cancel" | "reviewReceipt",
+  ) {
     const item = current.current;
     if (lock.current || uncertain || !item) return;
     if (
       (kind === "approve" &&
         (!item.canApprove || !capability.data?.canApprove)) ||
       (kind === "advance" && !item.canResume) ||
+      (kind === "reviewReceipt" &&
+        (!item.canReviewReceipt || !capability.data?.canResume)) ||
       (kind === "cancel" && !item.canCancel)
     )
       return;
@@ -230,10 +234,13 @@ export function useRepairExecution() {
               manifestHash: item.manifestHash,
               expectedVersion: item.version,
             })
-          : kind === "advance"
+          : kind === "advance" || kind === "reviewReceipt"
             ? await advanceMutation.mutateAsync({
                 id: item.id,
                 expectedVersion: item.version,
+                ...(kind === "reviewReceipt"
+                  ? { reviewReceipt: true as const }
+                  : {}),
               })
             : await cancelMutation.mutateAsync({ id: item.id });
       accepted(result);
