@@ -1,7 +1,8 @@
 import { DiagnosticError } from "~/server/diagnostics/errors";
 import { getImageUrl, getJsonUrl } from "./supabase/supabase";
 import { db } from "../db";
-import { type Reward } from "~/interfaces/i-reward";
+import { type RewardInput } from "~/lib/reward-contract";
+import { rewardService } from "./reward.service";
 
 export const uploadBuffaloJson = async (
   _tokenId: number,
@@ -42,14 +43,7 @@ export const getByMicrochip = async (microchip: string) => {
   }
 };
 
-export const addNewReward = async (reward: Reward) => {
-  try {
-    const created = await db.reward.create({ data: reward });
-    return created;
-  } catch (error) {
-    throw new DiagnosticError("DATABASE_WRITE_FAILED", { cause: error });
-  }
-};
+export const addNewReward = (reward: RewardInput) => rewardService.save(reward);
 
 export const updateDNA = async (
   _tokenId: string,

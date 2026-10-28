@@ -118,15 +118,24 @@ export async function readBuffaloMetadata(
       },
     };
   } catch (cause) {
+    const attestationFailure =
+      cause instanceof Error &&
+      [
+        "CHECKPOINT_MISMATCH",
+        "CODE_HASH_MISMATCH",
+        "CHAIN_DOMAIN_CONFLICT",
+      ].includes(cause.message);
     const diagnostic = reportDiagnostic(
-      new DiagnosticError("CHAIN_CHECK_UNAVAILABLE", { cause }),
+      attestationFailure
+        ? cause
+        : new DiagnosticError("CHAIN_CHECK_UNAVAILABLE", { cause }),
     );
     return {
       ...dto,
       sync: {
         ...scope,
         status: "unavailable",
-        reason: "CHAIN_CHECK_UNAVAILABLE",
+        reason: diagnostic.code,
         diagnostic,
         differences: [],
       },

@@ -104,3 +104,15 @@ test("every invalid patch/known unprojectable value rejects before plan or signa
       .success,
   ).toBe(false);
 });
+test("authenticated details use dedicated reader without constructing writer runtime", async () => {
+  const writer = jest.fn(() => {
+    throw Error("signer must not be loaded for detail lookup");
+  });
+  const reader = jest.fn(async () => null);
+  const caller = createBuffaloEditRouter(writer, reader).createCaller(
+    context(),
+  );
+  expect(await caller.details(input.microchip)).toBeNull();
+  expect(reader).toHaveBeenCalledWith(input.microchip);
+  expect(writer).not.toHaveBeenCalled();
+});

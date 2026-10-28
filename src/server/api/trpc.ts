@@ -165,7 +165,14 @@ export const protectProcedure = diagnosticProcedure.use(async (_opts) => {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
   const input: unknown = await _opts.getRawInput();
-  if (input && typeof input === "object" && "id" in input)
+  if (
+    /^(buffaloCreate|buffaloEdit|buffaloOperations|buffaloRepair)\./.test(
+      _opts.path,
+    ) &&
+    input &&
+    typeof input === "object" &&
+    "id" in input
+  )
     bindOperationId(input.id);
   return _opts.next();
 });

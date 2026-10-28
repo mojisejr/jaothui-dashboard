@@ -1,3 +1,4 @@
+import { getEditReadDetails } from "~/server/services/buffalo-integrity/edit/read-runtime";
 import { z } from "zod";
 import { createTRPCRouter, protectProcedure } from "~/server/api/trpc";
 import { sharedAccount } from "./r-buffalo-create";
@@ -17,11 +18,12 @@ async function safe<T>(fn: () => Promise<T>) {
 }
 export function createBuffaloEditRouter(
   factory: () => EditRuntime = getEditRuntime,
+  readDetails = (chip: string) => getEditReadDetails()(chip),
 ) {
   return createTRPCRouter({
     details: protectProcedure
       .input(z.string().min(1))
-      .query(({ input }) => safe(() => factory().workflow.details(input))),
+      .query(({ input }) => safe(() => readDetails(input))),
     list: protectProcedure
       .input(z.string().regex(/^[1-9][0-9]*$/))
       .query(({ input }) =>

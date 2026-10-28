@@ -71,7 +71,9 @@ async function handleImage(req: NextApiRequest, res: NextApiResponse) {
     return res.status(200).json({ ok: true });
   } catch (error) {
     const fault =
-      error instanceof IntegrityError || error instanceof z.ZodError
+      error instanceof IntegrityError ||
+      error instanceof DiagnosticError ||
+      error instanceof z.ZodError
         ? error
         : new DiagnosticError("IMAGE_UPLOAD_REJECTED", { cause: error });
     return fail(diagnosticHttpStatus(fault), fault);

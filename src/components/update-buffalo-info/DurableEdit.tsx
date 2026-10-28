@@ -5,6 +5,16 @@ import { api, type RouterOutputs } from "~/utils/api";
 import { type BusinessField } from "~/server/services/buffalo-integrity/field-policy";
 import { type EditPatch } from "~/server/services/buffalo-integrity/edit/contract";
 import { type IMetadata } from "~/interfaces/i-metadata";
+import { FeedbackPanel } from "../buffalo-feedback/FeedbackPanel";
+import {
+  feedbackFor,
+  localFeedback,
+  completedRefreshFeedback,
+  isUnauthorized,
+  validateImage,
+  uploadResponse,
+  type Feedback,
+} from "../buffalo-feedback/feedback";
 type Detail = NonNullable<RouterOutputs["buffaloEdit"]["details"]>;
 type Job = RouterOutputs["buffaloEdit"]["view"];
 export type EditField = BusinessField | "parents";
@@ -66,32 +76,6 @@ const stateText: Record<string, string> = {
   COMPLETED: "แก้ไขช่องที่ร้องขอและตรวจสอบสำเร็จแล้ว",
   CANCELLED: "ยกเลิกคำขอที่ยังไม่ได้ส่งแล้ว",
 };
-const friendly = (code: string) =>
-  (
-    ({
-      INTEGRITY_WRITES_PAUSED:
-        "ระบบพักรับคำขอใหม่ชั่วคราว คำขอเดิมยังอยู่ กรุณาลองดำเนินการต่อเมื่อเปิดระบบ",
-      HISTORICAL_STATE_REQUIRED:
-        "ยังตรวจสอบประวัติธุรกรรมเดิมไม่ได้ กรุณาให้ผู้ดูแลตรวจสอบคำขอเดิม",
-      INVALID_RECEIPT_EVIDENCE:
-        "หลักฐานธุรกรรมไม่ครบ กรุณาให้ผู้ดูแลตรวจสอบคำขอเดิม",
-      RECONCILIATION_HEAD_CHANGED:
-        "ประวัติบล็อกเชนเปลี่ยนไป กรุณาให้ผู้ดูแลตรวจสอบคำขอเดิม",
-      STALE_EDIT_RECORD:
-        "ข้อมูลเปลี่ยนหลังจากเปิดหน้าต่างนี้ กรุณาปิดแล้วค้นหาใหม่ โดยเก็บค่าที่ต้องการแก้ไขไว้",
-      MICROCHIP_HAS_CHILD_REFERENCES_REVIEW_REQUIRED:
-        "ชิปเดิมถูกอ้างเป็นพ่อหรือแม่ของควายตัวอื่น ต้องตรวจสอบความเชื่อมโยงก่อนเปลี่ยนชิป",
-      MICROCHIP_ALREADY_BOUND:
-        "microchip นี้ถูกผูกกับข้อมูลหรือชื่อเดิมบน blockchain แล้ว",
-      UPLOAD_NOT_READY:
-        "ยังไม่ได้รับภาพครบ กรุณาลองอัปโหลดภาพเดิมอีกครั้ง หรือยกเลิกคำขอที่ยังไม่ส่ง",
-      EXTERNAL_CHAIN_BASELINE_CHANGED:
-        "ข้อมูล blockchain เปลี่ยนระหว่างดำเนินการ กรุณาตรวจสอบรายการนี้ก่อนดำเนินการต่อ",
-      IDENTITY_CONFLICT: "ตัวตน DB และ blockchain ไม่ตรงกัน จึงหยุดการแก้ไข",
-      INTEGRITY_FEATURE_DISABLED:
-        "ระบบแก้ไขใหม่นี้ยังไม่เปิดใช้งานในสภาพแวดล้อมนี้",
-    }) as Record<string, string>
-  )[code] ?? code;
 export function EditProof({
   job,
   busy,
@@ -131,10 +115,11 @@ export function EditProof({
             ระบบเก็บค่าเดิมไว้ การสำเร็จครอบคลุมช่องที่ร้องขอเท่านั้น
           </p>
         )}
-      {job.reason && (
-        <p role="alert" className="break-words">
-          {friendly(job.reason)}
-        </p>
+      {job.diagnostic && <FeedbackPanel feedback={job.diagnostic} />}
+      {job.reason && !job.diagnostic && (
+        <FeedbackPanel
+          feedback={feedbackFor(new Error(job.reason), { operationId: job.id })}
+        />
       )}
       <details>
         <summary className="min-h-12 cursor-pointer py-3">
@@ -205,7 +190,7 @@ export default function DurableEdit({
   const [file, setFile] = useState<File | null>(null),
     [job, setJob] = useState<Job | null>(null),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState(""),
+    [error, setError] = useState<Feedback | null>(null),
     [authLost, setAuthLost] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null),
     lock = useRef(false),
@@ -246,7 +231,12 @@ export default function DurableEdit({
     }
   }, []);
   useEffect(() => {
-    if (view.data) setJob(view.data);
+    if (view.data)
+      setJob((previous) =>
+        previous?.id === view.data.id && previous.version > view.data.version
+          ? previous
+          : view.data,
+      );
   }, [view.data]);
   useEffect(() => {
     if (list.data && !job) {
@@ -269,10 +259,12 @@ export default function DurableEdit({
       current.publishedMicrochip,
     );
     if (!result) throw Error("DETAIL_REFETCH_FAILED");
+    utils.buffaloEdit.details.setData(current.publishedMicrochip, result);
     setChip(current.publishedMicrochip);
     setSearchValue(current.publishedMicrochip);
     localStorage.setItem("buffalo-edit-search", current.publishedMicrochip);
-    await list.refetch();
+    const refreshedList = await list.refetch();
+    if (refreshedList?.error) throw refreshedList.error;
     completed.current = current.id;
   }
   const completedRef = useRef<() => Promise<void>>();
@@ -280,10 +272,8 @@ export default function DurableEdit({
     if (job?.state !== "COMPLETED" || completed.current === job.id) return;
     try {
       await refreshPublished(job);
-    } catch {
-      setError(
-        "บันทึกสำเร็จแล้ว แต่ยังโหลดรายละเอียดใหม่ไม่ได้ กรุณากดโหลดรายละเอียดอีกครั้ง",
-      );
+    } catch (cause) {
+      setError(completedRefreshFeedback(cause, job.id));
     }
   };
   useEffect(() => {
@@ -293,18 +283,16 @@ export default function DurableEdit({
     if (lock.current || authLost) return;
     lock.current = true;
     setBusy(true);
-    setError("");
+    setError(null);
     try {
       await fn();
     } catch (e) {
-      if (
-        e &&
-        typeof e === "object" &&
-        "data" in e &&
-        (e.data as { code?: string })?.code === "UNAUTHORIZED"
-      )
-        setAuthLost(true);
-      setError(e instanceof Error ? e.message : "ดำเนินการไม่สำเร็จ");
+      if (isUnauthorized(e)) setAuthLost(true);
+      setError(
+        job?.state === "COMPLETED"
+          ? completedRefreshFeedback(e, job.id)
+          : feedbackFor(e, { operationId: job?.id }),
+      );
       if (token) {
         try {
           const operations = await utils.buffaloEdit.list.fetch(token);
@@ -336,17 +324,28 @@ export default function DurableEdit({
   const resumeRef = useRef(resume);
   resumeRef.current = resume;
   useEffect(() => {
-    if (!job || !running(job) || busy || authLost) return;
+    if (
+      !job ||
+      !running(job) ||
+      busy ||
+      authLost ||
+      !!view.error ||
+      !!list.error
+    )
+      return;
     const timer = setTimeout(() => {
       void resumeRef.current();
     }, 1500);
     return () => clearTimeout(timer);
-  }, [job, busy, authLost]);
+  }, [job, busy, authLost, view.error, list.error]);
   function open(next: EditField) {
     if (
       !details.data ||
       !!active ||
       authLost ||
+      !!details.error ||
+      !!list.error ||
+      details.data.writeAvailability?.available === false ||
       details.data.sync.status === "identity_conflict" ||
       details.data.sync.status === "unavailable"
     )
@@ -358,8 +357,30 @@ export default function DurableEdit({
     setFather(details.data.fatherId === "N/A" ? "" : details.data.fatherId);
     setMother(details.data.motherId === "N/A" ? "" : details.data.motherId);
     setFile(null);
-    setError("");
+    setError(null);
     dialog.current?.showModal();
+  }
+  async function refreshBaseline() {
+    if (!frozen.current) return;
+    const previous = frozen.current;
+    await run(async () => {
+      const latest = await utils.buffaloEdit.details.fetch(previous.microchip);
+      if (
+        !latest ||
+        latest.tokenId?.toString() !== previous.tokenId?.toString() ||
+        ["identity_conflict", "unavailable"].includes(latest.sync.status) ||
+        latest.writeAvailability?.available === false
+      )
+        throw localFeedback("STALE_EDIT_RECORD");
+      if (field === "parents") {
+        if (father === (previous.fatherId === "N/A" ? "" : previous.fatherId))
+          setFather(latest.fatherId === "N/A" ? "" : latest.fatherId);
+        if (mother === (previous.motherId === "N/A" ? "" : previous.motherId))
+          setMother(latest.motherId === "N/A" ? "" : latest.motherId);
+      }
+      frozen.current = latest;
+      utils.buffaloEdit.details.setData(previous.microchip, latest);
+    });
   }
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -367,6 +388,10 @@ export default function DurableEdit({
     const selected = field,
       baseline = frozen.current;
     await run(async () => {
+      if (file) {
+        const invalid = validateImage(file);
+        if (invalid) throw invalid;
+      }
       const patch: EditPatch =
         selected === "parents"
           ? {
@@ -380,10 +405,7 @@ export default function DurableEdit({
                 : {}),
             }
           : { [selected]: file ? "https://upload.invalid/pending" : value };
-      if (!Object.keys(patch).length)
-        throw Error(
-          "ยังไม่มีช่องที่เปลี่ยนแปลง กรุณาแก้ไขค่าที่ต้องการก่อนยืนยัน",
-        );
+      if (!Object.keys(patch).length) throw localFeedback("NO_CHANGED_FIELDS");
       let next = await create.mutateAsync({
         key: key.current,
         microchip: baseline.microchip,
@@ -396,20 +418,24 @@ export default function DurableEdit({
       });
       setJob(next);
       if (file) {
-        const response = await fetch(
-          `/api/buffalo-create/image?kind=edit&id=${next.id}&version=${next.version}`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("jaothui-jwt") ?? ""}`,
-              "Content-Type": file.type,
+        try {
+          const response = await fetch(
+            `/api/buffalo-create/image?kind=edit&id=${next.id}&version=${next.version}`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("jaothui-jwt") ?? ""}`,
+                "Content-Type": file.type,
+              },
+              body: file,
             },
-            body: file,
-          },
-        );
-        if (!response.ok) {
-          if (response.status === 401) setAuthLost(true);
-          throw Error(((await response.json()) as { error: string }).error);
+          );
+          await uploadResponse(response);
+        } catch (cause) {
+          throw feedbackFor(cause, {
+            stage: "asset_upload",
+            operationId: next.id,
+          });
         }
 
         // Upload advances the durable revision; fetch this exact operation rather than a stale dialog query.
@@ -430,6 +456,9 @@ export default function DurableEdit({
     busy ||
     list.isPending ||
     !!list.error ||
+    !!details.error ||
+    details.isFetching ||
+    details.data?.writeAvailability?.available === false ||
     !!active ||
     authLost ||
     !details.data ||
@@ -443,10 +472,13 @@ export default function DurableEdit({
         className="grid gap-3 rounded-lg border border-primary p-4"
         onSubmit={(e) => {
           e.preventDefault();
-          setJob(null);
-          setChip(searchValue);
-          localStorage.setItem("buffalo-edit-search", searchValue);
-          if (chip === searchValue) void details.refetch();
+          if (chip !== searchValue.trim()) {
+            setJob(null);
+            setError(null);
+          }
+          setChip(searchValue.trim());
+          localStorage.setItem("buffalo-edit-search", searchValue.trim());
+          if (chip === searchValue.trim()) void details.refetch();
         }}
       >
         <label htmlFor="edit-search">ค้นหาควายด้วย microchip</label>
@@ -464,14 +496,80 @@ export default function DurableEdit({
           ค้นหา
         </button>
       </form>
-      {(error.length > 0 ||
-        (details.error !== null && details.error !== undefined) ||
-        authLost) && (
-        <p role="alert" className="my-4 break-words">
-          {authLost
-            ? "เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง แล้วกลับมาดำเนินการต่อรายการเดิม"
-            : friendly(error ? error : (details.error?.message ?? ""))}
+      {!chip && !details.data && (
+        <p role="status" className="my-4">
+          กรอก microchip เพื่อค้นหาทะเบียน
         </p>
+      )}
+      {chip && details.isFetching && (
+        <p role="status" className="my-4">
+          กำลังค้นหาข้อมูลทะเบียน…
+        </p>
+      )}
+      {chip && details.isSuccess && details.data === null && (
+        <p role="status" className="my-4">
+          ไม่พบควายสำหรับ microchip {chip} กรุณาตรวจเลขแล้วค้นหาอีกครั้ง
+        </p>
+      )}
+      {error && !field && <FeedbackPanel feedback={error} />}
+      {details.error && (
+        <FeedbackPanel
+          title="โหลดรายละเอียดไม่สำเร็จ"
+          feedback={
+            job?.state === "COMPLETED"
+              ? completedRefreshFeedback(details.error, job.id)
+              : feedbackFor(details.error, { outcome: "not_started" })
+          }
+          onRetry={() => {
+            void details.refetch();
+          }}
+          retryLabel="โหลดรายละเอียดอีกครั้ง"
+          busy={busy || authLost || details.isFetching}
+        />
+      )}
+      {list.error && (
+        <FeedbackPanel
+          title="โหลดรายการแก้ไขเดิมไม่สำเร็จ"
+          feedback={
+            job?.state === "COMPLETED"
+              ? completedRefreshFeedback(list.error, job.id)
+              : feedbackFor(list.error, { outcome: "not_started" })
+          }
+          onRetry={() => {
+            void list.refetch();
+          }}
+          retryLabel="โหลดรายการแก้ไขเดิมอีกครั้ง"
+          busy={busy || authLost || list.isFetching}
+        />
+      )}
+      {view.error && (
+        <FeedbackPanel
+          title="โหลดสถานะรายการไม่สำเร็จ"
+          feedback={
+            job?.state === "COMPLETED"
+              ? completedRefreshFeedback(view.error, job.id)
+              : feedbackFor(view.error, { operationId: job?.id })
+          }
+          onRetry={() => {
+            void view.refetch();
+          }}
+          retryLabel="โหลดสถานะรายการอีกครั้ง"
+          busy={busy || authLost || view.isFetching}
+        />
+      )}
+      {details.data && details.error && (
+        <p role="status">
+          กำลังแสดงข้อมูลที่เคยโหลดไว้ ยังยืนยันรายละเอียดล่าสุดไม่ได้
+          จึงพักการแก้ไข
+        </p>
+      )}
+      {job && view.error && (
+        <p role="status">
+          สถานะด้านล่างเป็นข้อมูลที่เคยโหลดได้ กรุณาตรวจสถานะก่อนดำเนินการต่อ
+        </p>
+      )}
+      {token && list.isPending && (
+        <p role="status">กำลังตรวจรายการแก้ไขเดิม ก่อนเปิดการแก้ไข…</p>
       )}
       {authLost && (
         <Link href="/" className="btn btn-primary min-h-12">
@@ -494,18 +592,40 @@ export default function DurableEdit({
             NFT #{details.data.tokenId} ·{" "}
             <span className="break-all">{details.data.microchip}</span>
           </p>
-          {details.data.sync.status === "identity_conflict" && (
-            <p role="alert" className="my-4">
-              อ่านข้อมูลจาก DB ได้ แต่ตัวตนบน blockchain ไม่ตรง จึงแก้ไขไม่ได้:{" "}
-              {details.data.sync.reason}
-            </p>
+          {details.data.writeAvailability?.diagnostic && (
+            <FeedbackPanel
+              title="อ่านทะเบียนได้ แต่ระบบบันทึกยังไม่พร้อม"
+              feedback={details.data.writeAvailability.diagnostic}
+              onRetry={() => {
+                void details.refetch();
+              }}
+              retryLabel="ตรวจความพร้อมอีกครั้ง"
+              busy={busy || authLost || details.isFetching}
+            />
           )}
-          {details.data.sync.status === "unavailable" && (
-            <p role="alert">
-              อ่านข้อมูลจาก DB ได้ แต่ยังตรวจสอบ blockchain ไม่ได้
-              กรุณาค้นหาใหม่ก่อนแก้ไข
-            </p>
+          {details.data.sync.diagnostic && (
+            <FeedbackPanel
+              feedback={details.data.sync.diagnostic}
+              onRetry={
+                details.data.sync.status === "unavailable"
+                  ? () => {
+                      void details.refetch();
+                    }
+                  : undefined
+              }
+              retryLabel="ตรวจ blockchain อีกครั้ง"
+              busy={busy || authLost || details.isFetching}
+            />
           )}
+          {["identity_conflict", "unavailable"].includes(
+            details.data.sync.status,
+          ) &&
+            !details.data.sync.diagnostic && (
+              <p role="alert" className="my-4">
+                อ่านข้อมูลทะเบียนได้ แต่ยังยืนยันตัวตนบน blockchain ไม่ได้
+                จึงพักการแก้ไข
+              </p>
+            )}
           {details.data.sync.status === "differences" && (
             <p className="my-3 text-sm">
               มีความต่างเดิมระหว่าง DB กับ blockchain
@@ -571,7 +691,7 @@ export default function DurableEdit({
       {job && (
         <EditProof
           job={job}
-          busy={busy || authLost}
+          busy={busy || authLost || !!view.error || !!list.error}
           onResume={() => void resume()}
           onCancel={() =>
             void run(async () => {
@@ -654,28 +774,47 @@ export default function DurableEdit({
                         {field === "dna"
                           ? "อัปโหลดภาพ DNA หรือใส่ URL ด้านบน"
                           : "เลือกภาพควาย"}
+                        <span className="mt-1 block text-sm">
+                          JPEG / PNG ขนาดต่ำกว่า 2,000,000 ไบต์ (2 MB)
+                        </span>
                         <input
                           id="edit-file"
                           className="file-input file-input-bordered file-input-primary mt-1 min-h-12 w-full text-base"
                           type="file"
                           accept="image/png,image/jpeg"
                           required={field === "image"}
-                          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                          onChange={(e) => {
+                            const selected = e.target.files?.[0] ?? null;
+                            setFile(selected);
+                            setError(selected ? validateImage(selected) : null);
+                          }}
                         />
                       </label>
                     )}
                   </>
                 )
               )}
-              {error && (
-                <p role="alert" className="break-words">
-                  {friendly(error)}
-                </p>
+              {error && field && (
+                <FeedbackPanel
+                  feedback={error}
+                  onRetry={
+                    error.nextAction === "refresh_record"
+                      ? () => {
+                          void refreshBaseline();
+                        }
+                      : undefined
+                  }
+                  retryLabel="โหลดรายละเอียดล่าสุด"
+                  busy={busy || authLost || details.isFetching}
+                />
               )}
               <button
                 className="btn btn-primary min-h-12"
                 disabled={
-                  busy || authLost || (!!active && job?.state !== "DRAFT")
+                  busy ||
+                  authLost ||
+                  (!!file && !!validateImage(file)) ||
+                  (!!active && job?.state !== "DRAFT")
                 }
               >
                 {busy ? "กำลังตรวจสอบและบันทึก..." : "ยืนยันการแก้ไข"}

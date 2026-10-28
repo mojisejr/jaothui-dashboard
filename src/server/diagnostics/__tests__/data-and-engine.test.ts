@@ -1,6 +1,9 @@
 /** @jest-environment node */
 jest.mock("~/server/db", () => ({
-  db: { pedigree: { findFirst: jest.fn() }, reward: { create: jest.fn() } },
+  db: {
+    pedigree: { findFirst: jest.fn() },
+    reward: { create: jest.fn(), findUnique: jest.fn(async () => null) },
+  },
 }));
 jest.mock("~/server/services/supabase/supabase", () => ({
   getImageUrl: jest.fn(),
@@ -30,14 +33,16 @@ test("not found is null, failed DB reads reject, and failed DB writes cannot res
   await expect(getByMicrochip("known")).rejects.toMatchObject({
     code: "DATABASE_READ_FAILED",
   });
+  process.env.NEXT_PUBLIC_supabase_url ??= "http://127.0.0.1:9";
   (db.reward.create as jest.Mock).mockRejectedValueOnce(Error("password"));
   await expect(
     addNewReward({
+      id: "44444444-4444-4444-8444-444444444444",
       microchip: "synthetic",
       rewardName: "award",
       eventName: "event",
       eventDate: new Date(),
-      rewardImage: "https://example.invalid/image",
+      rewardImage: `${process.env.NEXT_PUBLIC_supabase_url ?? "http://127.0.0.1:9"}/storage/v1/object/public/slipstorage/reward/44444444-4444-4444-8444-444444444444/${"a".repeat(64)}.jpg`,
     }),
   ).rejects.toMatchObject({ code: "DATABASE_WRITE_FAILED" });
 });

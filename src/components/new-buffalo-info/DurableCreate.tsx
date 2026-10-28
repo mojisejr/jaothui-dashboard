@@ -1,7 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useCreateController } from "./useCreateController";
-import { createStatus, createError, stepLabel, stepStatus } from "./status";
+import { createStatus, stepLabel, stepStatus } from "./status";
+import { FeedbackPanel } from "../buffalo-feedback/FeedbackPanel";
+import {
+  feedbackFor,
+  completedRefreshFeedback,
+} from "../buffalo-feedback/feedback";
 const fields = [
   ["name", "Buffalo Name", "text"],
   ["microchip", "Buffalo Microchip (15 digits)", "text"],
@@ -75,25 +80,46 @@ export default function DurableCreate() {
           ),
         )}
       </ol>
-      {(error !== "" || !!(view.error ?? list.error)) && (
-        <div
-          role="alert"
-          className="rounded-lg border border-warning p-4 text-warning"
-        >
-          {createError(
-            error !== ""
-              ? error
-              : (view.error?.message ?? list.error?.message ?? ""),
-          )}{" "}
-          <button
-            type="button"
-            className="btn btn-outline mt-2"
-            disabled={busy || authLost}
-            onClick={() => void run(() => view.refetch())}
-          >
-            โหลดรายการเดิมอีกครั้ง
-          </button>
-        </div>
+      {error && <FeedbackPanel feedback={error} />}
+      {list.isPending && (
+        <p role="status">กำลังโหลดรายการเดิม ก่อนเริ่มรายการใหม่…</p>
+      )}
+      {id && view.isFetching && <p role="status">กำลังโหลดสถานะรายการเดิม…</p>}
+      {list.error && (
+        <FeedbackPanel
+          title="โหลดรายการที่บันทึกไว้ไม่สำเร็จ"
+          feedback={
+            job?.state === "COMPLETED"
+              ? completedRefreshFeedback(list.error, job.id)
+              : feedbackFor(list.error, { outcome: "not_started" })
+          }
+          onRetry={() => {
+            void list.refetch();
+          }}
+          retryLabel="โหลดรายการที่บันทึกไว้อีกครั้ง"
+          busy={busy || authLost || list.isFetching}
+        />
+      )}
+      {view.error && (
+        <FeedbackPanel
+          title="โหลดสถานะรายการไม่สำเร็จ"
+          feedback={
+            job?.state === "COMPLETED"
+              ? completedRefreshFeedback(view.error, job.id)
+              : feedbackFor(view.error, { operationId: id })
+          }
+          onRetry={() => {
+            void view.refetch();
+          }}
+          retryLabel="โหลดสถานะรายการเดิมอีกครั้ง"
+          busy={busy || authLost || view.isFetching}
+        />
+      )}
+      {job && view.error && (
+        <p role="status">
+          ข้อมูลรายการด้านล่างเป็นข้อมูลล่าสุดที่เคยโหลดได้
+          ยังยืนยันสถานะปัจจุบันไม่ได้
+        </p>
       )}
       {!!list.data?.length && (
         <section>
@@ -144,7 +170,7 @@ export default function DurableCreate() {
                 min={type === "number" ? 0 : undefined}
                 step={type === "number" ? 1 : undefined}
                 pattern={name === "microchip" ? "[0-9]{15}" : undefined}
-                disabled={busy || authLost}
+                disabled={busy || authLost || !!view.error}
                 onChange={(e) =>
                   setForm({
                     ...form,
@@ -166,7 +192,7 @@ export default function DurableCreate() {
                 id={`create-${name}`}
                 className="select select-bordered w-full"
                 value={form[name]}
-                disabled={busy || authLost}
+                disabled={busy || authLost || !!view.error}
                 onChange={(e) => setForm({ ...form, [name]: e.target.value })}
               >
                 {(name === "color"
@@ -187,6 +213,7 @@ export default function DurableCreate() {
               disabled={
                 busy ||
                 authLost ||
+                !!view.error ||
                 list.isPending ||
                 !!list.error ||
                 (!editing && !!active)
@@ -198,7 +225,7 @@ export default function DurableCreate() {
               <button
                 type="button"
                 className="btn btn-outline"
-                disabled={busy || authLost}
+                disabled={busy || authLost || !!view.error}
                 onClick={() => setEditing(false)}
               >
                 ยกเลิกการแก้ไข
@@ -232,11 +259,13 @@ export default function DurableCreate() {
               สภาพแวดล้อมทดสอบ local fork · ธุรกรรมไม่ขึ้น mainnet
             </p>
           )}
-          {job.reason && (
-            <p role="status" className="break-all text-warning">
-              {createError(job.reason)} — ดำเนินการรายการเดิม ห้ามเริ่ม Mint
-              ใหม่
-            </p>
+          {job.diagnostic && <FeedbackPanel feedback={job.diagnostic} />}
+          {job.reason && !job.diagnostic && (
+            <FeedbackPanel
+              feedback={feedbackFor(new Error(job.reason), {
+                operationId: job.id,
+              })}
+            />
           )}
           {step === 1 && (
             <>
@@ -248,7 +277,7 @@ export default function DurableCreate() {
                 type="file"
                 accept="image/jpeg,image/png"
                 className="file-input file-input-bordered w-full"
-                disabled={busy || authLost}
+                disabled={busy || authLost || !!view.error}
                 onChange={(e) => void upload(e.target.files?.[0])}
               />
             </>
@@ -279,7 +308,7 @@ export default function DurableCreate() {
               <p>ยังไม่มีข้อมูลในทะเบียนสาธารณะ ตรวจสอบก่อนเตรียม Mint</p>
               <button
                 className="btn btn-primary"
-                disabled={busy || authLost}
+                disabled={busy || authLost || !!view.error}
                 onClick={() =>
                   void run(() =>
                     prepare.mutateAsync({ id: job.id, version: job.version }),
@@ -305,6 +334,7 @@ export default function DurableCreate() {
                   disabled={
                     busy ||
                     authLost ||
+                    !!view.error ||
                     job.steps.some((step) => step.kind === "mint") ||
                     job.state !== "READY"
                   }
@@ -316,7 +346,10 @@ export default function DurableCreate() {
                   data-mint-metadata
                   className="btn btn-primary"
                   disabled={
-                    busy || authLost || job.state !== "AWAITING_METADATA_ACTION"
+                    busy ||
+                    authLost ||
+                    !!view.error ||
+                    job.state !== "AWAITING_METADATA_ACTION"
                   }
                   onClick={() => void action("metadata")}
                 >
@@ -354,7 +387,7 @@ export default function DurableCreate() {
               ) && (
                 <button
                   className="btn btn-outline"
-                  disabled={busy || authLost}
+                  disabled={busy || authLost || !!view.error}
                   onClick={() => void action("resume")}
                 >
                   ดำเนินการต่อรายการเดิม
@@ -376,7 +409,7 @@ export default function DurableCreate() {
                   <br />
                   <button
                     className="btn btn-primary"
-                    disabled={busy || authLost}
+                    disabled={busy || authLost || !!view.error}
                     onClick={fresh}
                   >
                     เพิ่มควายตัวถัดไป
@@ -389,7 +422,7 @@ export default function DurableCreate() {
             <div className="flex flex-wrap gap-3">
               <button
                 className="btn btn-outline"
-                disabled={busy || authLost}
+                disabled={busy || authLost || !!view.error}
                 onClick={edit}
               >
                 ย้อนกลับแก้ไขข้อมูล
@@ -397,7 +430,7 @@ export default function DurableCreate() {
               {job.imageReady && (
                 <button
                   className="btn btn-outline"
-                  disabled={busy || authLost}
+                  disabled={busy || authLost || !!view.error}
                   onClick={() => void replaceImage()}
                 >
                   เปลี่ยนรูปภาพก่อน Mint

@@ -457,6 +457,44 @@ register(["WALLET_RESERVATION_CONFLICT"], {
   nextAction: "contact_support",
   outcome: "unknown",
 });
+register(["REWARD_IDEMPOTENCY_CONFLICT"], {
+  stage: "operation",
+  reason:
+    "เลขอ้างอิงนี้บันทึกรางวัลด้วยข้อมูลอื่นแล้ว กรุณาตรวจสอบรายการที่บันทึกก่อนเริ่มรายการใหม่",
+  nextAction: "refresh_record",
+  outcome: "unknown",
+});
+register(["REWARD_ASSET_INVALID"], {
+  stage: "validation",
+  reason: "รูปภาพไม่ตรงกับเลขอ้างอิงรางวัล กรุณาตรวจสอบภาพของรายการนี้",
+  nextAction: "correct_input",
+  outcome: "not_started",
+});
+register(["LEGACY_REWARD_REQUIRES_REQUEST_ID"], {
+  stage: "configuration",
+  reason: "หน้าเพิ่มรางวัลนี้เป็นรุ่นเดิม กรุณาโหลดหน้าใหม่ก่อนบันทึก",
+  nextAction: "refresh_client",
+  outcome: "not_started",
+});
+register(["REWARD_RECONCILIATION_UNAVAILABLE"], {
+  stage: "database_write",
+  reason:
+    "ยังตรวจสอบผลการบันทึกรางวัลเดิมไม่ได้ กรุณาตรวจสถานะด้วยเลขอ้างอิงเดิมก่อนส่งซ้ำ",
+  nextAction: "retry_read",
+  outcome: "unknown",
+});
+register(["CHECKPOINT_MISMATCH"], {
+  stage: "configuration",
+  reason: "จุดอ้างอิง blockchain ไม่ตรงกับระบบที่อนุมัติ จึงพักการแก้ไขไว้",
+  nextAction: "contact_support",
+  outcome: "not_started",
+});
+register(["CODE_HASH_MISMATCH"], {
+  stage: "configuration",
+  reason: "สัญญา blockchain ไม่ตรงกับเวอร์ชันที่อนุมัติ จึงพักการแก้ไขไว้",
+  nextAction: "contact_support",
+  outcome: "not_started",
+});
 export function errorPolicy(code: string): ErrorPolicy | undefined {
   return Object.hasOwn(registry, code) ? registry[code] : undefined;
 }

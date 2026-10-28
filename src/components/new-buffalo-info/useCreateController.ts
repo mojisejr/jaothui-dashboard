@@ -4,6 +4,13 @@ import {
   draftFields,
   type DraftInput,
 } from "~/server/services/buffalo-integrity/create/contract";
+import {
+  feedbackFor,
+  isUnauthorized,
+  validateImage,
+  uploadResponse,
+  type Feedback,
+} from "../buffalo-feedback/feedback";
 type Job = RouterOutputs["buffaloCreate"]["view"];
 const empty: DraftInput = {
   name: "",
@@ -34,7 +41,8 @@ export function useCreateController() {
   const [id, setId] = useState("");
   const [form, setForm] = useState<DraftInput>(empty);
   const [editing, setEditing] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<Feedback | null>(null);
+  const [observed, setObserved] = useState<Job | null>(null);
   const [authLost, setAuthLost] = useState(false);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
@@ -56,7 +64,10 @@ export function useCreateController() {
   const revise = api.buffaloCreate.revise.useMutation();
   const prepare = api.buffaloCreate.prepare.useMutation();
   const advance = api.buffaloCreate.advance.useMutation();
-  const job = view.data;
+  const job =
+    observed?.id === id && (!view.data || observed.version >= view.data.version)
+      ? observed
+      : view.data;
   useEffect(() => {
     if (
       list.error?.data?.code === "UNAUTHORIZED" ||
@@ -87,26 +98,23 @@ export function useCreateController() {
     if (lock.current || authLost) return;
     lock.current = true;
     setBusy(true);
-    setError("");
+    setError(null);
     try {
-      await callback();
+      const result = await callback();
+      if (
+        result &&
+        typeof result === "object" &&
+        "state" in result &&
+        "id" in result
+      )
+        setObserved(result as Job);
       await Promise.all([
         id ? view.refetch() : Promise.resolve(),
         list.refetch(),
       ]);
     } catch (e) {
-      if (
-        e &&
-        typeof e === "object" &&
-        "data" in e &&
-        (e.data as { code?: string })?.code === "UNAUTHORIZED"
-      )
-        setAuthLost(true);
-      setError(
-        e instanceof Error
-          ? e.message
-          : "ดำเนินการไม่สำเร็จ กรุณาโหลดรายการเดิม",
-      );
+      if (isUnauthorized(e)) setAuthLost(true);
+      setError(feedbackFor(e, { operationId: id || undefined }));
       if (id) await view.refetch();
     } finally {
       lock.current = false;
@@ -123,12 +131,20 @@ export function useCreateController() {
   actionRef.current = action;
   // Poll only reconciles a durable transaction/progress after the operator has chosen each explicit button.
   useEffect(() => {
-    if (!job || !pending(job) || busy || authLost) return;
+    if (
+      !job ||
+      !pending(job) ||
+      busy ||
+      authLost ||
+      !!view.error ||
+      !!list.error
+    )
+      return;
     const timer = setTimeout(() => {
       void actionRef.current("resume");
     }, 2000);
     return () => clearTimeout(timer);
-  }, [job, busy, authLost]);
+  }, [job, busy, authLost, view.error, list.error]);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await run(async () => {
@@ -145,10 +161,16 @@ export function useCreateController() {
             });
       choose(result.id);
       setEditing(false);
+      return result;
     });
   }
   async function upload(file: File | undefined) {
     if (!file || !job) return;
+    const invalid = validateImage(file);
+    if (invalid) {
+      setError(invalid);
+      return;
+    }
     await run(async () => {
       const response = await fetch(
         `/api/buffalo-create/image?id=${job.id}&version=${job.version}`,
@@ -161,11 +183,7 @@ export function useCreateController() {
           body: file,
         },
       );
-      if (!response.ok) {
-        const body = (await response.json()) as { error?: string };
-        if (response.status === 401) setAuthLost(true);
-        throw Error(body.error ?? "IMAGE_UPLOAD_REJECTED");
-      }
+      await uploadResponse(response);
     });
   }
   function edit() {
@@ -189,6 +207,8 @@ export function useCreateController() {
   }
   function fresh() {
     setId("");
+    setObserved(null);
+    setError(null);
     localStorage.removeItem("buffalo-create-operation");
     key.current = "";
     setForm(empty);
