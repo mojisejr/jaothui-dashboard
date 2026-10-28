@@ -252,6 +252,33 @@ export function useRepairExecution() {
       setBusy(false);
     }
   }
+  async function refreshPreparation(input: Prepare) {
+    if (
+      lock.current ||
+      storageBlocked ||
+      !!current.current ||
+      !active.current ||
+      !capability.data?.canPrepare ||
+      (capability.data.singleOnly && input.proposal.targets.length !== 1)
+    )
+      return;
+    lock.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      // A late original request may still win. Keep its key; the server's atomic
+      // idempotency fence prevents replacing any manifest that already exists.
+      if (await lookup()) return;
+      original.current = { ...input, key: active.current.key };
+      setUncertain(true);
+      accepted(await prepareMutation.mutateAsync(original.current));
+    } catch (cause) {
+      failed(cause);
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
   function finish() {
     if (lock.current || uncertain || !repairTerminal(current.current)) return;
     try {
@@ -276,6 +303,7 @@ export function useRepairExecution() {
     error,
     refresh,
     prepare,
+    refreshPreparation,
     action,
     finish,
     retryPrepare: () =>

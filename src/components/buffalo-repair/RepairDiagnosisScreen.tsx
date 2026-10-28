@@ -524,12 +524,13 @@ export default function RepairDiagnosisScreen() {
             )}
           {execution.pending && (
             <p>
-              กำลังติดตามเลขรายการเดิมด้านบน
-              ต้องทราบผลรายการนั้นก่อนเตรียมรายการใหม่
+              กำลังติดตามเลขรายการเดิมด้านบน หากยังไม่พบแผน
+              สามารถตรวจหลักฐานชุดใหม่แล้วเตรียมต่อด้วยเลขเดิม
+              ระบบจะอ่านสถานะเดิมก่อน และไม่เปลี่ยนแผนที่บันทึกไว้แล้ว
             </p>
           )}
           {(targets.length === 1 || !execution.capability.data?.singleOnly) &&
-            !execution.pending && (
+            !execution.view && (
               <button
                 className="btn btn-primary min-h-12"
                 disabled={
@@ -541,14 +542,20 @@ export default function RepairDiagnosisScreen() {
                 }
                 onClick={() => {
                   if (scan && ready)
-                    void execution.prepare({
+                    void (
+                      execution.pending
+                        ? execution.refreshPreparation
+                        : execution.prepare
+                    )({
                       scan: scan.scan,
                       pages: controller.pages.map((page) => page.receipt),
                       proposal: proposalFor(targets, aliases),
                     });
                 }}
               >
-                เตรียมแผนจริงสำหรับตรวจทาน
+                {execution.pending
+                  ? "ตรวจสถานะเดิมแล้วเตรียมจากหลักฐานชุดนี้"
+                  : "เตรียมแผนจริงสำหรับตรวจทาน"}
               </button>
             )}
           {execution.capability.isLoading && (

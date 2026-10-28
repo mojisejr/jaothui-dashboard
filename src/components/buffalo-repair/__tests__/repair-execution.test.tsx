@@ -124,6 +124,12 @@ function Harness({ request = input }: { request?: typeof input }) {
       >
         prepare
       </button>
+      <button
+        disabled={controller.busy}
+        onClick={() => void controller.refreshPreparation(request)}
+      >
+        refresh evidence
+      </button>
       <RepairOperationProgress controller={controller} />
     </>
   );
@@ -281,6 +287,44 @@ test("reload with pending key and no saved operation never creates a fresh inten
   await screen.findByText(/ยังไม่พบรายการเดิมที่ยืนยันได้/);
   fireEvent.click(screen.getByText("prepare"));
   await waitFor(() => expect(mockLookup).toHaveBeenCalledTimes(2));
+  expect(mockPrepare).not.toHaveBeenCalled();
+  expect(mockUuid).not.toHaveBeenCalled();
+});
+test("explicit fresh evidence after reload checks absence and reuses the saved key without approval", async () => {
+  localStorage.setItem(REPAIR_PENDING_KEY, JSON.stringify({ version: 1, key }));
+  render(<Harness request={{ ...input, scan: "fresh scan" }} />);
+  await screen.findByText(/ยังไม่พบรายการเดิมที่ยืนยันได้/);
+  fireEvent.click(screen.getByText("refresh evidence"));
+  await screen.findByText("แผนซ่อมที่ต้องตรวจทานก่อนยืนยัน");
+  expect(mockLookup).toHaveBeenCalledTimes(2);
+  expect(mockPrepare).toHaveBeenCalledWith({
+    ...input,
+    scan: "fresh scan",
+    key,
+  });
+  expect(mockLookup.mock.invocationCallOrder[1]).toBeLessThan(
+    mockPrepare.mock.invocationCallOrder[0]!,
+  );
+  expect(mockUuid).not.toHaveBeenCalled();
+  expect(mockApprove).not.toHaveBeenCalled();
+});
+test("fresh evidence restores an operation that already exists instead of replacing it", async () => {
+  localStorage.setItem(REPAIR_PENDING_KEY, JSON.stringify({ version: 1, key }));
+  render(<Harness />);
+  await screen.findByText(/ยังไม่พบรายการเดิมที่ยืนยันได้/);
+  mockLookup.mockResolvedValue(result());
+  fireEvent.click(screen.getByText("refresh evidence"));
+  await screen.findByText("แผนซ่อมที่ต้องตรวจทานก่อนยืนยัน");
+  expect(mockPrepare).not.toHaveBeenCalled();
+  expect(mockApprove).not.toHaveBeenCalled();
+});
+test("fresh evidence cannot write when the existing-key lookup fails", async () => {
+  localStorage.setItem(REPAIR_PENDING_KEY, JSON.stringify({ version: 1, key }));
+  render(<Harness />);
+  await screen.findByText(/ยังไม่พบรายการเดิมที่ยืนยันได้/);
+  mockLookup.mockRejectedValue(new Error("unavailable"));
+  fireEvent.click(screen.getByText("refresh evidence"));
+  await screen.findByText(/ไม่ได้รับผลยืนยันจากระบบ/);
   expect(mockPrepare).not.toHaveBeenCalled();
   expect(mockUuid).not.toHaveBeenCalled();
 });
