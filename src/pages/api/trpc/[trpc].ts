@@ -11,7 +11,9 @@ import { createTRPCContext } from "~/server/api/trpc";
 
 // Let the tRPC node adapter parse inside correlation context, including invalid JSON.
 // Retain the existing 8 MB limit for competition/news base64 cover uploads.
-export const config = { api: { bodyParser: false } };
+// Repair preparation and each bounded recovery step recheck chain and storage.
+// The platform's 15-second default can terminate them before a result is returned.
+export const config = { api: { bodyParser: false }, maxDuration: 60 };
 
 // export API handler
 const handler = createNextApiHandler({
