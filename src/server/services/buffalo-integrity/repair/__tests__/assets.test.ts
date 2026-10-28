@@ -171,4 +171,90 @@ describe("repair public asset evidence", () => {
       ).blockers,
     ).toContain("IMAGE_IDENTITY_REVIEW_REQUIRED");
   });
+  test("normalizes only the same NFT's legacy extensionless database image reference after verified missing-key response", async () => {
+    const fetcher = fakeFetch();
+    fetcher.mockImplementation(
+      async (input) =>
+        new Response(
+          input === base + "buffalo/1"
+            ? JSON.stringify({
+                statusCode: "404",
+                error: "not_found",
+                code: "NoSuchKey",
+              })
+            : input.endsWith(".json")
+              ? JSON.stringify(metadata)
+              : image,
+          { status: input === base + "buffalo/1" ? 400 : 200 },
+        ),
+    );
+    const result = await publicRepairAssets(origin, fetcher)(
+      [token],
+      [{ ...rows[0]!, baseline: { image: base + "buffalo/1" } }],
+      proposal,
+    );
+    expect(result.verification).toBe("complete");
+    expect(result.tokens[0]?.before).toContainEqual(
+      expect.objectContaining({
+        role: "database_image",
+        url: base + "buffalo/1.jpg",
+        hash: contentHash(image),
+      }),
+    );
+    expect(result.tokens[0]?.after?.legacyDatabaseImage).toEqual({
+      from: base + "buffalo/1",
+      to: base + "buffalo/1.jpg",
+      originalHash: null,
+    });
+  });
+  test.each([403, 500])(
+    "does not turn a legacy image HTTP %s failure into missing-file evidence",
+    async (status) => {
+      const fetcher = fakeFetch();
+      fetcher.mockImplementation(
+        async (input) =>
+          new Response(
+            input.endsWith(".json") ? JSON.stringify(metadata) : image,
+            { status: input === base + "buffalo/1" ? status : 200 },
+          ),
+      );
+      const result = await publicRepairAssets(origin, fetcher)(
+        [token],
+        [{ ...rows[0]!, baseline: { image: base + "buffalo/1" } }],
+        proposal,
+      );
+      expect(result.blockers).toContain("ASSET_READ_UNAVAILABLE");
+      expect(result.tokens[0]?.after).toBeNull();
+    },
+  );
+  test("a different existing legacy object still blocks repair", async () => {
+    const fetcher = fakeFetch();
+    fetcher.mockImplementation(
+      async (input) =>
+        new Response(
+          input.endsWith(".json")
+            ? JSON.stringify(metadata)
+            : input === base + "buffalo/1"
+              ? "different-cow-image"
+              : image,
+        ),
+    );
+    const result = await publicRepairAssets(origin, fetcher)(
+      [token],
+      [{ ...rows[0]!, baseline: { image: base + "buffalo/1" } }],
+      proposal,
+    );
+    expect(result.blockers).toContain("IMAGE_IDENTITY_REVIEW_REQUIRED");
+  });
+  test.each(["buffalo/2", "buffalo/1?x=1", "buffalo/1.png"])(
+    "legacy normalization does not widen ownership to %s",
+    async (key) => {
+      const result = await publicRepairAssets(origin, fakeFetch())(
+        [token],
+        [{ ...rows[0]!, baseline: { image: base + key } }],
+        proposal,
+      );
+      expect(result.verification).toBe("needs_review");
+    },
+  );
 });

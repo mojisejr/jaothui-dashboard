@@ -28,6 +28,11 @@ export interface AssetEvidence {
     after: {
       imageHash: string;
       jsonHash: string;
+      legacyDatabaseImage?: {
+        from: string;
+        to: string;
+        originalHash: string | null;
+      };
       json: Json;
       aliasImageKey: string;
       aliasJsonKey: string;
@@ -69,16 +74,8 @@ export function publicRepairAssets(
     });
   const prefix = `${base.origin}/storage/v1/object/public/slipstorage/`;
   const storage = { publicUrl: (key: string) => prefix + key } as AssetStorage;
-  async function read(url: string, optional = false) {
-    const key = ownedAssetKey(storage, url);
-    const limit = key.endsWith(".json") ? 2 * 1024 * 1024 : 10 * 1024 * 1024;
-    const response = await fetcher(url, {
-      redirect: "error",
-      signal: AbortSignal.timeout(10000),
-      cache: "no-store",
-    });
-    if (optional && response.status === 404) return { key, bytes: null };
-    if (!response.ok || !response.body) throw Error("ASSET_READ_UNAVAILABLE");
+  async function bytes(response: Response, limit: number) {
+    if (!response.body) throw Error("ASSET_READ_UNAVAILABLE");
     if (Number(response.headers.get("content-length") ?? 0) > limit)
       throw Error("ASSET_SIZE_LIMIT");
     const reader = response.body.getReader(),
@@ -95,7 +92,45 @@ export function publicRepairAssets(
     } finally {
       await reader.cancel();
     }
-    return { key, bytes: Buffer.concat(chunks) };
+    return Buffer.concat(chunks);
+  }
+  async function read(url: string, optional = false, legacyToken?: string) {
+    // Read-only exception: exact same-project, same-NFT historical reference.
+    // It is never accepted by the shared storage writer's ownedAssetKey policy.
+    const legacy =
+      legacyToken !== undefined &&
+      /^[1-9][0-9]*$/.test(legacyToken) &&
+      url === `${prefix}buffalo/${legacyToken}`;
+    const key = legacy ? `buffalo/${legacyToken}` : ownedAssetKey(storage, url);
+    const response = await fetcher(url, {
+      redirect: "error",
+      signal: AbortSignal.timeout(10000),
+      cache: "no-store",
+    });
+    if ((optional || legacy) && response.status === 404)
+      return { key, bytes: null };
+    if (legacy && response.status === 400) {
+      const error = JSON.parse((await bytes(response, 4096)).toString()) as {
+        code?: string;
+        statusCode?: string;
+        error?: string;
+      };
+      if (
+        error.code === "NoSuchKey" &&
+        String(error.statusCode) === "404" &&
+        error.error === "not_found"
+      )
+        return { key, bytes: null };
+      throw Error("ASSET_READ_UNAVAILABLE");
+    }
+    if (!response.ok) throw Error("ASSET_READ_UNAVAILABLE");
+    return {
+      key,
+      bytes: await bytes(
+        response,
+        key.endsWith(".json") ? 2 * 1024 * 1024 : 10 * 1024 * 1024,
+      ),
+    };
   }
   return async (
     tokens: TokenBaseline[],
@@ -189,16 +224,46 @@ export function publicRepairAssets(
             url: storage.publicUrl(`json/${token.tokenId}.json`),
           },
         ];
+        let legacyDatabaseImage:
+          | { from: string; to: string; originalHash: string | null }
+          | undefined;
         for (const candidate of candidates) {
           if (typeof candidate.url !== "string" || !candidate.url)
             throw Error("ASSET_ORIGIN_REVIEW_REQUIRED");
+          let verifiedUrl = candidate.url;
+          if (
+            candidate.role === "database_image" &&
+            rows.find((r) => r.microchip === target.sourceMicrochip)
+              ?.tokenId === token.tokenId &&
+            candidate.url === `${prefix}buffalo/${token.tokenId}`
+          ) {
+            const original = await read(candidate.url, false, token.tokenId);
+            if (
+              original.bytes &&
+              contentHash(original.bytes) !== contentHash(image.bytes)
+            )
+              throw Error("IMAGE_IDENTITY_REVIEW_REQUIRED");
+            verifiedUrl = storage.publicUrl(`buffalo/${token.tokenId}.jpg`);
+            legacyDatabaseImage = {
+              from: candidate.url,
+              to: verifiedUrl,
+              originalHash: original.bytes ? contentHash(original.bytes) : null,
+            };
+            entry.before.push({
+              role: "legacy_database_image_reference",
+              url: candidate.url,
+              key: original.key,
+              hash: legacyDatabaseImage.originalHash,
+              bytes: original.bytes?.length ?? 0,
+            });
+          }
           const asset = await read(
-            candidate.url,
+            verifiedUrl,
             candidate.role.endsWith("_alias"),
           );
           entry.before.push({
             role: candidate.role,
-            url: candidate.url,
+            url: verifiedUrl,
             key: asset.key,
             hash: asset.bytes ? contentHash(asset.bytes) : null,
             bytes: asset.bytes?.length ?? 0,
@@ -217,6 +282,7 @@ export function publicRepairAssets(
             ? jsonAsset.bytes
             : Buffer.from(JSON.stringify(value));
         entry.after = {
+          ...(legacyDatabaseImage ? { legacyDatabaseImage } : {}),
           imageHash: contentHash(image.bytes),
           jsonHash: contentHash(after),
           json: value,
