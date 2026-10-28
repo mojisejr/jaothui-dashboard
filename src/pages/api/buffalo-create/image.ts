@@ -4,18 +4,37 @@ import { isAuth } from "~/server/services/auth.service";
 import { getCreateRuntime } from "~/server/services/buffalo-integrity/create/runtime";
 import { getEditRuntime } from "~/server/services/buffalo-integrity/edit/runtime";
 import { RAW_IMAGE_LIMIT } from "~/server/services/buffalo-integrity/create/contract";
+import { DiagnosticError } from "~/server/diagnostics/errors";
+import {
+  bindOperationId,
+  newRequestId,
+  reportDiagnostic,
+  runDiagnosticContext,
+} from "~/server/diagnostics/reporter";
+import { diagnosticHttpStatus } from "~/server/diagnostics/transport";
 import { IntegrityError } from "~/server/services/buffalo-integrity/operations/hash";
 export const config = { api: { bodyParser: false } };
 /** Raw bytes avoid base64/JSON expansion and Next's default 1MB body parser. */
-export default async function image(req: NextApiRequest, res: NextApiResponse) {
+export default function image(req: NextApiRequest, res: NextApiResponse) {
+  const requestId = newRequestId();
+  res.setHeader("X-Request-Id", requestId);
+  return runDiagnosticContext(
+    { requestId, route: "api/buffalo-create/image", type: "mutation" },
+    () => handleImage(req, res),
+  );
+}
+async function handleImage(req: NextApiRequest, res: NextApiResponse) {
+  const fail = (status: number, error: unknown) => {
+    const diagnostic = reportDiagnostic(error);
+    return res.status(status).json({ error: diagnostic.code, diagnostic });
+  };
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "METHOD_NOT_ALLOWED" });
+    return fail(405, new DiagnosticError("METHOD_NOT_ALLOWED"));
   }
   if (!isAuth(req.headers.authorization?.split(" ")[1] ?? ""))
-    return res.status(401).json({ error: "UNAUTHORIZED" });
+    return fail(401, new DiagnosticError("UNAUTHORIZED"));
   try {
-    const runtime = getCreateRuntime();
     const input = z
       .object({
         id: z.string().uuid(),
@@ -24,9 +43,11 @@ export default async function image(req: NextApiRequest, res: NextApiResponse) {
       })
       .strict()
       .parse(req.query);
+    bindOperationId(input.id);
+    const runtime = getCreateRuntime();
     const length = Number(req.headers["content-length"]);
     if (!Number.isInteger(length) || length <= 0 || length >= RAW_IMAGE_LIMIT)
-      return res.status(413).json({ error: "INVALID_IMAGE_SIZE" });
+      return fail(413, new DiagnosticError("INVALID_IMAGE_SIZE"));
     const parts: Buffer[] = [];
     let size = 0;
     for await (const chunk of req) {
@@ -35,11 +56,11 @@ export default async function image(req: NextApiRequest, res: NextApiResponse) {
         : Buffer.from(chunk as Uint8Array);
       size += part.length;
       if (size >= RAW_IMAGE_LIMIT)
-        return res.status(413).json({ error: "INVALID_IMAGE_SIZE" });
+        return fail(413, new DiagnosticError("INVALID_IMAGE_SIZE"));
       parts.push(part);
     }
     if (size !== length)
-      return res.status(400).json({ error: "INVALID_IMAGE_LENGTH" });
+      return fail(400, new DiagnosticError("INVALID_IMAGE_LENGTH"));
     await (input.kind === "edit" ? getEditRuntime() : runtime).workflow.upload(
       input.id,
       `shared:${process.env.username!}`,
@@ -49,9 +70,10 @@ export default async function image(req: NextApiRequest, res: NextApiResponse) {
     );
     return res.status(200).json({ ok: true });
   } catch (error) {
-    return res.status(400).json({
-      error:
-        error instanceof IntegrityError ? error.code : "IMAGE_UPLOAD_REJECTED",
-    });
+    const fault =
+      error instanceof IntegrityError || error instanceof z.ZodError
+        ? error
+        : new DiagnosticError("IMAGE_UPLOAD_REJECTED", { cause: error });
+    return fail(diagnosticHttpStatus(fault), fault);
   }
 }

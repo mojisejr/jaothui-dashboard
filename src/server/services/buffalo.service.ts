@@ -1,3 +1,4 @@
+import { DiagnosticError } from "~/server/diagnostics/errors";
 import { getImageUrl, getJsonUrl } from "./supabase/supabase";
 import { db } from "../db";
 import { type Reward } from "~/interfaces/i-reward";
@@ -37,8 +38,7 @@ export const getByMicrochip = async (microchip: string) => {
     });
     return found;
   } catch (error) {
-    console.log(error);
-    return null;
+    throw new DiagnosticError("DATABASE_READ_FAILED", { cause: error });
   }
 };
 
@@ -47,8 +47,7 @@ export const addNewReward = async (reward: Reward) => {
     const created = await db.reward.create({ data: reward });
     return created;
   } catch (error) {
-    console.log(error);
-    return null;
+    throw new DiagnosticError("DATABASE_WRITE_FAILED", { cause: error });
   }
 };
 
