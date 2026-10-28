@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { buffaloIntentSchema } from "../intent";
+import { repairIntentSchema } from "../repair/execution-contract";
 
 export const operationIntentSchema = z.discriminatedUnion("kind", [
+  repairIntentSchema,
   z
     .object({ kind: z.literal("create"), buffalo: buffaloIntentSchema })
     .strict(),
@@ -72,13 +74,26 @@ export interface Plan {
   maxFeeWei: string;
   context: Json;
 }
+export interface DatabaseRepairPlan {
+  kind: "database_repair";
+  domain: Domain;
+  approvalFingerprint: string;
+  context: Json;
+  executionInstance?: never;
+}
+export type StoredPlan = Plan | DatabaseRepairPlan;
+export function isDatabaseRepairPlan(
+  plan: StoredPlan,
+): plan is DatabaseRepairPlan {
+  return "kind" in plan && plan.kind === "database_repair";
+}
 export interface Operation {
   id: string;
   owner: string;
   intentHash: string;
   intent: OperationIntent;
   domain: Domain;
-  plan: Plan | null;
+  plan: StoredPlan | null;
   state: OperationState;
   version: number;
   fence: string;
@@ -197,7 +212,11 @@ export interface ChainPorts {
     step: Step,
     receipt: ReceiptProof,
   ) => Promise<EffectProof>;
-  project: (operation: Operation, steps: Step[]) => Promise<PublicationProof>;
+  project: (
+    operation: Operation,
+    steps: Step[],
+    claim: Claim,
+  ) => Promise<PublicationProof>;
   verifyPublication: (
     operation: Operation,
     steps: Step[],

@@ -1,3 +1,6 @@
+import { type DiagnosticEnvelope } from "~/lib/buffalo-diagnostics";
+import { DiagnosticError } from "~/server/diagnostics/errors";
+import { reportDiagnostic } from "~/server/diagnostics/reporter";
 import { type Pedigree } from "@prisma/client";
 import { type IMetadata } from "~/interfaces/i-metadata";
 import { dateToCalendar } from "./calendar";
@@ -17,6 +20,7 @@ import {
 export interface SyncAssessment {
   status: "unavailable" | "identity_conflict" | "differences" | "matched";
   reason?: string;
+  diagnostic?: DiagnosticEnvelope;
   scope: "database-manager-business-fields";
   imageVerification: "unchecked";
   publicationVerification: "unchecked";
@@ -62,7 +66,12 @@ export async function readBuffaloMetadata(
   domain: ChainDomain,
   ports: MetadataReadPorts,
 ): Promise<BuffaloMetadataRead | null> {
-  const record = await ports.findCow(chip);
+  let record: Pedigree | null;
+  try {
+    record = await ports.findCow(chip);
+  } catch (cause) {
+    throw new DiagnosticError("DATABASE_READ_FAILED", { cause });
+  }
   if (!record) return null;
   const dto = databaseMetadata(record);
   if (ports.imageForCow) dto.image = ports.imageForCow(record);
@@ -92,6 +101,7 @@ export async function readBuffaloMetadata(
           ...scope,
           status: "identity_conflict",
           reason: conflict,
+          diagnostic: reportDiagnostic(new DiagnosticError(conflict)),
           differences: [],
         },
       };
@@ -107,13 +117,26 @@ export async function readBuffaloMetadata(
         differences,
       },
     };
-  } catch {
+  } catch (cause) {
+    const attestationFailure =
+      cause instanceof Error &&
+      [
+        "CHECKPOINT_MISMATCH",
+        "CODE_HASH_MISMATCH",
+        "CHAIN_DOMAIN_CONFLICT",
+      ].includes(cause.message);
+    const diagnostic = reportDiagnostic(
+      attestationFailure
+        ? cause
+        : new DiagnosticError("CHAIN_CHECK_UNAVAILABLE", { cause }),
+    );
     return {
       ...dto,
       sync: {
         ...scope,
         status: "unavailable",
-        reason: "CHAIN_CHECK_UNAVAILABLE",
+        reason: diagnostic.code,
+        diagnostic,
         differences: [],
       },
     };

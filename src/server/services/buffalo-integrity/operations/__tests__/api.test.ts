@@ -116,7 +116,7 @@ test("disabled production runtime never constructs a signer or accepts a live wr
   await expect(
     caller.create({ key: "disabled", intent }),
   ).rejects.toMatchObject({
-    code: "PRECONDITION_FAILED",
+    code: "SERVICE_UNAVAILABLE",
     message: "INTEGRITY_FEATURE_DISABLED",
   });
 });
@@ -129,5 +129,8 @@ test("adapter/database exceptions cannot leak signed bytes or credentials throug
     );
   await expect(
     c.caller.status({ id: "00000000-0000-4000-8000-000000000001" }),
-  ).rejects.toMatchObject({ message: "OPERATION_SERVICE_UNAVAILABLE" });
+  ).rejects.toMatchObject({
+    code: "INTERNAL_SERVER_ERROR",
+    message: "INTERNAL_ERROR",
+  });
 });

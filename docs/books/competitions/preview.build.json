@@ -1,0 +1,54 @@
+{
+  "pages": 4,
+  "embedded_fonts": 4,
+  "internal_links": 12,
+  "external_links": 0,
+  "selectable_characters": 4494,
+  "bookmarks": 8,
+  "schema_version": 1,
+  "book": "book.json",
+  "edition": "ฉบับทดลองรูปเล่ม 0.1",
+  "python": "3.12.14",
+  "weasyprint": "70.0",
+  "text_normalization": "Thai Sara Am NFKC-equivalent sequence in HTML text nodes only",
+  "pdf_sha256": "a4ea26e0bcdf45bd2e681c068f4a33d18ae363992a5e5ee5bb343ae95a9fa852",
+  "manifest_sha256": "b64a15e3f013fb189dbf77e61db9687723aaa249f9230ce7e8e7b1a519abf814",
+  "inputs": {
+    "chapters/01-start.md": "32a4fbfd549223f4939b5f5132c15215a72b35dbea08f2e99e48f0fe8a53c3ed",
+    "chapters/02-dates.md": "07a3ccb48c282b9938b51a5619518bce8fac29450301df3500af3f144f1f90fb",
+    "chapters/03-classes.md": "5cfd09b60288a53554eac0dfd3516a5100fe382eb69d528a93e530ae50e7cb67",
+    "chapters/04-review.md": "1ee7246e38a758e2e90760dcb0c603aa7130acb6e9420a7f20ea812046325729"
+  },
+  "assets": {
+    "class-context": "1c281b49717e2190cfe181483b4f72b804a92fca2f130687365f8111deee4796",
+    "class-minimum": "569970f81bc4cd67ec94c41feef1be4199b0098085cfb258814149638238744b",
+    "class-rule": "de974a69daaff06da35b2fcaa4989da3cf76bc8fee84d2db2c925fa9caf60132",
+    "date-context": "fb0e0542a790293f4318a1ec06e27efd43ff6e99f2fd489294b3ee7e978223ef",
+    "date-picker": "9131fa5e524ee191434bd514fcab9cdc98a27ae0b8aa424d783e511cd9cade7c",
+    "review-context": "ef23621974f666855c02d4270160f6723cf23bc4999001cff1feb1324e43858a",
+    "review-line": "82dbe2b3556bb226b97ac35914cde4262a1f93d48af1394aa4c6884791857b3f",
+    "review-save": "edaf8e5b3601bdd81b86cd66947cbd070c365c9691890b82754326ef287d7810",
+    "review-send": "680bde086266276295a14bd3456ea37a373abb7120dff27e89efe12b726feb45",
+    "workflow": "32f66402850e95bef758883ac490aab9839fab55ecfb67e48eda9011931a59cb"
+  },
+  "figures": [
+    "class-minimum",
+    "class-rule",
+    "date-picker",
+    "review-line",
+    "review-save",
+    "review-send",
+    "workflow"
+  ],
+  "templates": {
+    "book.html": "d9aa2fc6c3a5981962fed27c6c147e6268fb7579233c8d835157cd8366f8faf9",
+    "print.css": "d600cc6d254db242195d5cba2160d72d01ad20eb25a1fa9ef3809533f9ee9686"
+  },
+  "fonts": {
+    "Sarabun-Regular.ttf": "226d4f368fbc0457990ddef2692679badfd2c1a4e89e5ac4d43c10ba7743b2f1",
+    "Sarabun-Bold.ttf": "d38308ca27d067b9a1b79006337c1f9a66c29aa016d96a9d88d3801da7fa83b9",
+    "Kanit-Regular.ttf": "27170c049660b2f962d3ed28441fd20f4c743503ca031fec9c2b4542d6c52736",
+    "Kanit-SemiBold.ttf": "67e64baf1a7e6e076435518ff0e6bf25c4d74b98143cd1a2688db906c0abce11"
+  },
+  "visual_review": "REQUIRED: inspect every rasterized PDF page before sharing"
+}

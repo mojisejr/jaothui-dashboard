@@ -1,4 +1,5 @@
 /** @jest-environment node */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Readable } from "stream";
 import { type NextApiRequest, type NextApiResponse } from "next";
 const mockRuntime = jest.fn<unknown, []>();
@@ -91,5 +92,13 @@ test("private runtime exceptions never leak authorization into upload responses"
   });
   const res = response();
   await handler(request(Buffer.from("x")), res.res);
-  expect(res.json).toHaveBeenCalledWith({ error: "IMAGE_UPLOAD_REJECTED" });
+  expect(res.json).toHaveBeenCalledWith(
+    expect.objectContaining({
+      error: "IMAGE_UPLOAD_REJECTED",
+      diagnostic: expect.objectContaining({
+        code: "IMAGE_UPLOAD_REJECTED",
+        requestId: expect.any(String),
+      }),
+    }),
+  );
 });

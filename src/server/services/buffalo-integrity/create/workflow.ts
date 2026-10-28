@@ -7,7 +7,7 @@ import {
   transactionLink,
 } from "../operations/environment";
 import { randomUUID } from "crypto";
-import sharp from "sharp";
+import { normalizeBuffaloImage } from "../image-preflight";
 import { type PrismaClient } from "@prisma/client";
 import { encodeFunctionData, type Abi } from "viem";
 import { abi as nftAbi } from "~/server/blockchain/nft/abi";
@@ -34,12 +34,7 @@ import type {
 import { IntegrityError, asJson, payloadHash } from "../operations/hash";
 import { type DraftStore } from "./drafts";
 import { type AssetStorage, operationPrefix, contentHash } from "./storage";
-import {
-  draftInputSchema,
-  draftFields,
-  type DraftInput,
-  RAW_IMAGE_LIMIT,
-} from "./contract";
+import { draftInputSchema, draftFields, type DraftInput } from "./contract";
 
 export interface CreateChain {
   domain: Domain;
@@ -184,23 +179,7 @@ export class BuffaloCreateWorkflow {
     raw: Buffer,
     mime: string,
   ) {
-    if (
-      raw.length === 0 ||
-      raw.length >= RAW_IMAGE_LIMIT ||
-      !["image/jpeg", "image/jpg", "image/png"].includes(mime)
-    )
-      throw new IntegrityError("INVALID_IMAGE_SIZE_OR_TYPE");
-    const image = sharp(raw, { limitInputPixels: 25_000_000 });
-    const metadata = await image.metadata();
-    if (!["jpeg", "png"].includes(metadata.format ?? ""))
-      throw new IntegrityError("INVALID_IMAGE_CONTENT");
-    const bytes = await image
-      .rotate()
-      .flatten({ background: "#fff" })
-      .jpeg({ quality: 90 })
-      .toBuffer();
-    if (bytes.length >= RAW_IMAGE_LIMIT)
-      throw new IntegrityError("IMAGE_OUTPUT_TOO_LARGE");
+    const bytes = await normalizeBuffaloImage(raw, mime);
     await this.drafts.withDraft(
       id,
       owner,

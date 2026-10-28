@@ -6,7 +6,10 @@ const mockCreate = jest.fn(),
   mockFetchDetails = jest.fn(),
   mockCancel = jest.fn(),
   mockViewFetch = jest.fn();
-const mockRefetch = jest.fn();
+const mockRefetch = jest.fn(),
+  mockListRefetch = jest.fn(),
+  mockViewRefetch = jest.fn();
+let mockListError: unknown, mockViewError: unknown;
 const detail = {
   tokenId: 901,
   microchip: "999000000004001",
@@ -50,7 +53,7 @@ jest.mock("~/utils/api", () => ({
   api: {
     useUtils: () => ({
       buffaloEdit: {
-        details: { fetch: mockFetchDetails },
+        details: { fetch: mockFetchDetails, setData: jest.fn() },
         list: { fetch: async () => mockJobs },
         view: { fetch: mockViewFetch },
       },
@@ -60,17 +63,25 @@ jest.mock("~/utils/api", () => ({
         useQuery: () => ({
           data: mockDetail,
           error: mockQueryError,
+          isSuccess: !mockQueryError,
           refetch: mockRefetch,
         }),
       },
       list: {
         useQuery: () => ({
           data: mockJobs,
-          refetch: mockRefetch,
+          error: mockListError,
+          refetch: mockListRefetch,
           isPending: false,
         }),
       },
-      view: { useQuery: () => ({ data: mockView, refetch: mockRefetch }) },
+      view: {
+        useQuery: () => ({
+          data: mockView,
+          error: mockViewError,
+          refetch: mockViewRefetch,
+        }),
+      },
       create: { useMutation: () => ({ mutateAsync: mockCreate }) },
       prepare: { useMutation: () => ({ mutateAsync: mockPrepare }) },
       advance: { useMutation: () => ({ mutateAsync: mockAdvance }) },
@@ -102,6 +113,8 @@ beforeEach(() => {
   mockJobs = [];
   mockQueryError = undefined;
   mockView = undefined;
+  mockListError = undefined;
+  mockViewError = undefined;
   mockFetchDetails.mockResolvedValue(detail);
   mockRefetch.mockResolvedValue({ data: [] });
 });
@@ -273,4 +286,154 @@ test("unchanged parent dialog explains no change and creates no operation", asyn
     ).toBeGreaterThan(0),
   );
   expect(mockCreate).not.toHaveBeenCalled();
+});
+
+const readFailure = {
+  data: {
+    diagnostic: {
+      code: "DATABASE_READ_FAILED",
+      stage: "database_read",
+      reason: "อ่านทะเบียนไม่สำเร็จ ยังสรุปไม่ได้ว่าไม่มีข้อมูล",
+      requestId: "read-reference",
+      outcome: "not_started",
+      nextAction: "retry_read",
+    },
+  },
+};
+test("list failure explains disabled edits and retries list only", () => {
+  mockListError = readFailure;
+  render(<DurableEdit />);
+  expect(screen.getByRole("button", { name: "แก้ไขชื่อ" })).toBeDisabled();
+  fireEvent.click(
+    screen.getByRole("button", { name: "โหลดรายการแก้ไขเดิมอีกครั้ง" }),
+  );
+  expect(mockListRefetch).toHaveBeenCalledTimes(1);
+  expect(mockRefetch).not.toHaveBeenCalled();
+  expect(mockViewRefetch).not.toHaveBeenCalled();
+  expect(screen.getByText(/อ้างอิงคำขอ: read-reference/)).toBeInTheDocument();
+});
+test("view failure exposes stale operation and retries view without another mutation", async () => {
+  mockJobs = [baseJob];
+  mockViewError = readFailure;
+  render(<DurableEdit />);
+  fireEvent.click(
+    screen.getByRole("button", { name: "โหลดสถานะรายการอีกครั้ง" }),
+  );
+  expect(mockViewRefetch).toHaveBeenCalledTimes(1);
+  expect(mockAdvance).not.toHaveBeenCalled();
+  expect(
+    screen.getByRole("button", { name: "ดำเนินการต่อรายการเดิม" }),
+  ).toBeDisabled();
+});
+test("repeated search of absent microchip gives explicit not-found and repeats the read", () => {
+  mockDetail = null;
+  render(<DurableEdit />);
+  fireEvent.change(screen.getByLabelText("ค้นหาควายด้วย microchip"), {
+    target: { value: "999000000004099" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "ค้นหา" }));
+  expect(screen.getByText(/ไม่พบควายสำหรับ microchip/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "ค้นหา" }));
+  expect(mockRefetch).toHaveBeenCalledTimes(1);
+});
+test("DNA rejects unsupported file before creating a durable operation and leaves typed URL intact", () => {
+  render(<DurableEdit dnaOnly />);
+  fireEvent.click(screen.getByRole("button", { name: "แก้ไขDNA" }));
+  fireEvent.change(screen.getByLabelText(/อัปโหลดภาพ DNA/), {
+    target: {
+      files: [new File(["pdf"], "dna.pdf", { type: "application/pdf" })],
+    },
+  });
+  expect(screen.getByRole("button", { name: "ยืนยันการแก้ไข" })).toBeDisabled();
+  expect(screen.getByText(/กรุณาเลือกภาพ JPEG หรือ PNG/)).toBeInTheDocument();
+  expect(mockCreate).not.toHaveBeenCalled();
+  expect(screen.getByLabelText("DNA", { selector: "#edit-value" })).toHaveValue(
+    detail.dna,
+  );
+});
+test("completed write remains completed when fresh details fail", async () => {
+  mockJobs = [{ ...baseJob, state: "COMPLETED", canResume: false }];
+  mockView = mockJobs[0];
+  mockFetchDetails.mockRejectedValue(Error("down"));
+  render(<DurableEdit />);
+  await screen.findByText(/บันทึกสำเร็จแล้ว แต่โหลดข้อมูลล่าสุดไม่สำเร็จ/);
+  expect(
+    screen.getByText("แก้ไขช่องที่ร้องขอและตรวจสอบสำเร็จแล้ว"),
+  ).toBeInTheDocument();
+  expect(mockCreate).not.toHaveBeenCalled();
+});
+
+test.each(["TOKEN_MAPPING_CONFLICT", "CANONICAL_CHIP_CONFLICT"])(
+  "confirmed %s displays the read-only diagnosis entry without choosing desired identity",
+  (reason) => {
+    const conflicting = {
+      ...detail,
+      sync: { status: "identity_conflict", reason },
+    };
+    mockDetail = conflicting;
+    render(<DurableEdit />);
+    expect(
+      screen.getByRole("link", { name: "ตรวจตัวตนก่อนเสนอซ่อม" }),
+    ).toHaveAttribute(
+      "href",
+      `/dashboard/repair-buffalo?microchip=${detail.microchip}`,
+    );
+    expect(screen.getByRole("button", { name: "แก้ไขชื่อ" })).toBeDisabled();
+  },
+);
+test.each([
+  "DATABASE_READ_FAILED",
+  "CHAIN_CHECK_UNAVAILABLE",
+  "INTEGRITY_FEATURE_DISABLED",
+])("%s read/config error has no diagnosis entry", (reason) => {
+  const unavailable = { ...detail, sync: { status: "unavailable", reason } };
+  mockDetail = unavailable;
+  render(<DurableEdit />);
+  expect(
+    screen.queryByRole("link", { name: "ตรวจตัวตนก่อนเสนอซ่อม" }),
+  ).not.toBeInTheDocument();
+});
+test("stale cached identity after a failed details read does not offer a diagnosis link", () => {
+  const conflicting = {
+    ...detail,
+    sync: { status: "identity_conflict", reason: "TOKEN_MAPPING_CONFLICT" },
+  };
+  mockDetail = conflicting;
+  mockQueryError = readFailure;
+  render(<DurableEdit />);
+  expect(
+    screen.queryByRole("link", { name: "ตรวจตัวตนก่อนเสนอซ่อม" }),
+  ).not.toBeInTheDocument();
+});
+
+test("ambiguous DB token from edit preflight offers the source-only diagnosis link inside the dialog", async () => {
+  mockCreate.mockRejectedValue({
+    data: {
+      diagnostic: {
+        code: "AMBIGUOUS_DB_TOKEN",
+        stage: "identity",
+        reason: "ทะเบียนหลายตัวผูกกับ NFT เดียวกัน",
+        requestId: "ambiguous-ref",
+        outcome: "not_started",
+        nextAction: "contact_support",
+      },
+    },
+  });
+  render(<DurableEdit />);
+  fireEvent.click(screen.getByRole("button", { name: "แก้ไขชื่อ" }));
+  fireEvent.change(document.getElementById("edit-value")!, {
+    target: { value: "preserved proposed name" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "ยืนยันการแก้ไข" }));
+  const link = await screen.findByRole("link", {
+    name: "ตรวจตัวตนก่อนเสนอซ่อม",
+  });
+  expect(link).toHaveAttribute(
+    "href",
+    `/dashboard/repair-buffalo?microchip=${detail.microchip}`,
+  );
+  expect(document.getElementById("edit-value")).toHaveValue(
+    "preserved proposed name",
+  );
+  expect(mockAdvance).not.toHaveBeenCalled();
 });

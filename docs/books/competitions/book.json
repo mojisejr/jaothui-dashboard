@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "title": "คู่มือจัดการแข่งขัน Jaothui",
+  "subtitle": "ตัวอย่างรูปเล่มสำหรับทีมงานใหม่",
+  "language": "th-TH",
+  "edition": "ฉบับทดลองรูปเล่ม 0.1",
+  "publication_date": "26 ตุลาคม 2569",
+  "output": "preview.pdf",
+  "expected_pages": 4,
+  "chapters": [
+    {
+      "id": "start",
+      "title": "เริ่มต้นจากงานหนึ่งงาน",
+      "intro": "รู้สถานะให้ตรงกัน ก่อนลงมือกับงานแข่งขัน",
+      "source": "chapters/01-start.md"
+    },
+    {
+      "id": "dates",
+      "title": "กำหนดวันให้ถูกตั้งแต่แรก",
+      "intro": "วันจัดงาน วันรับสมัคร และวันตัดอายุ มีหน้าที่ต่างกัน",
+      "source": "chapters/02-dates.md"
+    },
+    {
+      "id": "classes",
+      "title": "สร้างรุ่น แล้วลองคำนวณอายุ",
+      "intro": "ตรวจช่วงอายุด้วยวันเกิดตัวอย่าง ก่อนเปิดรับสมัคร",
+      "source": "chapters/03-classes.md"
+    },
+    {
+      "id": "review",
+      "title": "บันทึกผล แล้วค่อยส่ง LINE",
+      "intro": "ผลพิจารณากับผลการส่งข้อความ เป็นคนละสถานะ",
+      "source": "chapters/04-review.md"
+    }
+  ],
+  "assets": {
+    "workflow": {
+      "src": "assets/diagrams/workflow.svg",
+      "alt": "เส้นทางทีมงานจากสร้างร่าง เผยแพร่ พิจารณา ถึงปิดงานและส่งออก",
+      "caption": "เริ่มจากข้อมูลที่ตรวจแล้ว และตรวจผลหลังแต่ละขั้น",
+      "class": "workflow"
+    },
+    "date-picker": {
+      "src": "assets/screenshots/date-picker.svg",
+      "alt": "ตัวเลือกวัน เดือนภาษาไทย และปี พ.ศ. ในฟอร์มงานแข่งขัน",
+      "caption": "ตัวอย่างจากหน้าจอจริง เลือกวัน เดือน และปีให้ครบก่อนบันทึก",
+      "labels": [
+        "1"
+      ],
+      "class": "compact"
+    },
+    "class-rule": {
+      "src": "assets/screenshots/class-rule.svg",
+      "alt": "ตัวเลือกขอบเขตขั้นต่ำมากกว่าและอายุสูงสุด 15 เดือนในฟอร์มรุ่น",
+      "caption": "เลือก มากกว่า เพื่อไม่รวมเดือนขั้นต่ำ และกำหนดอายุสูงสุด 15 เดือน",
+      "labels": [
+        "2"
+      ],
+      "class": "compact"
+    },
+    "class-minimum": {
+      "src": "assets/screenshots/class-minimum.svg",
+      "alt": "ช่องอายุขั้นต่ำกำหนด 12 เดือน",
+      "caption": "ระบุขั้นต่ำ 12 เดือน จึงได้ช่วงมากกว่า 12 ถึงไม่เกิน 15 เดือน",
+      "labels": [
+        "3"
+      ],
+      "class": "compact"
+    },
+    "review-line": {
+      "src": "assets/screenshots/review-line.svg",
+      "alt": "ส่วนส่ง LINE แสดงสถานะบันทึกผลแล้วแต่ยังไม่ส่ง และข้อความปิดส่งจริงใน local",
+      "caption": "ภาพ local/dev ใช้ข้อมูลจำลองและปิดการส่งจริง จึงยังไม่ได้ส่ง LINE",
+      "class": "review"
+    },
+    "review-save": {
+      "src": "assets/screenshots/review-save.svg",
+      "alt": "ปุ่มบันทึกอนุมัติและบันทึกไม่อนุมัติ",
+      "caption": "บันทึกผลพิจารณาให้เรียบร้อยก่อน",
+      "labels": [
+        "1"
+      ],
+      "class": "action"
+    },
+    "review-send": {
+      "src": "assets/screenshots/review-send.svg",
+      "alt": "ปุ่มส่งหรือลองส่ง LINE ซึ่งปิดใช้งานในการถ่ายภาพ local",
+      "caption": "ส่ง LINE เป็นอีกปุ่ม ภาพตัวอย่างปิดส่งจริงไว้",
+      "labels": [
+        "2"
+      ],
+      "class": "action"
+    },
+    "date-context": {
+      "src": "assets/screenshots/date-context.png",
+      "alt": "ต้นฉบับภาพหน้าจอเต็ม ใช้แสดงบางส่วนผ่านกรอบ SVG ในเอกสาร"
+    },
+    "class-context": {
+      "src": "assets/screenshots/class-context.png",
+      "alt": "ต้นฉบับภาพหน้าจอเต็ม ใช้แสดงบางส่วนผ่านกรอบ SVG ในเอกสาร"
+    },
+    "review-context": {
+      "src": "assets/screenshots/review-context.png",
+      "alt": "ต้นฉบับภาพหน้าจอเต็ม ใช้แสดงบางส่วนผ่านกรอบ SVG ในเอกสาร"
+    }
+  }
+}

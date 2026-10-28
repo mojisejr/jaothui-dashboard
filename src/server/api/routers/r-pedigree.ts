@@ -1,3 +1,4 @@
+import { DiagnosticError } from "~/server/diagnostics/errors";
 import { z } from "zod";
 
 import { createTRPCRouter, protectProcedure } from "~/server/api/trpc";
@@ -9,8 +10,7 @@ export const pedigreeRouter = createTRPCRouter({
       const pedigrees = await ctx.db.pedigree.findMany();
       return pedigrees;
     } catch (error) {
-      console.log(error);
-      return [];
+      throw new DiagnosticError("DATABASE_READ_FAILED", { cause: error });
     }
   }),
   searchByMicrochip: protectProcedure

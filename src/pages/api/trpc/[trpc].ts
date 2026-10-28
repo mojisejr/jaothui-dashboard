@@ -1,29 +1,35 @@
 import { createNextApiHandler } from "@trpc/server/adapters/next";
 
-import { env } from "~/env";
+import { type NextApiRequest, type NextApiResponse } from "next";
+import {
+  newRequestId,
+  reportDiagnostic,
+  runDiagnosticContext,
+} from "~/server/diagnostics/reporter";
 import { appRouter } from "~/server/api/root";
 import { createTRPCContext } from "~/server/api/trpc";
 
-export const config = {
-  api: {
-    bodyParser: {
-      // Cover uploads travel through tRPC as base64 JSON before the
-      // dashboard server forwards raw bytes to the frontend admin API.
-      sizeLimit: "8mb",
-    },
-  },
-};
+// Let the tRPC node adapter parse inside correlation context, including invalid JSON.
+// Retain the existing 8 MB limit for competition/news base64 cover uploads.
+export const config = { api: { bodyParser: false } };
 
 // export API handler
-export default createNextApiHandler({
+const handler = createNextApiHandler({
   router: appRouter,
+  maxBodySize: 8 * 1024 * 1024,
   createContext: createTRPCContext,
-  onError:
-    env.NODE_ENV === "development"
-      ? ({ path, error }) => {
-          console.error(
-            `❌ tRPC failed on ${path ?? "<no-path>"}: ${error.message}`,
-          );
-        }
-      : undefined,
+  onError: ({ error }) => {
+    reportDiagnostic(error);
+  },
 });
+export default function correlatedHandler(
+  req: NextApiRequest,
+  res: NextApiResponse,
+) {
+  const requestId = newRequestId();
+  res.setHeader("X-Request-Id", requestId);
+  // Covers parser errors too: these can happen before createTRPCContext.
+  return runDiagnosticContext({ requestId, route: "api/trpc" }, () =>
+    handler(req, res),
+  );
+}

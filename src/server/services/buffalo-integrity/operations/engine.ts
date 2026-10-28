@@ -1,3 +1,9 @@
+import { isDatabaseRepairPlan } from "./types";
+import { DiagnosticError } from "~/server/diagnostics/errors";
+import {
+  bindOperationId,
+  reportDiagnostic,
+} from "~/server/diagnostics/reporter";
 import { randomUUID } from "crypto";
 import {
   keccak256,
@@ -99,7 +105,28 @@ export class OperationEngine {
   }
   async status(id: string, owner: string) {
     const operation = await this.repository.get(id, owner);
+    bindOperationId(operation.id);
     const steps = await this.repository.steps(id);
+    const canResume = ![
+      "DRAFT",
+      "COMPLETED",
+      "CANCELLED",
+      "NEEDS_REVIEW",
+    ].includes(operation.state);
+    const diagnostic = operation.reason
+      ? reportDiagnostic(new DiagnosticError(operation.reason), {
+          operationId: operation.id,
+          outcome:
+            operation.state === "COMPLETED"
+              ? "completed"
+              : operation.state === "CANCELLED"
+                ? "failed"
+                : steps.some((step) => !!step.hash)
+                  ? "unknown"
+                  : "not_started",
+          nextAction: canResume ? "resume_existing" : "contact_support",
+        })
+      : undefined;
     // Whitelist DTO. Signed bytes, calldata, plan, complete intent and private RPC errors stay server-only.
     return {
       id: operation.id,
@@ -108,9 +135,12 @@ export class OperationEngine {
       microchip:
         operation.intent.kind === "create"
           ? operation.intent.buffalo.microchip
-          : operation.intent.microchip,
+          : operation.intent.kind === "edit"
+            ? operation.intent.microchip
+            : operation.intent.manifest.database.targets[0]!.desiredMicrochip,
       actualToken: operation.actualToken,
-      reason: operation.reason,
+      reason: diagnostic?.code ?? null,
+      ...(diagnostic ? { diagnostic } : {}),
       steps: steps.map((step) => ({
         kind: step.kind,
         state: step.state,
@@ -131,6 +161,7 @@ export class OperationEngine {
     callback: (claim: Claim, operation: Operation) => Promise<T>,
   ): Promise<T | null> {
     await this.repository.get(id, owner);
+    bindOperationId(id);
     const claim = await this.repository.claim(id, owner, randomUUID());
     if (!claim) return null;
     try {
@@ -143,6 +174,11 @@ export class OperationEngine {
     await this.withClaim(id, owner, async (claim, operation) => {
       if (operation.state !== "DRAFT" || operation.version !== expectedVersion)
         throw new IntegrityError("STALE_DRAFT_REVISION");
+      if (
+        operation.intent.kind === "identity_repair" &&
+        operation.intent.mode === "database_only"
+      )
+        throw new IntegrityError("REPAIR_DATABASE_EXECUTOR_REQUIRED");
       const plan = await this.io(
         this.budget.now() + this.budget.milliseconds,
         () => this.chain.prepare(operation),
@@ -171,6 +207,8 @@ export class OperationEngine {
         throw new IntegrityError("INVALID_OPERATION_STAGE");
       if (["COMPLETED", "NEEDS_REVIEW"].includes(initial.state)) return;
       if (!initial.plan) throw new IntegrityError("NO_APPROVED_PLAN");
+      if (isDatabaseRepairPlan(initial.plan))
+        throw new IntegrityError("REPAIR_DATABASE_EXECUTOR_REQUIRED");
       try {
         await this.advanceClaim(
           claim,
@@ -179,6 +217,12 @@ export class OperationEngine {
           this.budget.now() + this.budget.milliseconds,
         );
       } catch (error) {
+        // Unknown adapter errors are classified without logging provider strings/bytes.
+        reportDiagnostic(error, {
+          operationId: id,
+          outcome: "unknown",
+          nextAction: "contact_support",
+        });
         if (error instanceof IntegrityError) {
           // Stale workers never change state or broadcast; the current owner reconciles its journal.
           if (
@@ -237,6 +281,8 @@ export class OperationEngine {
   ) {
     let operation = initial;
     const plan = operation.plan!;
+    if (isDatabaseRepairPlan(plan))
+      throw new IntegrityError("REPAIR_DATABASE_EXECUTOR_REQUIRED");
     let steps = await this.repository.steps(operation.id);
     if (
       steps.length > 8 ||
@@ -257,7 +303,7 @@ export class OperationEngine {
         if (!steps.length) throw new IntegrityError("NO_CHAIN_PROOF");
         await this.repository.setState(claim, "PROJECTING");
         const proof = await this.io(deadline, () =>
-          this.chain.project(operation, steps),
+          this.chain.project(operation, steps, claim),
         );
         await this.repository.setState(
           claim,
@@ -274,6 +320,8 @@ export class OperationEngine {
         await this.repository.complete(claim, proof);
         return;
       }
+      if (operation.intent.kind === "identity_repair" && spec.kind === "mint")
+        throw new IntegrityError("REMINT_FORBIDDEN");
       if (spec.kind === "mint") {
         if (steps.some((step) => step.kind === "mint"))
           throw new IntegrityError("REMINT_FORBIDDEN");
@@ -367,6 +415,12 @@ export class OperationEngine {
       await this.repository.setState(claim, "CHAIN_PENDING");
     } catch (error) {
       if (error instanceof IntegrityError) throw error;
+      reportDiagnostic(error, {
+        code: "BROADCAST_RESULT_UNKNOWN",
+        operationId: claim.id,
+        outcome: "unknown",
+        nextAction: "resume_existing",
+      });
       await this.repository.markStep(claim, step, "UNKNOWN");
       await this.repository.setState(
         claim,
@@ -431,7 +485,9 @@ export class OperationEngine {
       );
       return false;
     }
-    if (observation.confirmations < operation.plan!.confirmations) {
+    if (!operation.plan || isDatabaseRepairPlan(operation.plan))
+      throw new IntegrityError("REPAIR_DATABASE_EXECUTOR_REQUIRED");
+    if (observation.confirmations < operation.plan.confirmations) {
       await this.repository.setState(claim, "CHAIN_PENDING");
       return false;
     }

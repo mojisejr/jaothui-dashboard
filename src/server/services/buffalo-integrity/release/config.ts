@@ -85,7 +85,10 @@ function storageRole(token: string) {
   }
 }
 /** Read-only legacy clients share target attestation, independently of write activation. */
-export function isolatedConfig(env: Partial<NodeJS.ProcessEnv> = process.env) {
+export function isolatedConfig(
+  env: Partial<NodeJS.ProcessEnv> = process.env,
+  readOnly = false,
+) {
   if (!env.BUFFALO_INTEGRITY_ISOLATED_CONFIG)
     throw new IntegrityError("ISOLATED_CONFIG_REQUIRED");
   const root = resolve(process.cwd(), ".tmp"),
@@ -109,7 +112,7 @@ export function isolatedConfig(env: Partial<NodeJS.ProcessEnv> = process.env) {
   if (
     value.storageUrl &&
     (new URL(value.storageUrl).hostname !== "127.0.0.1" ||
-      !value.storageJwt ||
+      (!readOnly && !value.storageJwt) ||
       value.storageBucket !== "slipstorage")
   )
     throw new IntegrityError("LOOPBACK_STORAGE_ONLY");
@@ -197,4 +200,66 @@ export function integrityEnabled() {
 export function assertNewOperationAllowed() {
   if (writeMode() !== "enabled")
     throw new IntegrityError("INTEGRITY_WRITES_PAUSED");
+}
+
+/** Select exactly the same DB/domain as the writer without loading signer or storage authorization. */
+export function readRuntimeConfig(
+  env: Partial<NodeJS.ProcessEnv> = process.env,
+) {
+  if (env.BUFFALO_INTEGRITY_ISOLATED_CONFIG) {
+    const { value } = isolatedConfig(env, true);
+    if (!network.safeParse(value.domain).success)
+      throw new IntegrityError("CHAIN_DOMAIN_CONFLICT");
+    return {
+      databaseUrl: value.databaseUrl,
+      rpcUrl: value.rpcUrl,
+      domain: value.domain,
+      codeHashes: value.codeHashes,
+      checkpoint: undefined,
+      storageOrigin: value.storageUrl
+        ? `${value.storageUrl.replace(/\/$/, "")}/storage/v1/object/public/slipstorage`
+        : value.storageOrigin,
+    };
+  }
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(env.BUFFALO_INTEGRITY_SERVER_CONFIG ?? "");
+  } catch {
+    throw new IntegrityError("INTEGRITY_SERVER_CONFIG_REQUIRED");
+  }
+  const parsed = live
+    .omit({ privateKey: true, storageJwt: true })
+    .safeParse({ ...(decoded as object), databaseUrl: env.DATABASE_URL });
+  if (!parsed.success)
+    throw new IntegrityError("INVALID_INTEGRITY_SERVER_CONFIG");
+  const value = parsed.data;
+  if (env.BUFFALO_INTEGRITY_RELEASE_ID !== value.releaseId)
+    throw new IntegrityError("RELEASE_ATTESTATION_REQUIRED");
+  if (
+    !["postgres:", "postgresql:"].includes(new URL(value.databaseUrl).protocol)
+  )
+    throw new IntegrityError("POSTGRES_REQUIRED");
+  for (const address of [nft, manager])
+    if (!value.codeHashes[address.toLowerCase()])
+      throw new IntegrityError("PINNED_CODE_HASH_REQUIRED");
+  for (const url of [value.rpcUrl, value.storageUrl])
+    if (
+      new URL(url).protocol !== "https:" ||
+      new URL(url).username ||
+      new URL(url).password
+    )
+      throw new IntegrityError("PRODUCTION_HTTPS_REQUIRED");
+  if (
+    new URL(value.storageUrl).origin !==
+    new URL(env.NEXT_PUBLIC_supabase_url ?? "invalid:").origin
+  )
+    throw new IntegrityError("STORAGE_PUBLIC_HOST_MISMATCH");
+  return {
+    databaseUrl: value.databaseUrl,
+    rpcUrl: value.rpcUrl,
+    domain: value.domain,
+    codeHashes: value.codeHashes,
+    checkpoint: value.checkpoint,
+    storageOrigin: `${value.storageUrl.replace(/\/$/, "")}/storage/v1/object/public/slipstorage`,
+  };
 }
