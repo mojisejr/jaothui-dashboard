@@ -34,6 +34,12 @@ Before release, attach the exact revision, passed build/lint/types/tests, releva
 
 Infrastructure logs are retained in the task checkout under `.tmp/repair-feasibility/p4-workflow-proof-3.log` and `p5-workflow-proof.log`; database logs `.tmp/phase5-db-tests.log`. The first single runs exposed a receipt address-normalization mismatch and reuse of a reverted fork with an old journal; the passing run uses a fresh isolated database, preserving earlier journals. These are local acceptance results, not production case acceptance.
 
+## Preparing after a platform timeout
+
+The tRPC API has an explicit 60-second duration for bounded preparation/recovery requests. Production preparation previously hit the platform's 15-second timeout before creating an operation. A missing response remains unknown until the saved key is read.
+
+If the key still has no saved manifest, the operator can complete a fresh scan/preview and choose **ตรวจสถานะเดิมแล้วเตรียมจากหลักฐานชุดนี้**. This reads the same key again before preparation, preserves its UUID, and never approves automatically. Any operation found is restored for review instead. A racing original request cannot replace an existing manifest: the database's atomic idempotency fence rejects a different payload for that key. Ordinary retry still preserves the original request; no recovery data is cleared to start another operation.
+
 ## Legacy extensionless database image references
 
 The historical database value `buffalo/<tokenId>` may omit `.jpg`. Diagnosis can resolve this exact same-project, same-token database reference to `buffalo/<tokenId>.jpg` only when the database token binding agrees with the repair target. A present original object must match the verified NFT image hash; an absent original must be confirmed by HTTP404 or Supabase's bounded `NoSuchKey` response. HTTP403/500 and different image bytes remain blockers. The canonical JPEG is independently read and hash-checked. Original reference/evidence is retained in the manifest, and the expected database image normalization is displayed before approval. Storage writers and arbitrary URL/path ownership rules are unchanged; no legacy object is overwritten.
