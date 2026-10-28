@@ -224,6 +224,7 @@ export const repairAdvanceSchema = z
   .object({
     id: z.string().uuid(),
     expectedVersion: z.number().int().nonnegative(),
+    reviewReceipt: z.literal(true).optional(),
   })
   .strict();
 export const repairIdSchema = z.object({ id: z.string().uuid() }).strict();
@@ -289,6 +290,7 @@ export interface RepairExecutionView {
   canApprove: boolean;
   canResume: boolean;
   canCancel: boolean;
+  canReviewReceipt?: boolean;
 }
 export interface RepairWriteRuntime {
   capability(): Promise<RepairCapability>;

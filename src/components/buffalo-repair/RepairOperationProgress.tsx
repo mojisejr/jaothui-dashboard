@@ -87,6 +87,21 @@ export function RepairOperationProgress({
       )}
       {view && (
         <>
+          {view.canReviewReceipt && (
+            <div className="space-y-2 rounded-lg border border-warning p-3">
+              <p>
+                ตรวจธุรกรรมที่บันทึกไว้ด้วยหลักฐานปัจจุบันอีกครั้ง
+                ขั้นตอนนี้ไม่ส่งธุรกรรมใหม่หรือบันทึกทะเบียน
+              </p>
+              <button
+                className="btn btn-outline min-h-12"
+                disabled={busy || uncertain || !capability.data?.canResume}
+                onClick={() => void controller.action("reviewReceipt")}
+              >
+                ตรวจหลักฐานธุรกรรมเดิมอีกครั้ง
+              </button>
+            </div>
+          )}
           <PreparedRepairReview view={view} />
           {view.steps.length > 0 && (
             <ol aria-label="ความคืบหน้าธุรกรรม" className="space-y-3">
