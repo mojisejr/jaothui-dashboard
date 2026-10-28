@@ -16,10 +16,26 @@ jest.mock("~/utils/api", () => ({
       buffaloRepair: {
         startScan: { fetch: mockStart },
         scanPage: { fetch: mockPage },
+        getByKey: { fetch: jest.fn().mockResolvedValue(null) },
       },
     }),
     buffaloRepair: {
       preview: { useMutation: () => ({ mutateAsync: mockPreview }) },
+      capability: {
+        useQuery: () => ({
+          data: {
+            canPrepare: false,
+            canApprove: false,
+            canResume: false,
+            singleOnly: true,
+          },
+          refetch: jest.fn(),
+        }),
+      },
+      prepare: { useMutation: () => ({ mutateAsync: jest.fn() }) },
+      approve: { useMutation: () => ({ mutateAsync: jest.fn() }) },
+      advance: { useMutation: () => ({ mutateAsync: jest.fn() }) },
+      cancel: { useMutation: () => ({ mutateAsync: jest.fn() }) },
     },
   },
 }));
@@ -88,6 +104,7 @@ function fill(index = 0) {
 }
 beforeEach(() => {
   jest.clearAllMocks();
+  localStorage.clear();
   mockStart.mockResolvedValue(session());
   mockPage.mockImplementation(async ({ offset }: { offset: number }) => ({
     offset,
@@ -122,9 +139,7 @@ test("bounded pages supply exact signed receipts and DB-only preview never expos
   fireEvent.click(
     screen.getByRole("button", { name: "เปิดสรุปสำหรับตรวจทาน" }),
   );
-  expect(
-    screen.getByText(/ข้อเสนอนี้ยังเป็น preview_only/),
-  ).toBeInTheDocument();
+  expect(screen.getByText(/นี่เป็นข้อเสนอจากการตรวจอ่าน/)).toBeInTheDocument();
   expect(
     screen.queryByRole("button", {
       name: /ส่งธุรกรรม|เริ่มซ่อม|ยืนยันการซ่อม/,

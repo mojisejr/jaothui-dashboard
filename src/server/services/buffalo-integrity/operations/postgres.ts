@@ -1,3 +1,8 @@
+import {
+  applyRepairDatabaseProjection,
+  validateRepairProjection,
+  type DatabaseRepairProof,
+} from "../repair/db-projection";
 import { randomUUID } from "crypto";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { standardMicrochip } from "../intent";
@@ -12,6 +17,9 @@ import {
   type WalletClaim,
   type Signed,
   type Plan,
+  type StoredPlan,
+  type DatabaseRepairPlan,
+  isDatabaseRepairPlan,
   type StepSpec,
   type Repository,
   type Json,
@@ -28,7 +36,7 @@ type OpRow = {
   intent_hash: string;
   intent: OperationIntent;
   domain: Domain;
-  plan: Plan | null;
+  plan: StoredPlan | null;
   state: OperationState;
   version: number;
   fence: bigint;
@@ -141,11 +149,62 @@ export class PostgresOperationRepository implements Repository {
       throw new IntegrityError("INVALID_CHAIN_DOMAIN");
     if (Buffer.byteLength(JSON.stringify(intent), "utf8") > 262144)
       throw new IntegrityError("INTENT_TOO_LARGE");
+    if (intent.kind === "identity_repair") {
+      if (
+        intent.operationId !== key ||
+        intent.manifest.operationId !== key ||
+        intent.mode !== intent.manifest.mode ||
+        intent.manifestHash !== payloadHash(intent.manifest)
+      )
+        throw new IntegrityError("REPAIR_MANIFEST_INVALID");
+      validateRepairProjection(intent.manifest.database);
+      if (
+        intent.manifest.targets.length !==
+          intent.manifest.database.targets.length ||
+        payloadHash(
+          intent.manifest.targets.map((target) => [
+            target.sourceMicrochip,
+            target.desiredMicrochip,
+            target.desiredTokenId,
+          ]),
+        ) !==
+          payloadHash(
+            intent.manifest.database.targets.map((target) => [
+              target.sourceMicrochip,
+              target.desiredMicrochip,
+              target.desiredTokenId,
+            ]),
+          )
+      )
+        throw new IntegrityError("REPAIR_MANIFEST_INVALID");
+      if (intent.mode === "database_only" && intent.manifest.chain.steps.length)
+        throw new IntegrityError("REPAIR_DATABASE_ONLY_HAS_CHAIN_STEPS");
+      if (
+        payloadHash([...new Set(intent.manifest.reservationChips)].sort()) !==
+          payloadHash(
+            [...new Set(intent.manifest.database.closureChips)].sort(),
+          ) ||
+        payloadHash([...new Set(intent.manifest.reservationTokens)].sort()) !==
+          payloadHash(
+            [...new Set(intent.manifest.database.closureTokens)].sort(),
+          )
+      )
+        throw new IntegrityError("REPAIR_MANIFEST_INVALID");
+    }
     const canonicalDomain = {
       ...domain,
       nft: domain.nft.toLowerCase(),
       manager: domain.manager.toLowerCase(),
     };
+    if (
+      intent.kind === "identity_repair" &&
+      payloadHash({
+        ...intent.manifest.domain,
+        nft: intent.manifest.domain.nft.toLowerCase(),
+        manager: intent.manifest.domain.manager.toLowerCase(),
+      }) !== payloadHash(canonicalDomain)
+    )
+      throw new IntegrityError("REPAIR_MANIFEST_INVALID");
     const hash = payloadHash({ intent, domain: canonicalDomain });
     return this.transaction(async (tx) => {
       if (singleActive) {
@@ -158,7 +217,8 @@ export class PostgresOperationRepository implements Repository {
         >`SELECT id FROM buffalo_integrity.operation WHERE owner=${owner} AND idempotency_key<>${key} AND intent->>'kind'='create' AND state NOT IN ('COMPLETED','CANCELLED') LIMIT 1`;
         if (active[0]) throw new IntegrityError("CONTINUE_EXISTING_OPERATION");
       }
-      const id = randomUUID();
+      const id =
+        intent.kind === "identity_repair" ? intent.operationId : randomUUID();
       const inserted =
         await tx.$executeRaw`INSERT INTO buffalo_integrity.operation(id,owner,idempotency_key,intent_hash,intent,domain) VALUES (${id}::uuid,${owner},${key},${hash},${JSON.stringify(intent)}::jsonb,${JSON.stringify(canonicalDomain)}::jsonb) ON CONFLICT(owner,idempotency_key) DO NOTHING`;
       const rows = await tx.$queryRaw<
@@ -170,19 +230,28 @@ export class PostgresOperationRepository implements Repository {
       if (inserted) {
         const prefix = `${domain.chainId}:${canonicalDomain.nft}:`;
         const keys =
-          intent.kind === "create"
-            ? [`${prefix}chip:${intent.buffalo.microchip}`]
-            : [
-                `${prefix}chip:${intent.microchip}`,
-                `${prefix}token:${intent.tokenId}`,
-                ...(intent.patch.microchip &&
-                intent.patch.microchip !== intent.microchip
-                  ? [
-                      `${prefix}chip:${standardMicrochip(intent.patch.microchip)}`,
-                    ]
-                  : []),
-              ];
-        for (const reservation of keys.sort()) {
+          intent.kind === "identity_repair"
+            ? [
+                ...intent.manifest.reservationChips.map(
+                  (chip) => `${prefix}chip:${chip}`,
+                ),
+                ...intent.manifest.reservationTokens.map(
+                  (token) => `${prefix}token:${token}`,
+                ),
+              ]
+            : intent.kind === "create"
+              ? [`${prefix}chip:${intent.buffalo.microchip}`]
+              : [
+                  `${prefix}chip:${intent.microchip}`,
+                  `${prefix}token:${intent.tokenId}`,
+                  ...(intent.patch.microchip &&
+                  intent.patch.microchip !== intent.microchip
+                    ? [
+                        `${prefix}chip:${standardMicrochip(intent.patch.microchip)}`,
+                      ]
+                    : []),
+                ];
+        for (const reservation of [...new Set(keys)].sort()) {
           const claimed =
             await tx.$executeRaw`INSERT INTO buffalo_integrity.reservation(key,operation_id) VALUES (${reservation},${id}::uuid) ON CONFLICT DO NOTHING`;
           if (!claimed) throw new IntegrityError("COW_ALREADY_RESERVED");
@@ -199,6 +268,155 @@ export class PostgresOperationRepository implements Repository {
       >`SELECT * FROM buffalo_integrity.operation WHERE id=${id}::uuid AND owner=${owner}`;
       if (!rows[0]) throw new IntegrityError("OPERATION_NOT_FOUND");
       return operation(rows[0]);
+    });
+  }
+  async getByKey(owner: string, key: string): Promise<Operation | null> {
+    return this.transaction(async (tx) => {
+      const rows = await tx.$queryRaw<
+        OpRow[]
+      >`SELECT * FROM buffalo_integrity.operation WHERE owner=${owner} AND idempotency_key=${key}`;
+      return rows[0] ? operation(rows[0]) : null;
+    });
+  }
+  async readyDatabaseRepair(
+    claim: Claim,
+    plan: DatabaseRepairPlan,
+    expectedVersion: number,
+  ): Promise<void> {
+    await this.locked(claim, async (tx) => {
+      const rows = await tx.$queryRaw<
+        OpRow[]
+      >`SELECT * FROM buffalo_integrity.operation WHERE id=${claim.id}::uuid`;
+      const row = rows[0]!;
+      if (
+        row.intent.kind !== "identity_repair" ||
+        row.intent.mode !== "database_only" ||
+        plan.kind !== "database_repair" ||
+        plan.approvalFingerprint !== row.intent.approvalFingerprint ||
+        payloadHash(plan.domain) !== payloadHash(row.domain)
+      )
+        throw new IntegrityError("REPAIR_MANIFEST_INVALID");
+      if (
+        row.state !== "DRAFT" ||
+        row.plan !== null ||
+        (expectedVersion !== undefined && row.version !== expectedVersion)
+      )
+        throw new IntegrityError("STALE_DRAFT_REVISION");
+      if (Buffer.byteLength(JSON.stringify(plan), "utf8") > 262144)
+        throw new IntegrityError("INTENT_TOO_LARGE");
+      await tx.$executeRaw`UPDATE buffalo_integrity.operation SET state='READY',plan=${JSON.stringify(plan)}::jsonb,version=version+1,updated_at=clock_timestamp() WHERE id=${claim.id}::uuid`;
+      await this.event(tx, claim.id, "REPAIR_APPROVED", {
+        approvalFingerprint: plan.approvalFingerprint,
+      });
+    });
+  }
+  private async repairProjection(
+    tx: Tx,
+    claim: Claim,
+    mode: "database_only" | "chain",
+    expectedVersion?: number,
+  ): Promise<DatabaseRepairProof> {
+    const rows = await tx.$queryRaw<
+      OpRow[]
+    >`SELECT * FROM buffalo_integrity.operation WHERE id=${claim.id}::uuid`;
+    const row = rows[0]!;
+    if (
+      row.intent.kind !== "identity_repair" ||
+      row.intent.mode !== mode ||
+      !row.plan
+    )
+      throw new IntegrityError("REPAIR_MANIFEST_INVALID");
+    const intent = row.intent;
+    if (row.state === "COMPLETED" && mode === "database_only")
+      return row.result as unknown as DatabaseRepairProof;
+    if (
+      mode === "database_only"
+        ? !isDatabaseRepairPlan(row.plan) ||
+          row.plan.approvalFingerprint !== intent.approvalFingerprint
+        : isDatabaseRepairPlan(row.plan)
+    )
+      throw new IntegrityError("REPAIR_MANIFEST_INVALID");
+    if (expectedVersion !== undefined && row.version !== expectedVersion)
+      throw new IntegrityError("STALE_OPERATION_REVISION");
+    if (
+      mode === "database_only"
+        ? !["READY", "RETRYABLE", "RECOVERY_REQUIRED"].includes(row.state)
+        : !["PROJECTING", "VERIFYING"].includes(row.state)
+    )
+      throw new IntegrityError("INVALID_OPERATION_STAGE");
+    const steps = await tx.$queryRaw<
+      StepRow[]
+    >`SELECT * FROM buffalo_integrity.step WHERE operation_id=${claim.id}::uuid ORDER BY ordinal FOR UPDATE`;
+    if (mode === "database_only" && steps.length)
+      throw new IntegrityError("REPAIR_DATABASE_ONLY_HAS_CHAIN_STEPS");
+    if (
+      mode === "chain" &&
+      (!steps.length ||
+        steps.some(
+          (step) => step.state !== "CONFIRMED" || !step.receipt || !step.proof,
+        ))
+    )
+      throw new IntegrityError("NO_CHAIN_PROOF");
+    const prefix = `${row.domain.chainId}:${row.domain.nft.toLowerCase()}:`;
+    const expectedKeys = [
+      ...new Set([
+        ...intent.manifest.reservationChips.map(
+          (chip) => `${prefix}chip:${chip}`,
+        ),
+        ...intent.manifest.reservationTokens.map(
+          (token) => `${prefix}token:${token}`,
+        ),
+      ]),
+    ].sort();
+    const reservations = await tx.$queryRaw<
+      { key: string }[]
+    >`SELECT key FROM buffalo_integrity.reservation WHERE operation_id=${claim.id}::uuid ORDER BY key FOR UPDATE`;
+    if (
+      payloadHash(reservations.map((reservation) => reservation.key)) !==
+      payloadHash(expectedKeys)
+    )
+      throw new IntegrityError("REPAIR_RESERVATION_LOST");
+    const events = await tx.$queryRaw<
+      { detail: DatabaseRepairProof }[]
+    >`SELECT detail FROM buffalo_integrity.event WHERE operation_id=${claim.id}::uuid AND kind='REPAIR_DATABASE_PROJECTED' ORDER BY id DESC LIMIT 1`;
+    const proof = await applyRepairDatabaseProjection(
+      tx,
+      intent.manifest.database,
+      intent.manifestHash,
+      events[0]?.detail,
+    );
+    if (!events.length)
+      await this.event(
+        tx,
+        claim.id,
+        "REPAIR_DATABASE_PROJECTED",
+        asJson(proof),
+      );
+    return proof;
+  }
+  async projectRepairDatabase(claim: Claim): Promise<DatabaseRepairProof> {
+    return this.locked(claim, (tx) =>
+      this.repairProjection(tx, claim, "chain"),
+    );
+  }
+  async completeDatabaseRepair(
+    claim: Claim,
+    expectedVersion: number,
+  ): Promise<DatabaseRepairProof> {
+    return this.locked(claim, async (tx) => {
+      const proof = await this.repairProjection(
+        tx,
+        claim,
+        "database_only",
+        expectedVersion,
+      );
+      const updated =
+        await tx.$executeRaw`UPDATE buffalo_integrity.operation SET state='COMPLETED',result=${JSON.stringify(asJson(proof))}::jsonb,reason=NULL,version=version+1,updated_at=clock_timestamp() WHERE id=${claim.id}::uuid AND state<>'COMPLETED'`;
+      if (updated) {
+        await tx.$executeRaw`DELETE FROM buffalo_integrity.reservation WHERE operation_id=${claim.id}::uuid`;
+        await this.event(tx, claim.id, "COMPLETED", asJson(proof));
+      }
+      return proof;
     });
   }
   async steps(id: string): Promise<Step[]> {
@@ -242,7 +460,7 @@ export class PostgresOperationRepository implements Repository {
   async ready(claim: Claim, plan: Plan): Promise<void> {
     await this.locked(claim, async (tx) => {
       const updated =
-        await tx.$executeRaw`UPDATE buffalo_integrity.operation SET state='READY',plan=${JSON.stringify(plan)}::jsonb,version=version+1,updated_at=clock_timestamp() WHERE id=${claim.id}::uuid AND state='DRAFT' AND plan IS NULL`;
+        await tx.$executeRaw`UPDATE buffalo_integrity.operation SET state='READY',plan=${JSON.stringify(plan)}::jsonb,version=version+1,updated_at=clock_timestamp() WHERE id=${claim.id}::uuid AND state='DRAFT' AND plan IS NULL AND NOT (intent->>'kind'='identity_repair' AND intent->>'mode'='database_only')`;
       if (!updated) throw new IntegrityError("INVALID_OPERATION_STAGE");
       await this.event(tx, claim.id, "READY");
     });
@@ -254,6 +472,15 @@ export class PostgresOperationRepository implements Repository {
     plan: Plan,
   ): Promise<Step> {
     return this.locked(claim, async (tx) => {
+      const operations = await tx.$queryRaw<
+        OpRow[]
+      >`SELECT * FROM buffalo_integrity.operation WHERE id=${claim.id}::uuid`;
+      const intent = operations[0]!.intent;
+      if (
+        intent.kind === "identity_repair" &&
+        (intent.mode === "database_only" || spec.kind === "mint")
+      )
+        throw new IntegrityError("REPAIR_CHAIN_ACTION_FORBIDDEN");
       const id = randomUUID();
       await tx.$executeRaw`INSERT INTO buffalo_integrity.step(id,operation_id,ordinal,kind,expected,chain_id,sender) VALUES (${id}::uuid,${claim.id}::uuid,${ordinal},${spec.kind},${JSON.stringify(spec.call)}::jsonb,${plan.domain.chainId},${plan.sender.toLowerCase()}) ON CONFLICT(operation_id,ordinal) DO NOTHING`;
       const rows = await tx.$queryRaw<
@@ -357,6 +584,19 @@ export class PostgresOperationRepository implements Repository {
   }
   async complete(claim: Claim, result: PublicationProof): Promise<void> {
     await this.locked(claim, async (tx) => {
+      const rows = await tx.$queryRaw<
+        OpRow[]
+      >`SELECT * FROM buffalo_integrity.operation WHERE id=${claim.id}::uuid`;
+      if (rows[0]!.intent.kind === "identity_repair") {
+        const prior = await tx.$queryRaw<
+          { id: bigint }[]
+        >`SELECT id FROM buffalo_integrity.event WHERE operation_id=${claim.id}::uuid AND kind='REPAIR_DATABASE_PROJECTED' LIMIT 1`;
+        if (!prior.length)
+          throw new IntegrityError("REPAIR_DATABASE_PROOF_MISMATCH");
+        const proof = await this.repairProjection(tx, claim, "chain");
+        if (proof.database !== result.database)
+          throw new IntegrityError("REPAIR_DATABASE_PROOF_MISMATCH");
+      }
       const unfinished = await tx.$queryRaw<
         { id: string }[]
       >`SELECT id FROM buffalo_integrity.step WHERE operation_id=${claim.id}::uuid AND state<>'CONFIRMED'`;

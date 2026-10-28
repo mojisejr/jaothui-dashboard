@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { FeedbackPanel } from "~/components/buffalo-feedback/FeedbackPanel";
 import { RepairPreviewPanel } from "./RepairPreviewPanel";
+import { RepairOperationProgress } from "./RepairOperationProgress";
+import { useRepairExecution } from "./useRepairExecution";
+import { feedbackFor } from "~/components/buffalo-feedback/feedback";
 import {
   emptyTarget,
+  proposalFor,
   useRepairPreview,
   type TargetDraft,
 } from "./useRepairPreview";
@@ -10,6 +14,7 @@ const inputClass =
   "input input-bordered input-primary mt-1 min-h-12 w-full text-base";
 export default function RepairDiagnosisScreen() {
   const controller = useRepairPreview();
+  const execution = useRepairExecution();
   const {
     targets,
     setTargets,
@@ -62,10 +67,41 @@ export default function RepairDiagnosisScreen() {
           หรือ 2 ตัว โดยไม่สมมติว่าต้องสลับเลขกัน
         </p>
         <p className="rounded-lg border border-primary p-3 font-medium">
-          โหมดตรวจอ่านเท่านั้น — หน้านี้ไม่ส่งธุรกรรม ไม่แก้ทะเบียน
-          และยังไม่ใช่การอนุมัติซ่อม
+          ขั้นตอนตรวจขอบเขตและข้อเสนอเป็นการอ่านเท่านั้น
+          การซ่อมต้องเตรียมแผนจริงและยืนยันแผนก่อนเริ่ม
+          {execution.capability.data && !execution.capability.data.singleOnly
+            ? " การซ่อมคู่ใช้แผนและเลขรายการเดียวกันสำหรับทั้งสองตัว"
+            : " ส่วนการซ่อมคู่ยังเปิดให้ตรวจอ่านเท่านั้น"}
         </p>
       </header>
+      <RepairOperationProgress
+        controller={execution}
+        onFinished={() => {
+          setStep(1);
+          void readPages(true);
+        }}
+      />
+      {execution.capability.error && (
+        <FeedbackPanel
+          feedback={feedbackFor(execution.capability.error, {
+            outcome: "not_started",
+          })}
+          onRetry={() => void execution.capability.refetch()}
+          retryLabel="ตรวจความพร้อมการซ่อมอีกครั้ง"
+          busy={execution.capability.isFetching}
+        />
+      )}
+      {!execution.capability.error && execution.capability.data?.diagnostic && (
+        <FeedbackPanel feedback={execution.capability.data.diagnostic} />
+      )}
+      {!execution.capability.error &&
+        execution.capability.data &&
+        !execution.capability.data.canPrepare && (
+          <p role="status" className="rounded-lg border border-warning p-3">
+            ยังไม่เปิดรับรายการซ่อมใหม่ สามารถตรวจตัวตน ดูข้อเสนอ
+            และติดตามรายการเดิมได้
+          </p>
+        )}
       <ol
         aria-label="ขั้นตอนตรวจสอบ"
         className="grid grid-cols-2 gap-2 sm:grid-cols-4"
@@ -466,15 +502,60 @@ export default function RepairDiagnosisScreen() {
             รหัสข้อเสนอที่ตรวจทาน: {preview.digest}
           </p>
           <p>
-            ข้อเสนอนี้ยังเป็น preview_only ต้องตรวจหลักฐานปัจจุบัน
-            ผูกเลขรายการและไฟล์จริง ระบุค่าธรรมเนียมสูงสุด
-            และยืนยันก่อนเปิดการซ่อมจริง
+            นี่เป็นข้อเสนอจากการตรวจอ่าน ยังไม่ใช่คำสั่งซ่อม
+            ต้องเตรียมแผนที่ผูกเลขรายการและไฟล์จริง พร้อมค่าธรรมเนียมสูงสุด
+            แล้วตรวจทานก่อนยืนยันการซ่อม
           </p>
           <p>
             บัญชีเข้าสู่ระบบนี้เป็นบัญชีร่วม
             การตรวจทานหน้านี้ไม่ได้พิสูจน์สิทธิ์แยกรายบุคคล
           </p>
-          <p className="font-medium">ยังไม่มีการแก้ข้อมูลหรือส่งธุรกรรม</p>
+          {!execution.pending && (
+            <p className="font-medium">
+              ยังไม่มีการแก้ข้อมูลหรือส่งธุรกรรมจากข้อเสนอนี้
+            </p>
+          )}
+          {targets.length === 2 &&
+            (execution.capability.data?.singleOnly ?? true) && (
+              <p className="rounded-lg border border-warning p-3">
+                การซ่อมสองตัวยังอยู่ในโหมดตรวจอ่าน
+                สามารถตรวจหลักฐานและก่อน–หลังได้ แต่ยังเริ่มซ่อมไม่ได้
+              </p>
+            )}
+          {execution.pending && (
+            <p>
+              กำลังติดตามเลขรายการเดิมด้านบน
+              ต้องทราบผลรายการนั้นก่อนเตรียมรายการใหม่
+            </p>
+          )}
+          {(targets.length === 1 || !execution.capability.data?.singleOnly) &&
+            !execution.pending && (
+              <button
+                className="btn btn-primary min-h-12"
+                disabled={
+                  !ready ||
+                  busy ||
+                  execution.busy ||
+                  execution.storageBlocked ||
+                  !execution.capability.data?.canPrepare
+                }
+                onClick={() => {
+                  if (scan && ready)
+                    void execution.prepare({
+                      scan: scan.scan,
+                      pages: controller.pages.map((page) => page.receipt),
+                      proposal: proposalFor(targets, aliases),
+                    });
+                }}
+              >
+                เตรียมแผนจริงสำหรับตรวจทาน
+              </button>
+            )}
+          {execution.capability.isLoading && (
+            <p role="status">
+              กำลังตรวจความพร้อมของการซ่อม การตรวจอ่านยังใช้งานได้
+            </p>
+          )}
           <button
             className="btn btn-outline min-h-12"
             onClick={() => setStep(3)}
