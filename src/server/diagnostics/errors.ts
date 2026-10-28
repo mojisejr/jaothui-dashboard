@@ -413,7 +413,8 @@ register(["REPAIR_SCAN_INVALID"], {
 });
 register(["REPAIR_BASELINE_CHANGED"], {
   stage: "identity",
-  reason: "ข้อมูลทะเบียนเปลี่ยนหลังตรวจสอบ กรุณาโหลดข้อมูลล่าสุดก่อนดำเนินการ",
+  reason:
+    "ผลตรวจเดิมเก่าเกินกำหนดหรือข้อมูลเปลี่ยน กรุณาตรวจสอบข้อมูลล่าสุดอีกครั้ง",
   nextAction: "refresh_record",
   outcome: "not_started",
 });
@@ -494,6 +495,78 @@ register(["CODE_HASH_MISMATCH"], {
   reason: "สัญญา blockchain ไม่ตรงกับเวอร์ชันที่อนุมัติ จึงพักการแก้ไขไว้",
   nextAction: "contact_support",
   outcome: "not_started",
+});
+register(["REPAIR_PAIR_EXECUTION_DISABLED"], {
+  stage: "configuration",
+  reason:
+    "ระบบซ่อมพร้อมกันสองตัวยังไม่เปิดใช้งาน ผลตรวจสอบยังใช้อ่านประกอบการทบทวนได้",
+  nextAction: "contact_support",
+  outcome: "not_started",
+});
+register(["REPAIR_EXPANDED_SCOPE_REQUIRED"], {
+  stage: "identity",
+  reason:
+    "พบควายหรือทะเบียนอื่นที่เกี่ยวข้องนอกขอบเขตแผน ต้องตรวจสอบตัวตนเพิ่มเติมก่อนซ่อม",
+  nextAction: "contact_support",
+});
+register(["REPAIR_IDENTITY_COLLISION"], {
+  stage: "identity",
+  reason:
+    "ไมโครชิปหรือ NFT ที่เลือกซ้ำกับทะเบียนอื่น กรุณาตรวจสอบข้อมูลของทั้งสองตัว",
+  nextAction: "refresh_record",
+});
+register(["REPAIR_REFERENCE_OWNERSHIP_REQUIRED"], {
+  stage: "identity",
+  reason:
+    "พบเอกสารหรือข้อมูลเครือญาติที่ยังยืนยันไม่ได้ว่าต้องย้ายตามควายตัวใด จึงพักการซ่อมไว้",
+  nextAction: "contact_support",
+});
+register(
+  [
+    "REPAIR_MANIFEST_INVALID",
+    "REPAIR_DATABASE_ONLY_HAS_CHAIN_STEPS",
+    "REPAIR_CHAIN_ACTION_FORBIDDEN",
+  ],
+  {
+    stage: "operation",
+    reason:
+      "แผนซ่อมไม่ตรงกับขอบเขตที่ระบบรองรับ กรุณาแจ้งผู้ดูแลพร้อมเลขรายการ",
+    nextAction: "contact_support",
+  },
+);
+register(["REPAIR_RESERVATION_LOST"], {
+  stage: "operation",
+  reason: "สิทธิ์จองทะเบียนของรายการซ่อมไม่ครบ ต้องตรวจสอบรายการเดิมก่อนทำต่อ",
+  nextAction: "contact_support",
+  outcome: "unknown",
+});
+register(["REPAIR_DATABASE_PROOF_MISMATCH"], {
+  stage: "publication",
+  reason:
+    "ผลตรวจทะเบียนหรือข้อมูลที่เกี่ยวข้องยังไม่ตรงกับแผนซ่อม กรุณาตรวจสอบรายการเดิม",
+  nextAction: "contact_support",
+  outcome: "pending",
+});
+register(["REPAIR_EXECUTION_DISABLED"], {
+  stage: "configuration",
+  reason:
+    "ยังไม่เปิดรับการซ่อมรายการใหม่ สามารถอ่านผลตรวจและติดตามรายการเดิมได้",
+  nextAction: "contact_support",
+  outcome: "not_started",
+});
+register(["ASSET_BASELINE_CHANGED"], {
+  stage: "publication",
+  reason:
+    "ไฟล์ต้นทางเปลี่ยนจากแผนที่ยืนยัน ต้องตรวจหลักฐานของรายการเดิมก่อนเผยแพร่ต่อ",
+  nextAction: "contact_support",
+  outcome: "pending",
+});
+register(["PUBLIC_ASSET_READBACK_PENDING"], {
+  stage: "publication",
+  reason:
+    "ยังอ่านไฟล์ที่เผยแพร่ผ่านช่องทางสาธารณะได้ไม่ครบ กรุณาตรวจสถานะแล้วทำต่อด้วยรายการเดิม",
+  nextAction: "resume_existing",
+  outcome: "pending",
 });
 export function errorPolicy(code: string): ErrorPolicy | undefined {
   return Object.hasOwn(registry, code) ? registry[code] : undefined;

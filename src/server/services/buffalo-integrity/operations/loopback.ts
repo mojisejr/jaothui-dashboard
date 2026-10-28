@@ -19,6 +19,7 @@ import { IntegrityError, payloadHash, asJson } from "./hash";
 import { bindReceiptEvidence, receiptEvidence } from "./receipt-evidence";
 import {
   type ChainPorts,
+  type Claim,
   type Plan,
   type Operation,
   type Step,
@@ -71,7 +72,11 @@ export interface LoopbackConfig {
   beforeBroadcast?: (operation: Operation, step: Step) => Promise<void>;
   reconcileCurrent?: (operation: Operation, step: Step) => Promise<void>;
   nextStep: (operation: Operation, steps: Step[]) => Promise<StepSpec | null>;
-  project: (operation: Operation, steps: Step[]) => Promise<PublicationProof>;
+  project: (
+    operation: Operation,
+    steps: Step[],
+    claim: Claim,
+  ) => Promise<PublicationProof>;
   verifyPublication: (
     operation: Operation,
     steps: Step[],
@@ -215,7 +220,9 @@ function configuredChainPorts(
       if (!allowedFunctions[step.kind]?.includes(decoded.functionName))
         throw new IntegrityError("UNAPPROVED_CONTRACT_ACTION");
       if (
-        operation.plan?.sender.toLowerCase() !== account.address.toLowerCase()
+        !operation.plan ||
+        !("sender" in operation.plan) ||
+        operation.plan.sender.toLowerCase() !== account.address.toLowerCase()
       )
         throw new IntegrityError("UNAPPROVED_SIGNER");
       const call = {

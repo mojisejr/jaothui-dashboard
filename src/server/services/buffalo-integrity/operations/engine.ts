@@ -1,3 +1,4 @@
+import { isDatabaseRepairPlan } from "./types";
 import { DiagnosticError } from "~/server/diagnostics/errors";
 import {
   bindOperationId,
@@ -134,7 +135,9 @@ export class OperationEngine {
       microchip:
         operation.intent.kind === "create"
           ? operation.intent.buffalo.microchip
-          : operation.intent.microchip,
+          : operation.intent.kind === "edit"
+            ? operation.intent.microchip
+            : operation.intent.manifest.database.targets[0]!.desiredMicrochip,
       actualToken: operation.actualToken,
       reason: diagnostic?.code ?? null,
       ...(diagnostic ? { diagnostic } : {}),
@@ -171,6 +174,11 @@ export class OperationEngine {
     await this.withClaim(id, owner, async (claim, operation) => {
       if (operation.state !== "DRAFT" || operation.version !== expectedVersion)
         throw new IntegrityError("STALE_DRAFT_REVISION");
+      if (
+        operation.intent.kind === "identity_repair" &&
+        operation.intent.mode === "database_only"
+      )
+        throw new IntegrityError("REPAIR_DATABASE_EXECUTOR_REQUIRED");
       const plan = await this.io(
         this.budget.now() + this.budget.milliseconds,
         () => this.chain.prepare(operation),
@@ -199,6 +207,8 @@ export class OperationEngine {
         throw new IntegrityError("INVALID_OPERATION_STAGE");
       if (["COMPLETED", "NEEDS_REVIEW"].includes(initial.state)) return;
       if (!initial.plan) throw new IntegrityError("NO_APPROVED_PLAN");
+      if (isDatabaseRepairPlan(initial.plan))
+        throw new IntegrityError("REPAIR_DATABASE_EXECUTOR_REQUIRED");
       try {
         await this.advanceClaim(
           claim,
@@ -271,6 +281,8 @@ export class OperationEngine {
   ) {
     let operation = initial;
     const plan = operation.plan!;
+    if (isDatabaseRepairPlan(plan))
+      throw new IntegrityError("REPAIR_DATABASE_EXECUTOR_REQUIRED");
     let steps = await this.repository.steps(operation.id);
     if (
       steps.length > 8 ||
@@ -291,7 +303,7 @@ export class OperationEngine {
         if (!steps.length) throw new IntegrityError("NO_CHAIN_PROOF");
         await this.repository.setState(claim, "PROJECTING");
         const proof = await this.io(deadline, () =>
-          this.chain.project(operation, steps),
+          this.chain.project(operation, steps, claim),
         );
         await this.repository.setState(
           claim,
@@ -308,6 +320,8 @@ export class OperationEngine {
         await this.repository.complete(claim, proof);
         return;
       }
+      if (operation.intent.kind === "identity_repair" && spec.kind === "mint")
+        throw new IntegrityError("REMINT_FORBIDDEN");
       if (spec.kind === "mint") {
         if (steps.some((step) => step.kind === "mint"))
           throw new IntegrityError("REMINT_FORBIDDEN");
@@ -471,7 +485,9 @@ export class OperationEngine {
       );
       return false;
     }
-    if (observation.confirmations < operation.plan!.confirmations) {
+    if (!operation.plan || isDatabaseRepairPlan(operation.plan))
+      throw new IntegrityError("REPAIR_DATABASE_EXECUTOR_REQUIRED");
+    if (observation.confirmations < operation.plan.confirmations) {
       await this.repository.setState(claim, "CHAIN_PENDING");
       return false;
     }
