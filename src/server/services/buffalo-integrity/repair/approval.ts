@@ -340,6 +340,11 @@ export async function buildRepairIntent(
     },
     effects: {
       ...p.effects,
+      legacyDatabaseImages: p.assets.tokens.flatMap((t) =>
+        t.after?.legacyDatabaseImage
+          ? [{ tokenId: t.tokenId, ...t.after.legacyDatabaseImage }]
+          : [],
+      ),
       nftUriChanges: assets
         .filter((a) => a.uriChange)
         .map((a) => ({

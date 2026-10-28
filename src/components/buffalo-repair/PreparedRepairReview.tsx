@@ -4,6 +4,7 @@ import type {
 } from "~/server/services/buffalo-integrity/repair/execution-contract";
 
 const effectNames: Record<string, string> = {
+  legacyDatabaseImages: "พาธภาพเก่าที่จะปรับให้ตรงกับไฟล์ของ NFT ที่ตรวจแล้ว",
   metadataCounterIncrement: "จำนวนครั้งที่ตัวนับการแก้ข้อมูล Manager จะเพิ่ม",
   dnaClearedThenRestored: "NFT ที่ข้อมูล DNA จะถูกล้างแล้วใส่กลับตามหลักฐาน",
   nativeCreatedAtResets: "NFT ที่เวลาเริ่มต้นข้อมูลใน Manager จะเปลี่ยน",
