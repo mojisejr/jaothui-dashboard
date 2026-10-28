@@ -97,7 +97,8 @@ const step = (row: StepRow): Step => ({
 export class PostgresOperationRepository implements Repository {
   constructor(
     private readonly db: PrismaClient,
-    private readonly leaseSeconds = 30,
+    // The API allows 60 seconds; retain the fence beyond its execution window.
+    private readonly leaseSeconds = 75,
   ) {}
   private async transaction<T>(callback: (tx: Tx) => Promise<T>): Promise<T> {
     return this.db.$transaction(
@@ -496,7 +497,7 @@ export class PostgresOperationRepository implements Repository {
     return this.locked(claim, async (tx) => {
       const rows = await tx.$queryRaw<
         { fence: bigint }[]
-      >`INSERT INTO buffalo_integrity.wallet_lease(chain_id,sender,active_step,fence,lease_until) VALUES (${current.chainId},${current.sender},${current.id}::uuid,1,clock_timestamp()+interval '30 seconds') ON CONFLICT(chain_id,sender) DO UPDATE SET active_step=EXCLUDED.active_step,fence=buffalo_integrity.wallet_lease.fence+1,lease_until=EXCLUDED.lease_until WHERE buffalo_integrity.wallet_lease.active_step IS NULL OR buffalo_integrity.wallet_lease.active_step=EXCLUDED.active_step RETURNING fence`;
+      >`INSERT INTO buffalo_integrity.wallet_lease(chain_id,sender,active_step,fence,lease_until) VALUES (${current.chainId},${current.sender},${current.id}::uuid,1,clock_timestamp()+(${this.leaseSeconds}::double precision*interval '1 second')) ON CONFLICT(chain_id,sender) DO UPDATE SET active_step=EXCLUDED.active_step,fence=buffalo_integrity.wallet_lease.fence+1,lease_until=EXCLUDED.lease_until WHERE buffalo_integrity.wallet_lease.active_step IS NULL OR buffalo_integrity.wallet_lease.active_step=EXCLUDED.active_step RETURNING fence`;
       return rows[0]
         ? {
             chainId: current.chainId,

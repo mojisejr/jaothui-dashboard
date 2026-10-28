@@ -242,6 +242,12 @@ export function getRepairWriteRuntime(): RepairWriteRuntime {
         : {}),
       canApprove: op.state === "DRAFT" && enabled(),
       canResume,
+      canReviewReceipt:
+        canRecover() &&
+        op.state === "NEEDS_REVIEW" &&
+        op.reason === "RECEIPT_TRANSACTION_MISMATCH" &&
+        intent.mode === "chain" &&
+        steps.some((s) => !!s.hash && !!s.signedBytes && s.kind !== "mint"),
       canCancel:
         !["COMPLETED", "CANCELLED"].includes(op.state) &&
         !steps.some((s) => s.signedBytes),
@@ -357,6 +363,8 @@ export function getRepairWriteRuntime(): RepairWriteRuntime {
       const input = repairAdvanceSchema.parse(raw),
         op = await repository.get(input.id, owner),
         intent = repairIntent(op);
+      if (input.reviewReceipt && intent.mode !== "chain")
+        throw new IntegrityError("INVALID_OPERATION_STAGE");
       if (op.state === "COMPLETED") return view(owner, input.id);
       if (intent.mode === "database_only")
         await claimed(owner, input.id, async (claim, fresh) => {
@@ -368,6 +376,12 @@ export function getRepairWriteRuntime(): RepairWriteRuntime {
           await readWorkflow().guard(fresh, []);
           await repository.completeDatabaseRepair(claim, input.expectedVersion);
         });
+      else if (input.reviewReceipt)
+        await writer().engine.reviewReceipt(
+          input.id,
+          owner,
+          input.expectedVersion,
+        );
       else
         await writer().engine.advance(
           input.id,

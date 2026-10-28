@@ -34,6 +34,14 @@ Before release, attach the exact revision, passed build/lint/types/tests, releva
 
 Infrastructure logs are retained in the task checkout under `.tmp/repair-feasibility/p4-workflow-proof-3.log` and `p5-workflow-proof.log`; database logs `.tmp/phase5-db-tests.log`. The first single runs exposed a receipt address-normalization mismatch and reuse of a reverted fork with an old journal; the passing run uses a fresh isolated database, preserving earlier journals. These are local acceptance results, not production case acceptance.
 
+## Reviewing a mined legacy transaction
+
+Some Bitkub RPC legacy-transaction responses omit `chainId`. A missing value is accepted only for a legacy transaction whose exact journaled signed bytes hash to the mined transaction hash and whose EIP155 signature, recovered sender, chain, nonce, calldata, value, gas and fee cap match the approved envelope. An explicit conflicting RPC chainId still fails. Typed transactions with missing chainId do not use this fallback.
+
+For an approved identity repair stopped specifically at `RECEIPT_TRANSACTION_MISMATCH`, **ตรวจหลักฐานธุรกรรมเดิมอีกครั้ง** reconciles only the existing canonical, successful, sufficiently confirmed receipt and its complete effect proof under the owner/version fence. It does not sign, broadcast, create another step, publish assets or project database rows. Missing/pending/reverted/reorged receipts retain the stop. Other review reasons are not reopened. A successful review returns the same operation to its ordinary continuation path.
+
+Runtime budgets are aligned: the engine allows55seconds within the60second API duration, while operation and wallet fences live75seconds. Fencing, nonce protection and exact-byte recovery remain mandatory; a terminated request may require waiting for its lease to expire before continuing.
+
 ## Preparing after a platform timeout
 
 The tRPC API has an explicit 60-second duration for bounded preparation/recovery requests. Production preparation previously hit the platform's 15-second timeout before creating an operation. A missing response remains unknown until the saved key is read.

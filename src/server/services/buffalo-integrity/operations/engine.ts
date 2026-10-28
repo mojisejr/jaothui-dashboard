@@ -82,7 +82,7 @@ export class OperationEngine {
   constructor(
     private readonly repository: Repository,
     private readonly chain: ChainPorts,
-    private readonly budget = { milliseconds: 25000, now: () => Date.now() },
+    private readonly budget = { milliseconds: 55000, now: () => Date.now() },
   ) {}
   private async io<T>(
     deadline: number,
@@ -273,6 +273,37 @@ export class OperationEngine {
     });
     return this.status(id, owner);
   }
+  /** Operator review only reconciles the existing mined receipt. It cannot
+   * sign, rebroadcast, select a new step, or publish business data. */
+  async reviewReceipt(id: string, owner: string, expectedVersion: number) {
+    await this.withClaim(id, owner, async (claim, initial) => {
+      if (initial.version !== expectedVersion)
+        throw new IntegrityError("STALE_OPERATION_REVISION");
+      if (
+        initial.state !== "NEEDS_REVIEW" ||
+        initial.reason !== "RECEIPT_TRANSACTION_MISMATCH" ||
+        !initial.plan ||
+        isDatabaseRepairPlan(initial.plan)
+      )
+        throw new IntegrityError("INVALID_OPERATION_STAGE");
+      const steps = await this.repository.steps(id);
+      const current =
+        steps.find((s) => s.state !== "CONFIRMED") ?? steps.at(-1);
+      if (!current?.signedBytes || !current.hash || current.kind === "mint")
+        throw new IntegrityError("INVALID_OPERATION_STAGE");
+      if (
+        await this.reconcile(
+          claim,
+          initial,
+          current,
+          this.budget.now() + this.budget.milliseconds,
+          true,
+        )
+      )
+        await this.repository.setState(claim, "CHAIN_STEPS");
+    });
+    return this.status(id, owner);
+  }
   private async advanceClaim(
     claim: Claim,
     initial: Operation,
@@ -434,10 +465,23 @@ export class OperationEngine {
     operation: Operation,
     current: Step,
     deadline: number,
+    reviewOnly = false,
   ): Promise<boolean> {
     const observation = await this.io(deadline, () =>
       this.chain.observe(current),
     );
+    if (
+      reviewOnly &&
+      (observation.state !== "receipt" ||
+        !observation.canonical ||
+        !operation.plan ||
+        isDatabaseRepairPlan(operation.plan) ||
+        observation.confirmations < operation.plan.confirmations ||
+        observation.receipt.status !== "success" ||
+        (current.receipt &&
+          observation.receipt.blockHash !== current.receipt.blockHash))
+    )
+      return false;
     if (observation.state === "pending") {
       await this.repository.setState(claim, "CHAIN_PENDING");
       return false;
