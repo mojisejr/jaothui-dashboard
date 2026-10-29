@@ -8,6 +8,7 @@ import {
   button,
 } from "~/components/competitions/Workspace";
 import { ApplicationReview } from "~/components/competitions/ApplicationReview";
+import { ApplicationDeletePanel } from "~/components/competitions/ApplicationDeletePanel";
 export default function ApplicationPage() {
   const { query } = useRouter();
   const id = typeof query.id === "string" ? query.id : "";
@@ -48,16 +49,27 @@ export default function ApplicationPage() {
       ) : event.isPending || application.isPending ? (
         <p role="status">กำลังโหลดใบสมัคร…</p>
       ) : application.data ? (
-        <ApplicationReview
-          key={registrationId}
-          id={id}
-          initial={application.data}
-          reload={async () => {
-            const result = await application.refetch();
-            if (result.error) throw result.error;
-            return result.data;
-          }}
-        />
+        <>
+          <ApplicationReview
+            key={registrationId}
+            id={id}
+            initial={application.data}
+            reload={async () => {
+              const result = await application.refetch();
+              if (result.error) throw result.error;
+              return result.data;
+            }}
+          />
+          {event.data ? (
+            <ApplicationDeletePanel
+              event={event.data}
+              entry={application.data}
+              reload={async () => {
+                await Promise.all([event.refetch(), application.refetch()]);
+              }}
+            />
+          ) : null}
+        </>
       ) : null}
     </Workspace>
   );

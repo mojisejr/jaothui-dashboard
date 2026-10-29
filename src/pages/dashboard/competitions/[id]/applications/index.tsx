@@ -8,9 +8,11 @@ import {
   button,
 } from "~/components/competitions/Workspace";
 import { ApplicationsList } from "~/components/competitions/ApplicationsList";
+import { RegistrationRecount } from "~/components/competitions/RegistrationRecount";
 export default function ApplicationsPage() {
   const { query } = useRouter();
   const id = typeof query.id === "string" ? query.id : "";
+  const deleted = query.deleted === "1";
   const { isAuth } = useAuth();
   const event = api.competitions.get.useQuery(
     { id },
@@ -30,6 +32,10 @@ export default function ApplicationsPage() {
       ) : event.data ? (
         <>
           <EventNav event={event.data} active="applications" />
+          {deleted ? (
+            <Alert>ลบใบสมัครแล้ว สำเนาถูกเก็บไว้ในประวัติการดำเนินการ</Alert>
+          ) : null}
+          <RegistrationRecount event={event.data} />
           <ApplicationsList id={id} />
         </>
       ) : null}
