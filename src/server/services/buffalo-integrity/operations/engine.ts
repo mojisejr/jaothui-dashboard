@@ -117,13 +117,15 @@ export class OperationEngine {
       ? reportDiagnostic(new DiagnosticError(operation.reason), {
           operationId: operation.id,
           outcome:
-            operation.state === "COMPLETED"
-              ? "completed"
-              : operation.state === "CANCELLED"
-                ? "failed"
-                : steps.some((step) => !!step.hash)
-                  ? "unknown"
-                  : "not_started",
+            operation.reason === "PUBLIC_ASSET_READBACK_PENDING"
+              ? "pending"
+              : operation.state === "COMPLETED"
+                ? "completed"
+                : operation.state === "CANCELLED"
+                  ? "failed"
+                  : steps.some((step) => !!step.hash)
+                    ? "unknown"
+                    : "not_started",
           nextAction: canResume ? "resume_existing" : "contact_support",
         })
       : undefined;
@@ -217,12 +219,25 @@ export class OperationEngine {
           this.budget.now() + this.budget.milliseconds,
         );
       } catch (error) {
+        const publicationPending =
+          error instanceof IntegrityError &&
+          error.code === "PUBLIC_ASSET_READBACK_PENDING";
         // Unknown adapter errors are classified without logging provider strings/bytes.
         reportDiagnostic(error, {
           operationId: id,
-          outcome: "unknown",
-          nextAction: "contact_support",
+          outcome: publicationPending ? "pending" : "unknown",
+          nextAction: publicationPending
+            ? "resume_existing"
+            : "contact_support",
         });
+        if (publicationPending) {
+          await this.repository.setState(
+            claim,
+            "RECOVERY_REQUIRED",
+            error.code,
+          );
+          return;
+        }
         if (error instanceof IntegrityError) {
           // Stale workers never change state or broadcast; the current owner reconciles its journal.
           if (

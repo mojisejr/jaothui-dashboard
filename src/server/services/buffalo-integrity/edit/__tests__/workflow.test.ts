@@ -558,13 +558,43 @@ test("ordinary stale consumer and externally overwritten alias leave DB unpublis
     fetch.mockRestore();
   }
 });
+test("stale canonical cache recovers through content-version readback and publishes once", async () => {
+  const c = setupEdit(),
+    op = await c.start({ name: "new" }),
+    steps = await c.finish(op);
+  const fetch = jest
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async (url) => {
+      const parsed = new URL(String(url));
+      return parsed.searchParams.has("cacheNonce")
+        ? c.fetcher(url)
+        : new Response("stale", { status: 200 });
+    });
+  try {
+    const proof = await c.workflow.project(op, steps);
+    expect(await c.workflow.verifyPublication(op, steps, proof)).toBe(true);
+    expect(c.row.name).toBe("new");
+    const calls = fetch.mock.calls.map(([url]) => new URL(String(url)));
+    expect(
+      calls.some((url) =>
+        /^[a-f0-9]{64}$/.test(url.searchParams.get("cacheNonce") ?? ""),
+      ),
+    ).toBe(true);
+  } finally {
+    fetch.mockRestore();
+  }
+});
 
 test("legacy extensionless DB image displays the compatible owned alias without modifying DB", async () => {
   const c = setupEdit();
   c.setRow({ image: c.row.image!.replace(/\.jpg$/, "") });
   const before = c.row.image,
     detail = await c.workflow.details(c.row.microchip);
-  expect(detail?.image).toBe(c.storage.publicUrl("buffalo/901.jpg"));
+  const displayed = new URL(detail!.image!);
+  expect(displayed.origin + displayed.pathname).toBe(
+    c.storage.publicUrl("buffalo/901.jpg"),
+  );
+  expect(displayed.searchParams.get("cacheNonce")).toMatch(/^[a-f0-9]{64}$/);
   expect(c.row.image).toBe(before);
 });
 test("unowned image patches and oversized height never reach a prepared plan", async () => {

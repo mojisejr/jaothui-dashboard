@@ -1,4 +1,5 @@
 import { PrismaClient, type Pedigree } from "@prisma/client";
+import { displayedImageUrl } from "../publication-readback";
 import {
   createPublicClient,
   http,
@@ -140,7 +141,10 @@ export function getEditReadDetails() {
   const details = createReadDetails(config.domain, {
     findCow: (microchip) => db.pedigree.findUnique({ where: { microchip } }),
     imageForCow: (row) =>
-      `${config.storageOrigin}/buffalo/${row.tokenId.toString()}.jpg`,
+      displayedImageUrl(
+        `${config.storageOrigin}/buffalo/${row.tokenId.toString()}.jpg`,
+        row,
+      ),
     readChain: async (row) => {
       if ((await client.getChainId()) !== config.domain.chainId)
         throw new IntegrityError("CHAIN_DOMAIN_CONFLICT");
