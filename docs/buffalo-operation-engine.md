@@ -131,3 +131,6 @@ provide actual DB/storage projectors with origin/current-manifest verification, 
 managed wallet writer and safe UI state/resume, and handle batch/DNA preservation. Phase5 must
 rehearse private-role permissions plus scoped Data API/storage cutover and final runbooks. This
 phase neither makes the legacy writes robust nor authorizes production rollout.
+# Hosted database SQL budget
+
+Ledger transactions allow 15 seconds for their complete set of SQL round trips, with a 2-second connection wait. Individual statements still have a 2.5-second limit and locks a 500ms limit. RPC, signing and storage remain outside these transactions. A 3-second overall limit expired during unsigned step reservation on production; an isolated PostgreSQL regression simulates 500ms per round trip and verifies durable reservation plus rejection of a stale fence. API and lease budgets remain unchanged.

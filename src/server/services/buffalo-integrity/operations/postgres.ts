@@ -107,7 +107,9 @@ export class PostgresOperationRepository implements Repository {
         await tx.$executeRaw`SET LOCAL statement_timeout='2500ms'`;
         return callback(tx);
       },
-      { maxWait: 1000, timeout: 3000 },
+      // Several fenced SQL round trips can exceed 3s on the hosted database.
+      // Keep each statement/lock bounded above, with no RPC inside this window.
+      { maxWait: 2000, timeout: 15000 },
     );
   }
   private async event(
