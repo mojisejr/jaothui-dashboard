@@ -121,6 +121,23 @@ export const metadataSchema = z.object({
     }),
   ),
 });
+export const deleteApplicationResultSchema = z.object({
+  registrationId: z.string(),
+  previousCount: z.number().nullable(),
+  registrationCount: z.number(),
+});
+export const recountResultSchema = z.object({
+  previousCount: z.number().nullable(),
+  registrationCount: z.number(),
+  changed: z.boolean(),
+});
+/** Short reasons cannot explain a deletion later; the source enforces the same bound. */
+export const deleteApplicationInputSchema = z.object({
+  operationId: z.string().uuid(),
+  expectedRevision: z.string().min(1),
+  registrationRevision: z.string().min(1),
+  reason: z.string().trim().min(10).max(3000),
+});
 export const onsiteRegistrationSchema = z
   .object({
     name: z.string().trim().min(1),
@@ -164,6 +181,7 @@ export type ApplicationFilters = z.infer<typeof applicationFiltersSchema>;
 export type CompetitionMetadata = z.infer<typeof metadataSchema>;
 export type ExportData = z.infer<typeof exportDataSchema>;
 export type OnsiteRegistration = z.infer<typeof onsiteRegistrationSchema>;
+export type RecountResult = z.infer<typeof recountResultSchema>;
 export function applicationStatus(entry: Pick<Application, "approval">) {
   return entry.approval?.approvementResult === true
     ? "accepted"
