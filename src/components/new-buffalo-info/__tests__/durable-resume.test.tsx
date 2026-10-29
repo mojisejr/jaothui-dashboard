@@ -1,4 +1,10 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import {
+  render,
+  screen,
+  waitFor,
+  fireEvent,
+  act,
+} from "@testing-library/react";
 import DurableCreate from "../DurableCreate";
 const mockView = jest.fn();
 const mockAdvance = jest.fn();
@@ -52,6 +58,32 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockList = { data: [job], isPending: false };
   mockViewError = undefined;
+});
+test("fresh polling snapshots cannot postpone continuation of an existing mint", async () => {
+  jest.useFakeTimers();
+  try {
+    const pending = { ...job, state: "CHAIN_PENDING", canResume: true };
+    mockList = { data: [pending], isPending: false };
+    mockAdvance.mockImplementation(() => new Promise(() => undefined));
+    const page = render(<DurableCreate />);
+    for (let i = 0; i < 5; i++) {
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+      mockList = { data: [{ ...pending }], isPending: false };
+      page.rerender(<DurableCreate />);
+    }
+    expect(mockAdvance).toHaveBeenCalledTimes(1);
+    expect(mockAdvance).toHaveBeenCalledWith({
+      id: job.id,
+      version: job.version,
+      action: "resume",
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
+    page.unmount();
+  } finally {
+    jest.useRealTimers();
+  }
 });
 test("server-backed pending operation resumes after reload with no local selection and never mints again", async () => {
   const first = render(<DurableCreate />);

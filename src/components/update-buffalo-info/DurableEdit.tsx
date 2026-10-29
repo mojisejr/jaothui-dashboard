@@ -1,4 +1,6 @@
 import Image from "next/image";
+import { useOperationContinuation } from "../buffalo-feedback/useOperationContinuation";
+import { OperationProgress } from "../buffalo-feedback/OperationProgress";
 import Link from "next/link";
 import { IdentityDiagnosisLink } from "../buffalo-repair/IdentityDiagnosisLink";
 import React, { useEffect, useRef, useState } from "react";
@@ -151,7 +153,7 @@ export function EditProof({
           </div>
         ))}
       </details>
-      {job.canResume && (
+      {(job.canResume || job.state === "DRAFT") && (
         <button
           type="button"
           className="btn btn-primary min-h-12"
@@ -198,6 +200,7 @@ export default function DurableEdit({
     [error, setError] = useState<Feedback | null>(null),
     [authLost, setAuthLost] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null),
+    progress = useRef<HTMLDivElement>(null),
     lock = useRef(false),
     key = useRef(""),
     frozen = useRef<Detail | null>(null),
@@ -226,6 +229,9 @@ export default function DurableEdit({
     advance = api.buffaloEdit.advance.useMutation(),
     cancel = api.buffaloEdit.cancel.useMutation();
   const active = job && !["COMPLETED", "CANCELLED"].includes(job.state);
+  useEffect(() => {
+    if (!field && job?.id) progress.current?.focus();
+  }, [field, job?.id]);
   useEffect(() => {
     const saved =
       new URLSearchParams(window.location.search).get("microchip") ??
@@ -326,23 +332,15 @@ export default function DurableEdit({
       );
     });
   }
-  const resumeRef = useRef(resume);
-  resumeRef.current = resume;
-  useEffect(() => {
-    if (
-      !job ||
-      !running(job) ||
-      busy ||
-      authLost ||
-      !!view.error ||
-      !!list.error
-    )
-      return;
-    const timer = setTimeout(() => {
-      void resumeRef.current();
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [job, busy, authLost, view.error, list.error]);
+  useOperationContinuation({
+    id: job?.id,
+    state: job?.state,
+    version: job?.version,
+    enabled:
+      !!job && running(job) && !busy && !authLost && !view.error && !list.error,
+    delay: 1500,
+    resume,
+  });
   function open(next: EditField) {
     if (
       !details.data ||
@@ -446,10 +444,13 @@ export default function DurableEdit({
         // Upload advances the durable revision; fetch this exact operation rather than a stale dialog query.
         next = await apiView(next.id);
       }
-      next = await prepare.mutateAsync({ id: next.id, version: next.version });
       setJob(next);
+      // The request and any upload are saved. Show progress before slow chain
+      // preparation, so an interrupted response cannot strand recovery behind a dialog.
       dialog.current?.close();
       setField(null);
+      next = await prepare.mutateAsync({ id: next.id, version: next.version });
+      setJob(next);
       setJob(await advance.mutateAsync({ id: next.id, version: next.version }));
     });
   }
@@ -597,6 +598,31 @@ export default function DurableEdit({
           โหลดรายละเอียดอีกครั้ง
         </button>
       )}
+      {!field && (!!job || busy) && (
+        <div
+          ref={progress}
+          tabIndex={-1}
+          data-edit-progress
+          aria-label="ความคืบหน้าการแก้ไข"
+          className="outline-none"
+        >
+          <OperationProgress job={job} busy={busy} kind="edit" />
+          {job && (
+            <EditProof
+              job={job}
+              busy={busy || authLost || !!view.error || !!list.error}
+              onResume={() => void resume()}
+              onCancel={() =>
+                void run(async () => {
+                  await cancel.mutateAsync({ id: job.id });
+                  setJob(null);
+                  await list.refetch();
+                })
+              }
+            />
+          )}
+        </div>
+      )}
       {details.data && (
         <section data-edit-details className="mt-6 min-w-0">
           <p>
@@ -708,20 +734,6 @@ export default function DurableEdit({
           <p className="text-sm">วันที่สร้างเดิม: {details.data.createdAt}</p>
         </section>
       )}
-      {job && (
-        <EditProof
-          job={job}
-          busy={busy || authLost || !!view.error || !!list.error}
-          onResume={() => void resume()}
-          onCancel={() =>
-            void run(async () => {
-              await cancel.mutateAsync({ id: job.id });
-              setJob(null);
-              await list.refetch();
-            })
-          }
-        />
-      )}
       <dialog ref={dialog} data-edit-dialog className="modal">
         <div className="modal-box w-[calc(100%-2rem)] max-w-lg rounded-lg p-4 text-base sm:p-6">
           <h2 className="mb-4 text-xl font-semibold">
@@ -731,6 +743,9 @@ export default function DurableEdit({
             NFT #{frozen.current?.tokenId} · {frozen.current?.microchip}
           </p>
           <form onSubmit={submit}>
+            {field && busy && (
+              <OperationProgress job={job} busy={busy} kind="edit" />
+            )}
             <fieldset disabled={busy || authLost} className="grid gap-3">
               {field === "parents" ? (
                 <>
