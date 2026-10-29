@@ -340,3 +340,56 @@ it("sends original Gregorian birthday and resets every Buddhist date part on suc
   for (const part of ["วัน", "เดือน", "ปี พ.ศ."])
     expect(screen.getByLabelText(`วันเกิด—${part}`)).toHaveValue("");
 });
+
+it("requires a duplicate reason only for the same level as an existing normal entry", async () => {
+  mockLookup.mockResolvedValue({
+    found: false,
+    microchip: "123",
+    metadata: null,
+    duplicateCount: 1,
+    duplicateRegistrations: [
+      {
+        _id: "national-entry",
+        name: "ควายทดสอบ",
+        type: "ไม่เกิน 12 เดือน",
+        ownerName: "ผู้ทดสอบ",
+        level: "national",
+      },
+    ],
+  });
+  render(
+    <OnsiteRegistrationForm
+      event={{
+        ...event,
+        catalogs: { ...event.catalogs, province: ["ไม่เกิน 12 เดือน"] },
+      }}
+      refresh={async () => undefined}
+    />,
+  );
+  await fill();
+  expect(screen.getByText(/ระดับประเทศ • ผู้ทดสอบ/)).toBeInTheDocument();
+  expect(
+    screen.getByLabelText(/เหตุผลที่ยืนยันลงทะเบียนซ้ำ/),
+  ).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("ระดับการแข่งขัน"), {
+    target: { value: "province" },
+  });
+  expect(
+    screen.queryByLabelText(/เหตุผลที่ยืนยันลงทะเบียนซ้ำ/),
+  ).not.toBeInTheDocument();
+  expect(screen.getByText(/ใบสมัครเดิมอยู่คนละระดับ/)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("รุ่นแข่งขัน *"), {
+    target: { value: "ไม่เกิน 12 เดือน" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "บันทึกลงทะเบียนหน้างาน" }),
+  );
+  await screen.findByRole("link", { name: "ดูใบสมัครที่บันทึก" });
+  const sent = (
+    mockSubmit.mock.calls as [
+      { registration: { level: string; duplicateOverrideReason?: string } },
+    ][]
+  )[0]![0];
+  expect(sent.registration.level).toBe("province");
+  expect(sent.registration.duplicateOverrideReason).toBeUndefined();
+});

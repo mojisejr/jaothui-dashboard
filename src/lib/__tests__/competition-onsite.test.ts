@@ -4,7 +4,9 @@ import {
   onsiteAge,
   onsiteClasses,
   validateOnsite,
+  blockingDuplicateCount,
 } from "~/lib/competition-onsite";
+import { metadataSchema } from "~/lib/competition-applications";
 const event = competitionSchema.parse({
   _id: "event-test",
   _rev: "rev",
@@ -83,4 +85,69 @@ it("allows public-closed staff but denies ended events, wrong classes and unexpl
       0,
     ),
   ).toMatch(/ไม่เปิด/);
+});
+
+it("counts only same-level or unknown-level normal duplicates; Royal and unlisted stay conservative", () => {
+  const entry = (level?: "national" | "province" | null) => ({
+    _id: `id-${String(level)}`,
+    name: "ควาย",
+    type: "รุ่น",
+    ownerName: "เจ้าของ",
+    level,
+  });
+  const metadata = {
+    duplicateCount: 2,
+    duplicateRegistrations: [entry("national"), entry("province")],
+  };
+  expect(blockingDuplicateCount(event, "national", metadata)).toBe(1);
+  expect(
+    blockingDuplicateCount(event, "province", {
+      duplicateCount: 1,
+      duplicateRegistrations: [entry("national")],
+    }),
+  ).toBe(0);
+  expect(
+    blockingDuplicateCount(event, "province", {
+      duplicateCount: 1,
+      duplicateRegistrations: [entry(undefined)],
+    }),
+  ).toBe(1);
+  expect(
+    blockingDuplicateCount(event, "province", {
+      duplicateCount: 3,
+      duplicateRegistrations: [entry("national")],
+    }),
+  ).toBe(2);
+  expect(
+    blockingDuplicateCount({ eventType: "royal" }, "province", {
+      duplicateCount: 1,
+      duplicateRegistrations: [entry("national")],
+    }),
+  ).toBe(1);
+  expect(
+    blockingDuplicateCount({ eventType: undefined }, "province", {
+      duplicateCount: 1,
+      duplicateRegistrations: [entry("national")],
+    }),
+  ).toBe(1);
+});
+it("accepts source metadata with and without the additive level field", () => {
+  const base = { found: false, microchip: "1", duplicateCount: 1 };
+  const row = { _id: "a", name: "n", type: "t", ownerName: "o" };
+  expect(
+    metadataSchema.parse({ ...base, duplicateRegistrations: [row] })
+      .duplicateRegistrations[0]?.level,
+  ).toBeUndefined();
+  expect(
+    metadataSchema.parse({
+      ...base,
+      duplicateRegistrations: [{ ...row, level: null }],
+    }).duplicateRegistrations[0]?.level,
+  ).toBeNull();
+  expect(
+    metadataSchema.parse({
+      ...base,
+      duplicateRegistrations: [{ ...row, level: "province" }],
+    }).duplicateRegistrations[0]?.level,
+  ).toBe("province");
 });
