@@ -20,6 +20,7 @@ import {
   onsiteClasses,
   onsiteCriteria,
   validateOnsite,
+  blockingDuplicateCount,
   type OnsiteForm,
 } from "~/lib/competition-onsite";
 import { api } from "~/utils/api";
@@ -53,7 +54,9 @@ export function OnsiteRegistrationForm({
   const mutation = api.competitions.onsite.useMutation();
   const locked = mutation.isPending || !!retry;
   const duplicateCount =
-    metadata?.microchip === form.microchip.trim() ? metadata.duplicateCount : 0;
+    metadata?.microchip === form.microchip.trim()
+      ? blockingDuplicateCount(event, form.level, metadata)
+      : 0;
   const age = onsiteAge(event, form);
   const classes = onsiteClasses(event, form);
   const criteria = onsiteCriteria(event, form);
@@ -408,7 +411,13 @@ export function OnsiteRegistrationForm({
                 <ul className="space-y-2">
                   {metadata.duplicateRegistrations.map((entry) => (
                     <li key={entry._id} className="break-words">
-                      {entry.name} • {entry.type} • {entry.ownerName}
+                      {entry.name} • {entry.type} •{" "}
+                      {entry.level === "national"
+                        ? "ระดับประเทศ"
+                        : entry.level === "province"
+                          ? "ระดับจังหวัด / ท้องถิ่น"
+                          : "ไม่ทราบระดับ"}{" "}
+                      • {entry.ownerName}
                     </li>
                   ))}
                 </ul>
@@ -477,14 +486,14 @@ export function OnsiteRegistrationForm({
             </label>
             {event.catalogs.province.length ? (
               <label className="min-w-0 space-y-2 text-sm">
-                ชุดรุ่นแข่งขัน
+                ระดับการแข่งขัน
                 <select
                   className={control}
                   value={form.level}
                   onChange={(e) => change("level", e.target.value)}
                 >
-                  <option value="national">ชุดรุ่นหลัก</option>
-                  <option value="province">ชุดรุ่นจังหวัดเดิม</option>
+                  <option value="national">ระดับประเทศ</option>
+                  <option value="province">ระดับจังหวัด / ท้องถิ่น</option>
                 </select>
               </label>
             ) : null}
@@ -512,6 +521,13 @@ export function OnsiteRegistrationForm({
           </p>
           {criteria ? (
             <Alert>เจ้าหน้าที่ต้องตรวจคุณสมบัติเพิ่มเติม: {criteria}</Alert>
+          ) : null}
+          {metadata?.microchip === form.microchip.trim() &&
+          metadata.duplicateCount > 0 &&
+          duplicateCount === 0 ? (
+            <p role="status" className="text-sm">
+              ใบสมัครเดิมอยู่คนละระดับ ลงทะเบียนระดับนี้ได้โดยไม่ต้องระบุเหตุผล
+            </p>
           ) : null}
           {duplicateCount > 0 ? (
             <label className="block min-w-0 space-y-2 text-sm">

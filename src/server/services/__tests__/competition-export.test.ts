@@ -197,3 +197,26 @@ it("exports an empty event as an explicit summary workbook and ZIP manifest", as
     Buffer.byteLength(safeExportName("งานยาว".repeat(100)), "utf8"),
   ).toBeLessThanOrEqual(180);
 });
+it("keeps the same microchip entered at national and province levels as two grouped rows", () => {
+  const data = fixture();
+  const national = data.registrations[0]!;
+  const twoLevels = exportDataSchema.parse({
+    ...data,
+    rowCount: 2,
+    registrations: [
+      national,
+      { ...national, _id: "r1-province", level: "จังหวัด" },
+    ],
+  });
+  const book = read(createCompetitionWorkbook("event-106", twoLevels), {
+    type: "buffer",
+  });
+  expect(book.SheetNames).toHaveLength(3);
+  const ids = book.SheetNames.slice(1).flatMap((name) =>
+    utils
+      .sheet_to_json<unknown[]>(book.Sheets[name]!, { header: 1 })
+      .filter((row) => row.includes("000001"))
+      .map((row) => row[12]),
+  );
+  expect(ids.sort()).toEqual(["r1", "r1-province"]);
+});

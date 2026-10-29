@@ -61,8 +61,8 @@ const fieldLabels: Record<string, string> = {
   buffaloAgeDeadline: "วันที่ใช้ตัดอายุควาย",
   eventType: "ประเภทฟอร์มสมัคร",
   imageAssetId: "รูปปก",
-  national: "รุ่นแข่งขัน",
-  province: "รุ่นจังหวัดจากข้อมูลเดิม",
+  national: "รุ่นระดับประเทศ",
+  province: "รุ่นระดับจังหวัด / ท้องถิ่น",
 };
 function validationMessage(issue: ZodIssue) {
   const field = String(
@@ -753,7 +753,8 @@ export function CompetitionEditor({ existing }: { existing?: Competition }) {
           </div>
           <div className="min-w-0 md:col-span-2">
             <ClassCatalogEditor
-              title="รุ่นแข่งขัน"
+              title="รุ่นระดับประเทศ"
+              addLabel="เพิ่มรุ่นระดับประเทศ"
               values={form.catalogs.national}
               disabled={busy || (locked && !exception)}
               onChange={(national) =>
@@ -761,22 +762,22 @@ export function CompetitionEditor({ existing }: { existing?: Competition }) {
               }
             />
           </div>
-          {form.catalogs.province.length > 0 ? (
-            <div className="min-w-0 space-y-3 md:col-span-2">
-              <p className="text-sm text-orange-100">
-                งานเดิมมีรุ่นจังหวัด จึงแสดงเพื่อรักษาข้อมูลเดิม
-                ไม่มีการย้ายหรือรวมรุ่นอัตโนมัติ
-              </p>
-              <ClassCatalogEditor
-                title="รุ่นจังหวัดจากข้อมูลเดิม"
-                values={form.catalogs.province}
-                disabled={busy || (locked && !exception)}
-                onChange={(province) =>
-                  change("catalogs", { ...form.catalogs, province })
-                }
-              />
-            </div>
-          ) : null}
+          <div className="min-w-0 space-y-3 md:col-span-2">
+            <p className="text-sm text-text-muted">
+              ผู้สมัครเลือกระดับเองตอนสมัคร
+              ควายตัวเดียวสมัครได้ทั้งสองระดับเป็นใบสมัครแยกกัน
+              เว้นว่างได้หากงานนี้ไม่มีรุ่นจังหวัด
+            </p>
+            <ClassCatalogEditor
+              title="รุ่นระดับจังหวัด / ท้องถิ่น"
+              addLabel="เพิ่มรุ่นระดับจังหวัด / ท้องถิ่น"
+              values={form.catalogs.province}
+              disabled={busy || (locked && !exception)}
+              onChange={(province) =>
+                change("catalogs", { ...form.catalogs, province })
+              }
+            />
+          </div>
           <p className="text-sm text-text-muted md:col-span-2">
             กำหนดช่วงอายุเป็นเดือน
             ระบบปัดเศษวันขึ้นเป็นเดือนถัดไปและไม่ให้ลงข้ามช่วง

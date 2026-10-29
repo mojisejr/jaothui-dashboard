@@ -28,11 +28,13 @@ const blank = (): CompetitionClass => ({
 
 export function ClassCatalogEditor({
   title,
+  addLabel = "เพิ่มรุ่น",
   values,
   onChange,
   disabled = false,
 }: {
   title: string;
+  addLabel?: string;
   values: string[];
   onChange: (values: string[]) => void;
   disabled?: boolean;
@@ -116,7 +118,7 @@ export function ClassCatalogEditor({
             ]);
           }}
         >
-          เพิ่มรุ่น{title === "รุ่นแข่งขัน" ? "" : "ข้อมูลเดิม"}
+          {addLabel}
         </button>
       </div>
       {rows.length === 0 ? (
