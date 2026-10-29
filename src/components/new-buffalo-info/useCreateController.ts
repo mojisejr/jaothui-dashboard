@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api, type RouterOutputs } from "~/utils/api";
+import { useOperationContinuation } from "../buffalo-feedback/useOperationContinuation";
 import {
   draftFields,
   type DraftInput,
@@ -127,24 +128,16 @@ export function useCreateController() {
       advance.mutateAsync({ id: job.id, version: job.version, action }),
     );
   }
-  const actionRef = useRef(action);
-  actionRef.current = action;
   // Poll only reconciles a durable transaction/progress after the operator has chosen each explicit button.
-  useEffect(() => {
-    if (
-      !job ||
-      !pending(job) ||
-      busy ||
-      authLost ||
-      !!view.error ||
-      !!list.error
-    )
-      return;
-    const timer = setTimeout(() => {
-      void actionRef.current("resume");
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [job, busy, authLost, view.error, list.error]);
+  useOperationContinuation({
+    id: job?.id,
+    state: job?.state,
+    version: job?.version,
+    enabled:
+      !!job && pending(job) && !busy && !authLost && !view.error && !list.error,
+    delay: 2000,
+    resume: () => action("resume"),
+  });
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await run(async () => {
