@@ -336,6 +336,24 @@ test("projection outage recovers forward and prior confirmed receipt reorg block
   );
   expect(c.chain.project).toHaveBeenCalledTimes(1);
 });
+test("publication readback keeps its precise recovery reason and retry never signs again", async () => {
+  const c = await setup();
+  await mintConfirmed(c);
+  await c.engine.advance(c.id, c.owner, "metadata");
+  await c.engine.advance(c.id, c.owner, "resume");
+  c.chain.project.mockRejectedValueOnce(
+    new IntegrityError("PUBLIC_ASSET_READBACK_PENDING"),
+  );
+  const pending = await c.engine.advance(c.id, c.owner, "resume");
+  expect(pending.state).toBe("RECOVERY_REQUIRED");
+  expect(pending.reason).toBe("PUBLIC_ASSET_READBACK_PENDING");
+  expect(pending.diagnostic?.stage).toBe("publication");
+  expect((await c.engine.advance(c.id, c.owner, "resume")).state).toBe(
+    "COMPLETED",
+  );
+  expect(c.chain.sign).toHaveBeenCalledTimes(2);
+  expect(c.chain.broadcast).toHaveBeenCalledTimes(2);
+});
 test("verified completion requires all chain effects and publication proof; DTO contains no signed bytes", async () => {
   const c = await setup();
   await mintConfirmed(c);

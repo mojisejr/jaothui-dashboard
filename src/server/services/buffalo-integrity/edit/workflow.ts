@@ -1,4 +1,5 @@
 import { nativeReceiptEvidence } from "../operations/receipt-evidence";
+import { displayedImageUrl, verifyPublicAsset } from "../publication-readback";
 import {
   executionEnvironment,
   transactionLink,
@@ -129,7 +130,10 @@ export class BuffaloEditWorkflow {
     let displayedRow: Pedigree | null = null;
     const result = await readBuffaloMetadata(chip, this.chain.domain, {
       imageForCow: (row) =>
-        this.storage.publicUrl(`buffalo/${row.tokenId.toString()}.jpg`),
+        displayedImageUrl(
+          this.storage.publicUrl(`buffalo/${row.tokenId.toString()}.jpg`),
+          row,
+        ),
       findCow: async (c) => {
         displayedRow = await this.db.pedigree.findUnique({
           where: { microchip: c },
@@ -911,19 +915,10 @@ export class BuffaloEditWorkflow {
       [`json/${token}.json`, json, c.aliasJsonHash, "application/json"],
     ] as const) {
       await this.storage.replaceAlias(key, bytes, mime, previous);
-      const origin = await this.storage.get(key),
-        response = await fetch(this.storage.publicUrl(key), {
-          signal: AbortSignal.timeout(5000),
-          redirect: "error",
-        });
-      if (
-        !origin ||
-        contentHash(origin) !== contentHash(bytes) ||
-        !response.ok ||
-        contentHash(Buffer.from(await response.arrayBuffer())) !==
-          contentHash(bytes)
-      )
-        throw Error("PUBLIC_ASSET_READBACK_PENDING");
+      const origin = await this.storage.get(key);
+      if (!origin || contentHash(origin) !== contentHash(bytes))
+        throw new IntegrityError("PUBLIC_ASSET_READBACK_PENDING");
+      await verifyPublicAsset(this.storage, key, contentHash(bytes));
     }
     const patch = edit(op).patch;
     const { birthday, height, ...strings } = patch;
@@ -991,15 +986,7 @@ export class BuffaloEditWorkflow {
       [`json/${edit(op).tokenId}.json`, c.jsonHash],
       [`${c.prefix}/final.json`, c.jsonHash],
     ] as const) {
-      const response = await fetch(this.storage.publicUrl(key), {
-        signal: AbortSignal.timeout(5000),
-        redirect: "error",
-      });
-      if (
-        !response.ok ||
-        contentHash(Buffer.from(await response.arrayBuffer())) !== hash
-      )
-        return false;
+      await verifyPublicAsset(this.storage, key, hash);
     }
     return (
       this.isProjection(row, op) &&
