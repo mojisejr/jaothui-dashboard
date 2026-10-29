@@ -44,6 +44,12 @@ Runtime budgets are aligned: the engine allows55seconds within the60second API d
 
 ## Preparing after a platform timeout
 
+### Owner-adjudicated current-state alignment: NFT1347
+
+The authorized incident `22ff9f83-3dc2-4ba4-aa7b-f291e642714f` has a successful signed batch but unavailable historical RPC state. Its owner explicitly chose aligning the database and canonical NFT JSON to the verified current chip `764040226601866`, then correcting the name through ordinary editing. The authenticated **ยืนยันสถานะปัจจุบันและปรับทะเบียน** action is restricted to that incident, original signed approval, owner/version fence, exact current metadata/ownership/approvals/URI, original database baseline, asset hashes and held reservations. It backs up the original JSON, publishes approved assets, applies the existing atomic database projection and releases only this incident's reservations and wallet step. It never signs or broadcasts.
+
+The original automatic operation remains `NEEDS_REVIEW` with reason `OPERATOR_CURRENT_STATE_RECONCILED` and an explicit manual-resolution audit; historical effect proof and automatic completion remain false. Retrying reads that same resolution. Normal editing must independently verify the reconciled record and finish the name correction. Coordination must remain confirmed during alignment; new repair preparation can stay disabled. Missing evidence or changed state stops the action.
+
 The tRPC API has an explicit 60-second duration for bounded preparation/recovery requests. Production preparation previously hit the platform's 15-second timeout before creating an operation. A missing response remains unknown until the saved key is read.
 
 If the key still has no saved manifest, the operator can complete a fresh scan/preview and choose **ตรวจสถานะเดิมแล้วเตรียมจากหลักฐานชุดนี้**. This reads the same key again before preparation, preserves its UUID, and never approves automatically. Any operation found is restored for review instead. A racing original request cannot replace an existing manifest: the database's atomic idempotency fence rejects a different payload for that key. Ordinary retry still preserves the original request; no recovery data is cleared to start another operation.

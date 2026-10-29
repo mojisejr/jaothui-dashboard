@@ -23,7 +23,9 @@ const pendingSchema = z
 type Pending = z.infer<typeof pendingSchema>;
 type Prepare = Omit<RepairPrepareInput, "key">;
 export const repairTerminal = (view: RepairExecutionView | null) =>
-  !!view && ["COMPLETED", "CANCELLED"].includes(view.state);
+  !!view &&
+  (view.operatorResolved === true ||
+    ["COMPLETED", "CANCELLED"].includes(view.state));
 function localProblem(
   code: string,
   reason: string,
@@ -210,7 +212,12 @@ export function useRepairExecution() {
     }
   }
   async function action(
-    kind: "approve" | "advance" | "cancel" | "reviewReceipt",
+    kind:
+      | "approve"
+      | "advance"
+      | "cancel"
+      | "reviewReceipt"
+      | "alignCurrentDatabase",
   ) {
     const item = current.current;
     if (lock.current || uncertain || !item) return;
@@ -220,6 +227,8 @@ export function useRepairExecution() {
       (kind === "advance" && !item.canResume) ||
       (kind === "reviewReceipt" &&
         (!item.canReviewReceipt || !capability.data?.canResume)) ||
+      (kind === "alignCurrentDatabase" &&
+        (!item.canAlignCurrentDatabase || !capability.data?.canResume)) ||
       (kind === "cancel" && !item.canCancel)
     )
       return;
@@ -234,12 +243,20 @@ export function useRepairExecution() {
               manifestHash: item.manifestHash,
               expectedVersion: item.version,
             })
-          : kind === "advance" || kind === "reviewReceipt"
+          : kind === "advance" ||
+              kind === "reviewReceipt" ||
+              kind === "alignCurrentDatabase"
             ? await advanceMutation.mutateAsync({
                 id: item.id,
                 expectedVersion: item.version,
                 ...(kind === "reviewReceipt"
                   ? { reviewReceipt: true as const }
+                  : {}),
+                ...(kind === "alignCurrentDatabase"
+                  ? {
+                      alignCurrentDatabase: true as const,
+                      manifestHash: item.manifestHash,
+                    }
                   : {}),
               })
             : await cancelMutation.mutateAsync({ id: item.id });

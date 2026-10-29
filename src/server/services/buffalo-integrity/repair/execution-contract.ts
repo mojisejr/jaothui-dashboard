@@ -225,8 +225,14 @@ export const repairAdvanceSchema = z
     id: z.string().uuid(),
     expectedVersion: z.number().int().nonnegative(),
     reviewReceipt: z.literal(true).optional(),
+    alignCurrentDatabase: z.literal(true).optional(),
+    manifestHash: hash.optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (v) => !v.alignCurrentDatabase || (!!v.manifestHash && !v.reviewReceipt),
+    "Current-state alignment requires its manifest and a separate action",
+  );
 export const repairIdSchema = z.object({ id: z.string().uuid() }).strict();
 export const repairKeySchema = z.object({ key: z.string().uuid() }).strict();
 export type RepairPrepareInput = z.infer<typeof repairPrepareSchema>;
@@ -291,6 +297,8 @@ export interface RepairExecutionView {
   canResume: boolean;
   canCancel: boolean;
   canReviewReceipt?: boolean;
+  canAlignCurrentDatabase?: boolean;
+  operatorResolved?: boolean;
 }
 export interface RepairWriteRuntime {
   capability(): Promise<RepairCapability>;

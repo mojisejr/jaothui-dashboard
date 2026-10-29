@@ -1,4 +1,9 @@
 import { repairRevisionGuard } from "./chainadapter";
+import {
+  alignCurrentCase,
+  canAlignCurrentCase,
+  operatorAligned,
+} from "./manual-current-alignment";
 import { repairPublicStorage } from "./public-storage";
 import {
   runtimeConfig,
@@ -146,6 +151,8 @@ export function getRepairWriteRuntime(): RepairWriteRuntime {
       engine: new OperationEngine(base.drafts.operations, ports),
       workflow,
       assertCanStart: base.assertCanStart,
+      storage: base.storage,
+      db: base.db,
     };
   };
   async function view(owner: string, id: string): Promise<RepairExecutionView> {
@@ -231,7 +238,7 @@ export function getRepairWriteRuntime(): RepairWriteRuntime {
         hash: s.hash,
         receipt: s.receipt,
       })),
-      ...(op.reason
+      ...(op.reason && !operatorAligned(op)
         ? {
             diagnostic: diagnosticFor(new DiagnosticError(op.reason), {
               operationId: id,
@@ -242,6 +249,8 @@ export function getRepairWriteRuntime(): RepairWriteRuntime {
         : {}),
       canApprove: op.state === "DRAFT" && enabled(),
       canResume,
+      operatorResolved: operatorAligned(op),
+      canAlignCurrentDatabase: canRecover() && canAlignCurrentCase(op, steps),
       canReviewReceipt:
         canRecover() &&
         op.state === "NEEDS_REVIEW" &&
@@ -365,6 +374,22 @@ export function getRepairWriteRuntime(): RepairWriteRuntime {
         intent = repairIntent(op);
       if (input.reviewReceipt && intent.mode !== "chain")
         throw new IntegrityError("INVALID_OPERATION_STAGE");
+      if (input.alignCurrentDatabase) {
+        const runtime = writer();
+        await alignCurrentCase(
+          runtime.db,
+          runtime.storage,
+          runtimeConfig().value.rpcUrl,
+          secret(),
+          owner,
+          {
+            id: input.id,
+            expectedVersion: input.expectedVersion,
+            manifestHash: input.manifestHash!,
+          },
+        );
+        return view(owner, input.id);
+      }
       if (op.state === "COMPLETED") return view(owner, input.id);
       if (intent.mode === "database_only")
         await claimed(owner, input.id, async (claim, fresh) => {
