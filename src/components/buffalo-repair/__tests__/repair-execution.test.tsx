@@ -234,6 +234,45 @@ test("receipt review uses the saved operation and never automatically advances o
   expect(mockApprove).not.toHaveBeenCalled();
   expect(mockPrepare).not.toHaveBeenCalled();
 });
+test("explicit current-state alignment is one saved operation action and resolves local tracking without auto-advance", async () => {
+  localStorage.setItem(REPAIR_PENDING_KEY, JSON.stringify({ version: 1, key }));
+  mockLookup.mockResolvedValue(
+    result({
+      state: "NEEDS_REVIEW",
+      canApprove: false,
+      canResume: false,
+      canAlignCurrentDatabase: true,
+    }),
+  );
+  mockAdvance.mockResolvedValue(
+    result({
+      state: "NEEDS_REVIEW",
+      canApprove: false,
+      canResume: false,
+      operatorResolved: true,
+      version: 1,
+    }),
+  );
+  render(<Harness />);
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: "ยืนยันสถานะปัจจุบันและปรับทะเบียน",
+    }),
+  );
+  await screen.findByText(/ปรับทะเบียนตามสถานะปัจจุบันแล้ว/);
+  expect(mockAdvance).toHaveBeenCalledTimes(1);
+  expect(mockAdvance).toHaveBeenCalledWith({
+    id: key,
+    expectedVersion: 0,
+    alignCurrentDatabase: true,
+    manifestHash: "a".repeat(64),
+  });
+  expect(mockApprove).not.toHaveBeenCalled();
+  expect(mockPrepare).not.toHaveBeenCalled();
+  expect(
+    screen.getByRole("button", { name: "ปิดการติดตามรายการนี้" }),
+  ).toBeEnabled();
+});
 test("lost prepare reload only looks up the same UUID and never automatically prepares or approves", async () => {
   mockPrepare.mockRejectedValue(new Error("network"));
   const first = render(<Harness />);
