@@ -13,6 +13,8 @@ import {
   applicationsResponseSchema,
   metadataSchema,
   exportDataSchema,
+  deleteApplicationResultSchema,
+  recountResultSchema,
   type ApplicationFilters,
   type OnsiteRegistration,
 } from "~/lib/competition-applications";
@@ -199,6 +201,30 @@ export const competitionAdminApiClient = {
     request(
       `/${encodeURIComponent(id)}/onsite`,
       applicationSchema,
+      json("POST", body),
+    ),
+  deleteApplication: (
+    id: string,
+    registrationId: string,
+    body: {
+      operationId: string;
+      expectedRevision: string;
+      registrationRevision: string;
+      reason: string;
+    },
+  ) =>
+    request(
+      `/${encodeURIComponent(id)}/applications/${encodeURIComponent(registrationId)}/delete`,
+      deleteApplicationResultSchema,
+      json("POST", body),
+    ),
+  recountRegistrations: (
+    id: string,
+    body: { operationId: string; expectedRevision: string },
+  ) =>
+    request(
+      `/${encodeURIComponent(id)}/recount`,
+      recountResultSchema,
       json("POST", body),
     ),
   exportData: (id: string) =>

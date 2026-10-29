@@ -14,6 +14,7 @@ import {
 import {
   applicationFiltersSchema,
   approvalInputSchema,
+  deleteApplicationInputSchema,
   onsiteRegistrationSchema,
 } from "~/lib/competition-applications";
 const id = z
@@ -48,6 +49,16 @@ export const competitionsRouter = createTRPCRouter({
     .input(mutationSchema.extend({ id, registrationId: id }))
     .mutation(({ input: { id, registrationId, ...body } }) =>
       safe(() => client.retryNotification(id, registrationId, body)),
+    ),
+  deleteApplication: protectProcedure
+    .input(deleteApplicationInputSchema.extend({ id, registrationId: id }))
+    .mutation(({ input: { id, registrationId, ...body } }) =>
+      safe(() => client.deleteApplication(id, registrationId, body)),
+    ),
+  recountRegistrations: protectProcedure
+    .input(mutationSchema.extend({ id }))
+    .mutation(({ input: { id, ...body } }) =>
+      safe(() => client.recountRegistrations(id, body)),
     ),
   metadata: protectProcedure
     .input(z.object({ id, microchip: z.string().trim().min(1).max(100) }))
