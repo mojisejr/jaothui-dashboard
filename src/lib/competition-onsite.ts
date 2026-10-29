@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Competition } from "./competitions";
+import type { CompetitionMetadata } from "./competition-applications";
 import { previewCompetitionAge } from "./competition-age-preview";
 import {
   getEligibleCompetitionClasses,
@@ -63,6 +64,27 @@ export function onsiteCriteria(event: Competition, form: OnsiteForm) {
           rule &&
           normalizeClassName(rule.name) === normalizeClassName(form.type),
       )?.criteria ?? ""
+  );
+}
+/** Normal events skip only entries known to be at the other level; Royal and unknown levels still count. */
+export function blockingDuplicateCount(
+  event: Pick<Competition, "eventType">,
+  level: OnsiteForm["level"],
+  metadata: Pick<
+    CompetitionMetadata,
+    "duplicateCount" | "duplicateRegistrations"
+  >,
+) {
+  if (event.eventType !== "normal") return metadata.duplicateCount;
+  const unlisted = Math.max(
+    0,
+    metadata.duplicateCount - metadata.duplicateRegistrations.length,
+  );
+  return (
+    unlisted +
+    metadata.duplicateRegistrations.filter(
+      (entry) => !entry.level || entry.level === level,
+    ).length
   );
 }
 export function validateOnsite(

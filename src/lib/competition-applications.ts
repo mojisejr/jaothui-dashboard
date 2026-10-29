@@ -111,7 +111,14 @@ export const metadataSchema = z.object({
     .nullish(),
   duplicateCount: z.number(),
   duplicateRegistrations: z.array(
-    z.object({ _id: z.string(), name: text, type: text, ownerName: text }),
+    z.object({
+      _id: z.string(),
+      name: text,
+      type: text,
+      ownerName: text,
+      // Additive source field; older sources omit it and stay conservative.
+      level: z.enum(["national", "province"]).nullish(),
+    }),
   ),
 });
 export const onsiteRegistrationSchema = z

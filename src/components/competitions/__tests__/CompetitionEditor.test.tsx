@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { CompetitionEditor } from "../CompetitionEditor";
 import type { Competition, CompetitionInput } from "~/lib/competitions";
 const mockCreate = jest.fn();
@@ -187,7 +193,7 @@ it("explains duplicate catalogs in Thai and preserves the entered classes", asyn
   fireEvent.change(screen.getByRole("textbox", { name: /ชื่องาน/ }), {
     target: { value: "งานทดสอบรุ่นซ้ำ" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "เพิ่มรุ่น" }));
+  fireEvent.click(screen.getByRole("button", { name: "เพิ่มรุ่นระดับประเทศ" }));
   fireEvent.click(screen.getByRole("button", { name: "คัดลอกรุ่นที่ 1" }));
   fireEvent.click(screen.getByRole("button", { name: "บันทึกงานร่าง" }));
   const error = await screen.findByRole("alert");
@@ -341,7 +347,7 @@ it("preserves untouched ambiguous legacy and provincial catalogs on a general sa
   });
   render(<CompetitionEditor existing={legacy} />);
   expect(
-    screen.getByRole("region", { name: "รุ่นจังหวัดจากข้อมูลเดิม" }),
+    screen.getByRole("region", { name: "รุ่นระดับจังหวัด / ท้องถิ่น" }),
   ).toBeVisible();
   expect(screen.getByText(/ข้อมูลเดิมอ่านเงื่อนไขไม่ชัดเจน/)).toBeVisible();
   fireEvent.change(screen.getByRole("textbox", { name: /ชื่องาน/ }), {
@@ -355,15 +361,23 @@ it("preserves untouched ambiguous legacy and provincial catalogs on a general sa
   expect(submitted.input.catalogs).toEqual(legacy.catalogs);
 });
 
-it("new events expose only the single national-backed class list", () => {
+it("new events show editable national and province/local class lists", async () => {
   render(<CompetitionEditor />);
-  expect(screen.getByRole("region", { name: "รุ่นแข่งขัน" })).toBeVisible();
+  expect(screen.getByRole("region", { name: "รุ่นระดับประเทศ" })).toBeVisible();
+  const province = screen.getByRole("region", {
+    name: "รุ่นระดับจังหวัด / ท้องถิ่น",
+  });
+  expect(province).toBeVisible();
+  expect(screen.queryByText(/จากข้อมูลเดิม/)).not.toBeInTheDocument();
+  fireEvent.click(
+    screen.getByRole("button", { name: "เพิ่มรุ่นระดับจังหวัด / ท้องถิ่น" }),
+  );
+  expect(within(province).getAllByLabelText("ชื่อรุ่น")).toHaveLength(1);
   expect(
-    screen.queryByRole("region", { name: "รุ่นจังหวัดจากข้อมูลเดิม" }),
-  ).not.toBeInTheDocument();
-  expect(
-    screen.queryByRole("textbox", { name: "รุ่นระดับประเทศ" }),
-  ).not.toBeInTheDocument();
+    within(
+      screen.getByRole("region", { name: "รุ่นระดับประเทศ" }),
+    ).queryAllByLabelText("ชื่อรุ่น"),
+  ).toHaveLength(0);
 });
 
 function chooseDate(label: string, iso: string) {
