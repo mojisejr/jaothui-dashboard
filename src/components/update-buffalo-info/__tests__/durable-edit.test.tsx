@@ -1,4 +1,10 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import {
+  render,
+  screen,
+  waitFor,
+  fireEvent,
+  act,
+} from "@testing-library/react";
 import DurableEdit from "../DurableEdit";
 const mockCreate = jest.fn(),
   mockPrepare = jest.fn(),
@@ -117,6 +123,78 @@ beforeEach(() => {
   mockViewError = undefined;
   mockFetchDetails.mockResolvedValue(detail);
   mockRefetch.mockResolvedValue({ data: [] });
+});
+test("fresh polling snapshots cannot indefinitely postpone a READY edit", async () => {
+  jest.useFakeTimers();
+  try {
+    const ready = { ...baseJob, state: "READY", version: 2, steps: [] };
+    mockJobs = [ready];
+    mockView = ready;
+    mockAdvance.mockImplementation(() => new Promise(() => undefined));
+    const page = render(<DurableEdit />);
+    for (let i = 0; i < 4; i++) {
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+      mockView = { ...ready };
+      page.rerender(<DurableEdit />);
+    }
+    expect(mockAdvance).toHaveBeenCalledTimes(1);
+    expect(mockAdvance).toHaveBeenCalledWith({ id: ready.id, version: 2 });
+    expect(mockCreate).not.toHaveBeenCalled();
+    page.unmount();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+test("saved edit leaves the input dialog before slow preparation and shows waiting guidance", async () => {
+  mockCreate.mockResolvedValue({ ...baseJob, state: "DRAFT", version: 0 });
+  mockPrepare.mockImplementation(() => new Promise(() => undefined));
+  render(<DurableEdit />);
+  fireEvent.click(screen.getByRole("button", { name: "แก้ไขชื่อ" }));
+  fireEvent.change(document.getElementById("edit-value")!, {
+    target: { value: "new name" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "ยืนยันการแก้ไข" }));
+  await waitFor(() => expect(mockPrepare).toHaveBeenCalled());
+  expect(document.querySelector("dialog")).not.toHaveAttribute("open");
+  expect(document.querySelector("[data-edit-progress]")).toHaveFocus();
+  expect(screen.getByText(/กรุณาอยู่หน้านี้จนขึ้น/)).toBeInTheDocument();
+  expect(mockAdvance).not.toHaveBeenCalled();
+});
+test("failed preparation can resume the saved draft after the dialog closes without creating another edit", async () => {
+  const draft = {
+    ...baseJob,
+    state: "DRAFT",
+    version: 0,
+    canResume: false,
+    steps: [],
+  };
+  mockCreate.mockResolvedValue(draft);
+  mockPrepare
+    .mockRejectedValueOnce(Error("network failed"))
+    .mockResolvedValueOnce({ ...draft, state: "READY", version: 1 });
+  mockAdvance.mockResolvedValueOnce({
+    ...draft,
+    state: "COMPLETED",
+    version: 2,
+  });
+  render(<DurableEdit />);
+  fireEvent.click(screen.getByRole("button", { name: "แก้ไขชื่อ" }));
+  fireEvent.change(document.getElementById("edit-value")!, {
+    target: { value: "keep name" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "ยืนยันการแก้ไข" }));
+  const resume = await screen.findByRole("button", {
+    name: "ดำเนินการต่อรายการเดิม",
+  });
+  await waitFor(() => expect(resume).toBeEnabled());
+  fireEvent.click(resume);
+  await waitFor(() =>
+    expect(mockAdvance).toHaveBeenCalledWith({ id: draft.id, version: 1 }),
+  );
+  expect(mockCreate).toHaveBeenCalledTimes(1);
+  expect(mockPrepare).toHaveBeenCalledTimes(2);
 });
 test("search/detail/field/dialog keeps one confirmation and double click sends one durable edit", async () => {
   mockCreate.mockImplementation(() => new Promise(() => undefined));

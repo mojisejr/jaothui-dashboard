@@ -3,6 +3,7 @@ import Image from "next/image";
 import { useCreateController } from "./useCreateController";
 import { createStatus, stepLabel, stepStatus } from "./status";
 import { FeedbackPanel } from "../buffalo-feedback/FeedbackPanel";
+import { OperationProgress } from "../buffalo-feedback/OperationProgress";
 import {
   feedbackFor,
   completedRefreshFeedback,
@@ -64,6 +65,7 @@ export default function DurableCreate() {
       <p className="text-base">
         บันทึกข้อมูล → รูปภาพ → ตรวจสอบ → Mint NFT และ Mint Metadata
       </p>
+      <OperationProgress job={job} busy={busy} kind="create" />
       <ol
         aria-label="ขั้นตอน"
         className="grid grid-cols-2 gap-2 sm:grid-cols-4"
@@ -439,7 +441,7 @@ export default function DurableCreate() {
             </div>
           )}
           <p className="break-all text-sm text-base-content/70">
-            เลขรายการ {job.id} · ปิดหน้าแล้วกลับมาดำเนินการต่อได้
+            เลขรายการ {job.id} · หากหลุด ให้กลับมาตรวจและดำเนินการต่อรายการเดิม
           </p>
         </section>
       )}
