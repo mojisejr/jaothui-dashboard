@@ -314,3 +314,34 @@ test("normal consumer stale bytes prevent public DB insertion even after immutab
     fetcher.mockRestore();
   }
 });
+test("creation publishes after versioned readback verifies stale alias bytes, using the original token", async () => {
+  const c = setup(),
+    op = await c.prepared(),
+    bytes = Buffer.from("final-json");
+  jest
+    .spyOn(c.workflow, "verifyCurrent")
+    .mockResolvedValue({
+      key: "final.json",
+      bytes,
+      uri: "https://assets.example.test/final.json",
+    });
+  const fetch = jest
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async (url) => {
+      const parsed = new URL(String(url));
+      const bytes = c.files.get(parsed.pathname.slice(1));
+      return new Response(
+        parsed.searchParams.has("cacheNonce") && bytes
+          ? new Uint8Array(bytes)
+          : "stale",
+      );
+    });
+  try {
+    await c.workflow.project(op);
+    expect(c.db.pedigree.create).toHaveBeenCalledTimes(1);
+    const saved = c.db.pedigree.create.mock.calls as [{ data: { tokenId: bigint } }][];
+    expect(saved[0]![0].data.tokenId).toBe(98765n);
+  } finally {
+    fetch.mockRestore();
+  }
+});

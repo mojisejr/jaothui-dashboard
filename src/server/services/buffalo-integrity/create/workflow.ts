@@ -2,6 +2,7 @@ import {
   receiptEvidence,
   nativeReceiptEvidence,
 } from "../operations/receipt-evidence";
+import { verifyPublicAsset } from "../publication-readback";
 import {
   executionEnvironment,
   transactionLink,
@@ -720,16 +721,7 @@ export class BuffaloCreateWorkflow {
       [`buffalo/${token}.jpg`, image],
       [`json/${token}.json`, final.bytes],
     ] as const) {
-      const response = await fetch(this.storage.publicUrl(key), {
-        signal: AbortSignal.timeout(5000),
-        redirect: "error",
-      });
-      if (
-        !response.ok ||
-        contentHash(Buffer.from(await response.arrayBuffer())) !==
-          contentHash(bytes)
-      )
-        throw new Error("PUBLIC_ASSET_READBACK_PENDING");
+      await verifyPublicAsset(this.storage, key, contentHash(bytes));
     }
     const projection = intentToDatabase(
       intent,
@@ -786,15 +778,7 @@ export class BuffaloCreateWorkflow {
       [`buffalo/${operation.actualToken!}.jpg`, contentHash(image)],
       [`json/${operation.actualToken!}.json`, contentHash(json)],
     ] as const) {
-      const response = await fetch(this.storage.publicUrl(key), {
-        signal: AbortSignal.timeout(5000),
-        redirect: "error",
-      });
-      if (
-        !response.ok ||
-        contentHash(Buffer.from(await response.arrayBuffer())) !== expected
-      )
-        return false;
+      await verifyPublicAsset(this.storage, key, expected);
     }
     return (
       row.createdAt ===
