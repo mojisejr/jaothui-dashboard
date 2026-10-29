@@ -45,11 +45,13 @@ export function RepairOperationProgress({
       <h2 className="text-xl font-semibold">รายการซ่อมที่กำลังติดตาม</h2>
       {pending && <p className="break-all text-sm">เลขรายการ: {pending.key}</p>}
       <p role="status" aria-live="polite">
-        {view
-          ? Object.hasOwn(states, view.state)
-            ? states[view.state]
-            : "ได้รับสถานะที่ต้องให้ผู้ดูแลตรวจเพิ่มเติม"
-          : "กำลังตรวจผลของเลขรายการเดิม ยังไม่เริ่มรายการใหม่"}
+        {view?.operatorResolved
+          ? "ปรับทะเบียนตามสถานะปัจจุบันแล้ว แผนซ่อมเดิมหยุดไว้พร้อมประวัติ สามารถกลับไปแก้ข้อมูลปกติได้"
+          : view
+            ? Object.hasOwn(states, view.state)
+              ? states[view.state]
+              : "ได้รับสถานะที่ต้องให้ผู้ดูแลตรวจเพิ่มเติม"
+            : "กำลังตรวจผลของเลขรายการเดิม ยังไม่เริ่มรายการใหม่"}
         {busy ? " · กำลังติดต่อระบบ…" : ""}
       </p>
       {uncertain && (
@@ -87,6 +89,22 @@ export function RepairOperationProgress({
       )}
       {view && (
         <>
+          {view.canAlignCurrentDatabase && (
+            <div className="space-y-2 rounded-lg border border-warning p-3">
+              <p>
+                สำหรับฟ้าราชสีห์: ยืนยันธุรกรรมที่สำเร็จและสถานะปัจจุบัน
+                ปรับทะเบียนกับ JSON ให้ตรงกัน แล้วหยุดแผนเดิมไว้พร้อมประวัติ
+                ขั้นนี้ไม่ส่งธุรกรรมเพิ่มและไม่อ้างว่าได้ตรวจสถานะย้อนหลังครบ
+              </p>
+              <button
+                className="btn btn-primary min-h-12"
+                disabled={busy || uncertain || !capability.data?.canResume}
+                onClick={() => void controller.action("alignCurrentDatabase")}
+              >
+                ยืนยันสถานะปัจจุบันและปรับทะเบียน
+              </button>
+            </div>
+          )}
           {view.canReviewReceipt && (
             <div className="space-y-2 rounded-lg border border-warning p-3">
               <p>
