@@ -51,7 +51,7 @@ export default function ApplicationPage() {
       ) : application.data ? (
         <>
           <ApplicationReview
-            key={registrationId}
+            key={`${id}:${registrationId}`}
             id={id}
             initial={application.data}
             reload={async () => {

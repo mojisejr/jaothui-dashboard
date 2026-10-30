@@ -6,6 +6,9 @@ import {
   applicationStatus,
   approvalLabels,
   notificationLabels,
+  registrationLabel,
+  hasRegistrationPolicy,
+  SOURCE_POLICY_UPGRADE_MESSAGE,
   type Application,
 } from "~/lib/competition-applications";
 import { formatDay } from "~/lib/competitions";
@@ -65,7 +68,7 @@ export function ApplicationReview({
       setConflict(true);
   };
   async function save(result: boolean) {
-    if (pending.current) return;
+    if (pending.current || entry.approvalRequirement !== "required") return;
     if (!result && !comment.trim()) {
       setFailure("กรุณาระบุเหตุผลที่ไม่อนุมัติ");
       return;
@@ -94,7 +97,12 @@ export function ApplicationReview({
     }
   }
   async function send() {
-    if (pending.current || !entry.approval) return;
+    if (
+      pending.current ||
+      !entry.approval ||
+      entry.approvalRequirement !== "required"
+    )
+      return;
     pending.current = true;
     setFailure("");
     setMessage("");
@@ -147,6 +155,9 @@ export function ApplicationReview({
     entry.hasLineRecipient &&
     !["sent", "sending", "review-required"].includes(state);
   const images = entry.images.flatMap((group) => group.images);
+  if (!hasRegistrationPolicy(entry))
+    return <Alert error>{SOURCE_POLICY_UPGRADE_MESSAGE}</Alert>;
+  const canReview = entry.approvalRequirement === "required";
   return (
     <div className="min-w-0 space-y-6">
       <Link
@@ -166,7 +177,7 @@ export function ApplicationReview({
             {entry.name || "ไม่ระบุชื่อควาย"}
           </h2>
           <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-sm">
-            {approvalLabels[applicationStatus(entry)]}
+            {registrationLabel(entry)}
           </span>
         </div>
         <dl className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -288,93 +299,149 @@ export function ApplicationReview({
           <p className="text-text-muted">ไม่มีรูปแนบในใบสมัครนี้</p>
         )}
       </section>
-      <section
-        className="glass-card min-w-0 space-y-4 rounded-3xl p-5"
-        aria-label="ตรวจและอนุมัติ"
-      >
-        <h2 className="text-lg font-semibold">ตรวจและอนุมัติ</h2>
-        <p>ผลปัจจุบัน: {approvalLabels[applicationStatus(entry)]}</p>
-        <p className="text-sm text-text-muted">
-          ดำเนินการด้วยบัญชีทีมงานร่วม ระบบเก็บผลและเวลา
-          ไม่ระบุว่าเป็นเจ้าหน้าที่รายใด
-        </p>
-        {entry.approval?.approvementDate ? (
-          <p className="break-words text-sm text-text-muted">
-            เวลาตรวจล่าสุด: {reviewTime(entry.approval.approvementDate)}{" "}
-            (เวลาไทย)
-          </p>
-        ) : null}
-        <label className="block min-w-0 space-y-2 text-sm">
-          หมายเหตุ / เหตุผลที่ไม่อนุมัติ (จำเป็นเมื่อไม่อนุมัติ)
-          <textarea
-            className={control}
-            rows={4}
-            maxLength={3000}
-            value={comment}
-            disabled={busy}
-            onChange={(e) => {
-              setComment(e.target.value);
-              setFailure("");
-            }}
-          />
-        </label>
-        <div className="flex flex-wrap gap-3">
-          <button
-            className={primary}
-            disabled={busy || conflict}
-            onClick={() => void save(true)}
-          >
-            {approval.isPending ? "กำลังบันทึก…" : "บันทึกอนุมัติ"}
-          </button>
-          <button
-            className={button}
-            disabled={busy || conflict}
-            onClick={() => void save(false)}
-          >
-            บันทึกไม่อนุมัติ
-          </button>
-        </div>
-      </section>
-      <section
-        className="glass-card min-w-0 space-y-4 rounded-3xl p-5"
-        aria-label="ผลการส่ง LINE"
-      >
-        <h2 className="text-lg font-semibold">ผลการส่ง LINE</h2>
-        {!entry.approval ||
-        typeof entry.approval.approvementResult !== "boolean" ? (
-          <p>ยังไม่มีผลตรวจสำหรับส่งแจ้ง</p>
-        ) : (
-          <>
+      {!canReview ? (
+        <section
+          className="glass-card min-w-0 space-y-4 rounded-3xl p-5"
+          aria-label="กติกาการสมัคร"
+        >
+          <h2 className="text-lg font-semibold">
+            {entry.approvalRequirement === "not_required"
+              ? "งานประเภทนี้ไม่ต้องรออนุมัติ"
+              : "งานเก่าไม่ระบุประเภท"}
+          </h2>
+          {entry.approvalRequirement === "unknown" ? (
             <p>
-              {notificationLabels[state] ??
-                (state ? `สถานะข้อมูลเดิม: ${state}` : "ยังไม่มีประวัติการส่ง")}
+              เก็บข้อมูลย้อนหลังและผลเดิมไว้ตามเดิม
+              ไม่จัดประเภทหรือแก้ไขผลอนุมัติอัตโนมัติ
             </p>
-            {!entry.hasLineRecipient ? (
+          ) : null}
+          {entry.approval ? (
+            <div className="space-y-2" aria-label="ประวัติผลตรวจเดิม">
               <p>
-                ไม่มีบัญชี LINE ผู้สมัครที่เชื่อมกับใบสมัครนี้
-                จะไม่ส่งไปยังบัญชีทีมงานแทน
+                ประวัติผลตรวจเดิม: {approvalLabels[applicationStatus(entry)]}
+              </p>
+              {entry.approval.approvementDate ? (
+                <p>
+                  เวลาตรวจเดิม: {reviewTime(entry.approval.approvementDate)}
+                </p>
+              ) : null}
+              {entry.approval.comment ? (
+                <p className="break-words">
+                  หมายเหตุเดิม: {entry.approval.comment}
+                </p>
+              ) : null}
+              {entry.approval.notificationState ? (
+                <p>
+                  ประวัติ LINE:{" "}
+                  {notificationLabels[entry.approval.notificationState] ??
+                    entry.approval.notificationState}
+                </p>
+              ) : null}
+              {entry.approvalRequirement === "not_required" &&
+              entry.approval.approvementResult === false ? (
+                <Alert>
+                  มีประวัติไม่อนุมัติเดิม โปรดตรวจสอบประวัติก่อนนำข้อมูลไปใช้
+                  ผลเดิมไม่ได้ถูกแก้ไข
+                </Alert>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+      ) : (
+        <>
+          <section
+            className="glass-card min-w-0 space-y-4 rounded-3xl p-5"
+            aria-label="ตรวจและอนุมัติ"
+          >
+            <h2 className="text-lg font-semibold">ตรวจและอนุมัติ</h2>
+            <p>ผลปัจจุบัน: {approvalLabels[applicationStatus(entry)]}</p>
+            <p className="text-sm text-text-muted">
+              ดำเนินการด้วยบัญชีทีมงานร่วม ระบบเก็บผลและเวลา
+              ไม่ระบุว่าเป็นเจ้าหน้าที่รายใด
+            </p>
+            {entry.approval?.approvementDate ? (
+              <p className="break-words text-sm text-text-muted">
+                เวลาตรวจล่าสุด: {reviewTime(entry.approval.approvementDate)}{" "}
+                (เวลาไทย)
               </p>
             ) : null}
-            {!entry.deliveryEnabled && state !== "sent" ? (
-              <Alert>ระบบปิดการส่ง LINE อยู่ บันทึกผลการตรวจได้ตามปกติ</Alert>
-            ) : null}
-            <p className="text-sm text-text-muted">
-              คำว่า LINE รับคำขอส่งแล้ว หมายถึงผู้ให้บริการรับคำขอ
-              ไม่ยืนยันว่าผู้สมัครเปิดอ่าน การลองส่งไม่เปลี่ยนผลอนุมัติ
-            </p>
-            {entry.hasLineRecipient &&
-            !["sent", "review-required"].includes(state) ? (
+            <label className="block min-w-0 space-y-2 text-sm">
+              หมายเหตุ / เหตุผลที่ไม่อนุมัติ (จำเป็นเมื่อไม่อนุมัติ)
+              <textarea
+                className={control}
+                rows={4}
+                maxLength={3000}
+                value={comment}
+                disabled={busy}
+                onChange={(e) => {
+                  setComment(e.target.value);
+                  setFailure("");
+                }}
+              />
+            </label>
+            <div className="flex flex-wrap gap-3">
+              <button
+                className={primary}
+                disabled={busy || conflict}
+                onClick={() => void save(true)}
+              >
+                {approval.isPending ? "กำลังบันทึก…" : "บันทึกอนุมัติ"}
+              </button>
               <button
                 className={button}
-                disabled={busy || !canSend || conflict}
-                onClick={() => void send()}
+                disabled={busy || conflict}
+                onClick={() => void save(false)}
               >
-                {retry.isPending ? "กำลังส่ง…" : "ส่ง / ลองส่ง LINE"}
+                บันทึกไม่อนุมัติ
               </button>
-            ) : null}
-          </>
-        )}
-      </section>
+            </div>
+          </section>
+          <section
+            className="glass-card min-w-0 space-y-4 rounded-3xl p-5"
+            aria-label="ผลการส่ง LINE"
+          >
+            <h2 className="text-lg font-semibold">ผลการส่ง LINE</h2>
+            {!entry.approval ||
+            typeof entry.approval.approvementResult !== "boolean" ? (
+              <p>ยังไม่มีผลตรวจสำหรับส่งแจ้ง</p>
+            ) : (
+              <>
+                <p>
+                  {notificationLabels[state] ??
+                    (state
+                      ? `สถานะข้อมูลเดิม: ${state}`
+                      : "ยังไม่มีประวัติการส่ง")}
+                </p>
+                {!entry.hasLineRecipient ? (
+                  <p>
+                    ไม่มีบัญชี LINE ผู้สมัครที่เชื่อมกับใบสมัครนี้
+                    จะไม่ส่งไปยังบัญชีทีมงานแทน
+                  </p>
+                ) : null}
+                {!entry.deliveryEnabled && state !== "sent" ? (
+                  <Alert>
+                    ระบบปิดการส่ง LINE อยู่ บันทึกผลการตรวจได้ตามปกติ
+                  </Alert>
+                ) : null}
+                <p className="text-sm text-text-muted">
+                  คำว่า LINE รับคำขอส่งแล้ว หมายถึงผู้ให้บริการรับคำขอ
+                  ไม่ยืนยันว่าผู้สมัครเปิดอ่าน การลองส่งไม่เปลี่ยนผลอนุมัติ
+                </p>
+                {entry.hasLineRecipient &&
+                !["sent", "review-required"].includes(state) ? (
+                  <button
+                    className={button}
+                    disabled={busy || !canSend || conflict}
+                    onClick={() => void send()}
+                  >
+                    {retry.isPending ? "กำลังส่ง…" : "ส่ง / ลองส่ง LINE"}
+                  </button>
+                ) : null}
+              </>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }

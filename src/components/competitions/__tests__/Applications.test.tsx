@@ -42,6 +42,9 @@ const entry = () =>
     type: "มากกว่า 12 ถึง 15 เดือน",
     buffaloAge: 13,
     approval: null,
+    registrationPolicyVersion: 1,
+    approvalRequirement: "required",
+    registrationStatus: "pending",
   });
 const approval = {
   _id: "approval1",
@@ -60,6 +63,16 @@ beforeEach(() => {
   });
   mockList.mockReturnValue({
     data: {
+      registrationPolicyVersion: 1,
+      approvalRequirement: "required",
+      registrationCounts: {
+        total: 3,
+        registered: 0,
+        pending: 1,
+        accepted: 1,
+        rejected: 1,
+        needs_type_review: 0,
+      },
       items: [],
       total: 0,
       page: 1,
@@ -107,6 +120,7 @@ it("separates approval save from notification and never automatically retries LI
   mockApproval.mockResolvedValue({
     ...entry(),
     _rev: "registration-rev2",
+    registrationStatus: "accepted" as const,
     approval: { ...approval, notificationState: "pending" },
     deliveryEnabled: false,
     hasLineRecipient: true,
@@ -128,6 +142,7 @@ it("retries only delivery with approval revision and preserves unsaved note", as
   const initial = {
     ...entry(),
     approval,
+    registrationStatus: "accepted" as const,
     deliveryEnabled: true,
     hasLineRecipient: true,
   };
@@ -189,6 +204,7 @@ it("does not offer LINE send when no linked recipient exists", () => {
       id="event1"
       initial={{
         ...entry(),
+        registrationStatus: "accepted" as const,
         approval: { ...approval, notificationState: "not-applicable" },
         deliveryEnabled: true,
       }}
@@ -216,7 +232,7 @@ it("composes search and filters, then resets all filters and page", () => {
     expect.objectContaining({
       id: "event1",
       search: "chip42",
-      status: "pending",
+      registrationStatus: "pending",
       type: "รุ่นหนึ่ง",
       color: "ดำ",
       page: 1,
@@ -295,6 +311,7 @@ it("describes uncertain LINE delivery without marking the approval as failed", (
       id="event1"
       initial={{
         ...entry(),
+        registrationStatus: "accepted" as const,
         approval: { ...approval, notificationState: "uncertain" },
         deliveryEnabled: true,
         hasLineRecipient: true,
@@ -307,4 +324,132 @@ it("describes uncertain LINE delivery without marking the approval as failed", (
   expect(
     screen.getByRole("button", { name: "ส่ง / ลองส่ง LINE" }),
   ).toBeEnabled();
+});
+
+it.each([
+  ["not_required", "registered", "งานประเภทนี้ไม่ต้องรออนุมัติ"],
+  ["unknown", "needs_type_review", "งานเก่าไม่ระบุประเภท"],
+] as const)(
+  "keeps %s read-only while preserving historical rejection and LINE evidence",
+  (approvalRequirement, registrationStatus, helper) => {
+    const historical = {
+      ...entry(),
+      approvalRequirement,
+      registrationStatus,
+      approval: {
+        ...approval,
+        approvementResult: false,
+        comment: "ผลเดิมต้องเก็บ",
+        notificationState: "sent",
+      },
+    };
+    render(
+      <ApplicationReview id="event1" initial={historical} reload={jest.fn()} />,
+    );
+    expect(screen.getByText(helper)).toBeVisible();
+    expect(screen.getByText("ประวัติผลตรวจเดิม: ไม่อนุมัติ")).toBeVisible();
+    expect(screen.getByText("หมายเหตุเดิม: ผลเดิมต้องเก็บ")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "บันทึกอนุมัติ" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "บันทึกไม่อนุมัติ" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "ส่ง / ลองส่ง LINE" }),
+    ).not.toBeInTheDocument();
+    expect(mockApproval).not.toHaveBeenCalled();
+    expect(mockRetry).not.toHaveBeenCalled();
+  },
+);
+it("uses Normal effective counts and filters even with an empty list", () => {
+  mockList.mockReturnValue({
+    data: {
+      registrationPolicyVersion: 1,
+      approvalRequirement: "not_required",
+      registrationCounts: {
+        total: 8,
+        registered: 8,
+        pending: 0,
+        accepted: 0,
+        rejected: 0,
+        needs_type_review: 0,
+      },
+      counts: { total: 8, pending: 8, accepted: 0, rejected: 0 },
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 20,
+      facets: { types: [], levels: [], sexes: [], colors: [] },
+    },
+  });
+  render(<ApplicationsList id="normal" />);
+  expect(screen.getByRole("option", { name: "สมัครสำเร็จ" })).toBeVisible();
+  expect(
+    screen.queryByRole("option", { name: "รอตรวจสอบ" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByText(/สมัครสำเร็จ 8/)).toBeVisible();
+  fireEvent.change(screen.getByLabelText("สถานะใบสมัคร"), {
+    target: { value: "registered" },
+  });
+  expect(mockList).toHaveBeenLastCalledWith(
+    expect.objectContaining({ registrationStatus: "registered" }),
+  );
+});
+it("clears a Royal status filter when source requirement changes for the same event", async () => {
+  const view = render(<ApplicationsList id="event1" />);
+  fireEvent.change(screen.getByLabelText("สถานะใบสมัคร"), {
+    target: { value: "pending" },
+  });
+  mockList.mockReturnValue({
+    data: {
+      registrationPolicyVersion: 1,
+      approvalRequirement: "not_required",
+      registrationCounts: {
+        total: 0,
+        registered: 0,
+        pending: 0,
+        accepted: 0,
+        rejected: 0,
+        needs_type_review: 0,
+      },
+      items: [],
+      total: 0,
+      facets: { types: [], sexes: [], colors: [] },
+    },
+    isPending: false,
+  });
+  view.rerender(<ApplicationsList id="event1" />);
+  await waitFor(() =>
+    expect(mockList).toHaveBeenLastCalledWith(
+      expect.objectContaining({ registrationStatus: undefined, page: 1 }),
+    ),
+  );
+});
+it("shows a source-upgrade error rather than guessing a missing Normal policy", () => {
+  const old = entry();
+  delete old.registrationPolicyVersion;
+  render(<ApplicationReview id="event1" initial={old} reload={jest.fn()} />);
+  expect(screen.getByRole("alert")).toHaveTextContent("กรุณาอัปเดตระบบต้นทาง");
+  expect(
+    screen.queryByRole("button", { name: "บันทึกอนุมัติ" }),
+  ).not.toBeInTheDocument();
+});
+it("preserves a selected status through the transient pending response of a new query key", () => {
+  const view = render(<ApplicationsList id="event1" />);
+  fireEvent.change(screen.getByLabelText("สถานะใบสมัคร"), {
+    target: { value: "accepted" },
+  });
+  expect(mockList).toHaveBeenLastCalledWith(
+    expect.objectContaining({ registrationStatus: "accepted" }),
+  );
+  mockList.mockReturnValue({
+    data: undefined,
+    isPending: true,
+    isFetching: true,
+  });
+  view.rerender(<ApplicationsList id="event1" />);
+  expect(mockList).toHaveBeenLastCalledWith(
+    expect.objectContaining({ registrationStatus: "accepted" }),
+  );
 });

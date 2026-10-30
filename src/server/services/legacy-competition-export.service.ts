@@ -96,6 +96,11 @@ export async function createLegacyCompetitionExport(
 
 export function legacyExportError(error: unknown) {
   if (error instanceof CompetitionExportError) return error.message;
+  if (
+    error instanceof CompetitionApiError &&
+    error.code === "SOURCE_UPGRADE_REQUIRED"
+  )
+    return error.message;
   if (error instanceof CompetitionApiError && error.status === 404)
     return "ไม่พบงานที่เลือก กรุณาโหลดรายการงานใหม่";
   return "ส่งออกข้อมูลไม่สำเร็จ กรุณาลองอีกครั้ง หากยังมีปัญหาให้ตรวจการเชื่อมต่อระบบการแข่งขัน";
