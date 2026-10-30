@@ -77,6 +77,16 @@ it("composes event-scoped application filters without dropping status or level",
         total: 0,
         page: 2,
         pageSize: 20,
+        registrationPolicyVersion: 1,
+        approvalRequirement: "required",
+        registrationCounts: {
+          total: 4,
+          registered: 0,
+          pending: 2,
+          accepted: 1,
+          rejected: 1,
+          needs_type_review: 0,
+        },
         counts: { total: 4, pending: 2, accepted: 1, rejected: 1 },
         facets: { types: [], levels: [], sexes: [], colors: [] },
       },
@@ -112,7 +122,15 @@ it("composes event-scoped application filters without dropping status or level",
 it("forwards notification retry with approval revision and does not call approval endpoint", async () => {
   const mock = jest.fn().mockResolvedValue({
     ok: true,
-    json: async () => ({ data: { _id: "entry1", _rev: "entry-rev" } }),
+    json: async () => ({
+      data: {
+        _id: "entry1",
+        _rev: "entry-rev",
+        registrationPolicyVersion: 1,
+        approvalRequirement: "required",
+        registrationStatus: "accepted",
+      },
+    }),
   });
   global.fetch = mock as unknown as typeof fetch;
   const body = {
@@ -198,3 +216,21 @@ it.each(["REFERENCED_DOCUMENTS", "REGISTRATION_INDEX_PENDING"])(
     ).toBe("คำอธิบายจากระบบ");
   },
 );
+it("rejects old source capabilities with an actionable upgrade error", async () => {
+  global.fetch = jest
+    .fn()
+    .mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { _id: "old", _rev: "rev" } }),
+    }) as unknown as typeof fetch;
+  await expect(
+    competitionAdminApiClient.application("event", "old"),
+  ).rejects.toMatchObject({ code: "SOURCE_UPGRADE_REQUIRED" });
+  expect(
+    toCompetitionTRPCError({
+      status: 503,
+      code: "SOURCE_UPGRADE_REQUIRED",
+      message: "อัปเดตต้นทาง",
+    }).message,
+  ).toBe("อัปเดตต้นทาง");
+});

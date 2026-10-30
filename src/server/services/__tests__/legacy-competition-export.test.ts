@@ -37,6 +37,9 @@ const caller = (token = "valid-session") =>
 const eventId = "event.legacy-106";
 function fixture() {
   const row = {
+    registrationPolicyVersion: 1,
+    approvalRequirement: "not_required",
+    registrationStatus: "registered",
     _id: "r1",
     _rev: "r1rev",
     event: { _ref: eventId },
@@ -58,6 +61,7 @@ function fixture() {
     ageWarning: null,
   };
   return {
+    registrationPolicyVersion: 1,
     event: {
       _id: eventId,
       _rev: "rev",
@@ -276,4 +280,14 @@ it("retains the >10MB ZIP envelope and exact workbook entry without compressing 
     (item) => item.name === "event.xlsx",
   );
   expect(Buffer.from(entry!.content).equals(large)).toBe(true);
+});
+it("preserves the actionable source-policy upgrade error in legacy export", async () => {
+  const oldSource = { ...fixture(), registrationPolicyVersion: undefined };
+  fetchMock.mockResolvedValue({
+    ok: true,
+    json: async () => ({ data: oldSource }),
+  });
+  const result = await caller().exportEventData({ eventId });
+  expect(result.success).toBe(false);
+  expect(result.error).toContain("กรุณาอัปเดตระบบต้นทางก่อนใช้งาน");
 });

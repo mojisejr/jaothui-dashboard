@@ -36,7 +36,7 @@ export default function ApplicationsPage() {
             <Alert>ลบใบสมัครแล้ว สำเนาถูกเก็บไว้ในประวัติการดำเนินการ</Alert>
           ) : null}
           <RegistrationRecount event={event.data} />
-          <ApplicationsList id={id} />
+          <ApplicationsList key={id} id={id} />
         </>
       ) : null}
     </Workspace>
