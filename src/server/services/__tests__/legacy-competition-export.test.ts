@@ -168,13 +168,42 @@ it("rejects malformed IDs and preserves canonical dotted IDs regardless of dupli
   await expect(
     caller().exportEventData({ eventId: '" || true' }),
   ).rejects.toMatchObject({ code: "BAD_REQUEST" });
-  mockSanityFetch.mockResolvedValue([
-    { _id: eventId, title: "งานชื่อซ้ำ", _type: "event" },
-    { _id: "other", title: "งานชื่อซ้ำ", _type: "event" },
-  ]);
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      data: {
+        items: [
+          {
+            ...fixture().event,
+            _id: eventId,
+            title: "งานชื่อซ้ำ",
+            policy: { ...fixture().event.policy, lifecycle: "draft" },
+          },
+          {
+            ...fixture().event,
+            _id: "other",
+            title: "งานชื่อซ้ำ",
+            policy: { ...fixture().event.policy, lifecycle: "closed" },
+          },
+        ],
+        total: 2,
+        page: 1,
+        pageSize: 100,
+        counts: { total: 2 },
+      },
+    }),
+  });
   const events = await caller().getEventsForExport();
   expect(events.data).toHaveLength(2);
-  mockSanityFetch.mockClear();
+  expect(mockSanityFetch).not.toHaveBeenCalled();
+  const [listUrl, listInit] = fetchMock.mock.calls[0] as [URL, RequestInit];
+  expect(listUrl.pathname).toBe("/api/admin/competitions");
+  expect(listUrl.searchParams.get("pageSize")).toBe("100");
+  expect(listUrl.searchParams.has("lifecycle")).toBe(false);
+  expect(new Headers(listInit.headers).get("Authorization")).toBe(
+    "Bearer server-only-export-test",
+  );
+  fetchMock.mockClear();
   const result = await caller().exportEventData({ eventId });
   expect(result.success).toBe(true);
   const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit];

@@ -60,9 +60,12 @@ assert.match(
   /MAX_COVER_UPLOAD_BYTES\s*=\s*4\s*\*\s*1024\s*\*\s*1024/,
   "news/events page must guard cover uploads at 4MB before base64 conversion"
 );
-assert.match(
-  trpcRouteSource,
-  /sizeLimit:\s*"8mb"/,
+const nextBodyLimit = /sizeLimit:\s*["']8mb["']/.test(trpcRouteSource);
+const adapterBodyLimit =
+  /bodyParser:\s*false/.test(trpcRouteSource) &&
+  /maxBodySize:\s*8\s*\*\s*1024\s*\*\s*1024/.test(trpcRouteSource);
+assert.ok(
+  nextBodyLimit || adapterBodyLimit,
   "tRPC route must allow base64 cover uploads above Next.js default 1MB body limit"
 );
 
