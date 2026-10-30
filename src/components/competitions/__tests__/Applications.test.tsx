@@ -453,3 +453,69 @@ it("preserves a selected status through the transient pending response of a new 
     expect.objectContaining({ registrationStatus: "accepted" }),
   );
 });
+it("composes an arrival filter with approval and search while displaying independent arrival totals", () => {
+  mockList.mockReturnValue({
+    data: {
+      registrationPolicyVersion: 1,
+      approvalRequirement: "required",
+      registrationCounts: {
+        total: 5,
+        registered: 0,
+        pending: 1,
+        accepted: 3,
+        rejected: 1,
+        needs_type_review: 0,
+      },
+      checkInVersion: 1,
+      checkInCounts: { total: 3, checked_in: 2, not_checked_in: 1 },
+      items: [
+        {
+          ...entry(),
+          registrationStatus: "accepted",
+          checkInVersion: 1,
+          checkInStatus: "checked_in",
+          checkedInAt: "2026-10-30T08:00:00Z",
+          checkedInBy: "dashboard-shared",
+          checkInEligibility: { eligible: true, reason: null },
+          checkInHistory: [],
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+      counts: { total: 5, pending: 1, accepted: 3, rejected: 1 },
+      facets: { types: [], sexes: [], colors: [] },
+    },
+    isPending: false,
+    isFetching: false,
+  });
+  render(<ApplicationsList id="event1" />);
+  expect(
+    screen.getByText(/รายงานตัวตามคำค้นและตัวกรองใบสมัคร: 3 รายการ/),
+  ).toHaveTextContent("รายงานตัวแล้ว 2 • ยังไม่รายงานตัว 1");
+  expect(screen.getByText("รายงานตัวแล้ว", { selector: "span" })).toBeVisible();
+  fireEvent.change(screen.getByRole("searchbox"), {
+    target: { value: "000123" },
+  });
+  fireEvent.change(screen.getByLabelText("สถานะใบสมัคร"), {
+    target: { value: "accepted" },
+  });
+  fireEvent.change(screen.getByLabelText("สถานะหน้างาน"), {
+    target: { value: "not_checked_in" },
+  });
+  expect(mockList).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      search: "000123",
+      registrationStatus: "accepted",
+      checkInStatus: "not_checked_in",
+      page: 1,
+    }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "ล้างตัวกรอง" }));
+  expect(mockList).toHaveBeenLastCalledWith({
+    id: "event1",
+    search: "",
+    page: 1,
+    pageSize: 20,
+  });
+});

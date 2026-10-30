@@ -9,6 +9,11 @@ import {
   type ApplicationFilters,
 } from "~/lib/competition-applications";
 import { Alert, button, control } from "./Workspace";
+import {
+  checkInLabels,
+  CHECK_IN_UPGRADE_MESSAGE,
+  hasCheckInCapability,
+} from "~/lib/competition-check-in";
 const statusOptionsByRequirement = {
   not_required: ["registered"],
   required: ["pending", "accepted", "rejected"],
@@ -28,6 +33,8 @@ export function ApplicationsList({ id }: { id: string }) {
   ) => setFilters((v) => ({ ...v, [key]: value, page: 1 }));
   const facets = query.data?.facets;
   const registrationCounts = query.data?.registrationCounts;
+  const arrivalCounts = query.data?.checkInCounts;
+  const arrivalAvailable = query.data?.checkInVersion === 1 && !!arrivalCounts;
   const requirement = query.data?.approvalRequirement;
   const statusOptions = statusOptionsByRequirement[requirement ?? "unknown"];
   useEffect(() => {
@@ -83,6 +90,27 @@ export function ApplicationsList({ id }: { id: string }) {
                   {registrationLabels[value]}
                 </option>
               ))}
+            </select>
+          </label>
+          <label className="min-w-0 space-y-2 text-sm">
+            สถานะหน้างาน
+            <select
+              className={control}
+              value={filters.checkInStatus ?? ""}
+              disabled={!arrivalAvailable}
+              onChange={(event) =>
+                change(
+                  "checkInStatus",
+                  event.target.value
+                    ? (event.target
+                        .value as ApplicationFilters["checkInStatus"])
+                    : undefined,
+                )
+              }
+            >
+              <option value="">ทุกสถานะรายงานตัว</option>
+              <option value="not_checked_in">ยังไม่รายงานตัว</option>
+              <option value="checked_in">รายงานตัวแล้ว</option>
             </select>
           </label>
           <label className="min-w-0 space-y-2 text-sm">
@@ -156,6 +184,15 @@ export function ApplicationsList({ id }: { id: string }) {
             ))}
           </p>
         ) : null}
+        {arrivalCounts && arrivalAvailable ? (
+          <p className="break-words text-sm text-text-muted">
+            รายงานตัวตามคำค้นและตัวกรองใบสมัคร: {arrivalCounts.total} รายการ •
+            รายงานตัวแล้ว {arrivalCounts.checked_in} • ยังไม่รายงานตัว{" "}
+            {arrivalCounts.not_checked_in}
+          </p>
+        ) : query.data ? (
+          <p className="text-sm text-text-muted">{CHECK_IN_UPGRADE_MESSAGE}</p>
+        ) : null}
       </section>
       {query.isPending ? (
         <p role="status">กำลังโหลดใบสมัคร…</p>
@@ -185,9 +222,18 @@ export function ApplicationsList({ id }: { id: string }) {
                     <h3 className="break-words text-lg font-semibold">
                       {entry.name || "ไม่ระบุชื่อควาย"}
                     </h3>
-                    <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-sm">
-                      {registrationLabel(entry)}
-                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-sm">
+                        {registrationLabel(entry)}
+                      </span>
+                      {hasCheckInCapability(entry) && entry.checkInStatus ? (
+                        <span
+                          className={`rounded-full border px-3 py-1 text-sm ${entry.checkInStatus === "checked_in" ? "border-emerald-300/30 bg-emerald-400/10 text-emerald-200" : "border-white/20 text-text-muted"}`}
+                        >
+                          {checkInLabels[entry.checkInStatus]}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                   <p className="break-words">{entry.type || "ไม่ระบุรุ่น"}</p>
                   <p className="break-words text-sm text-text-muted">
