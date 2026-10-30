@@ -1,3 +1,4 @@
+import { readSourceExportDiagnostics } from "~/lib/competition-export-protocol";
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
 import { z } from "zod";
 import { createTRPCRouter, protectProcedure } from "~/server/api/trpc";
@@ -171,7 +172,12 @@ export const sanityRouter = createTRPCRouter({
           data: await createLegacyCompetitionExport(input.eventId, "xlsx"),
         };
       } catch (error) {
-        return { success: false, error: legacyExportError(error), data: null };
+        return {
+          success: false,
+          error: legacyExportError(error),
+          diagnostics: readSourceExportDiagnostics(error),
+          data: null,
+        };
       }
     }),
   exportEventDataToDocx: protectProcedure
@@ -183,7 +189,12 @@ export const sanityRouter = createTRPCRouter({
           data: await createLegacyCompetitionExport(input.eventId, "docx"),
         };
       } catch (error) {
-        return { success: false, error: legacyExportError(error), data: null };
+        return {
+          success: false,
+          error: legacyExportError(error),
+          diagnostics: readSourceExportDiagnostics(error),
+          data: null,
+        };
       }
     }),
 });

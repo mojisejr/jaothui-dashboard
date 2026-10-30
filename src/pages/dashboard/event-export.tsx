@@ -1,4 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+import Link from "next/link";
+import type { ExportDiagnostic } from "~/lib/competition-export-layout";
+import { ExportDiagnostics } from "~/components/competitions/ExportPlanPreview";
 import React, { useState } from "react";
 import { api } from "~/utils/api";
 import { FiDownload, FiCalendar, FiLoader } from "react-icons/fi";
@@ -15,12 +18,24 @@ export default function EventExport() {
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [exportWarnings, setExportWarnings] = useState<string[]>([]);
+  const [exportDiagnostics, setExportDiagnostics] = useState<
+    ExportDiagnostic[]
+  >([]);
 
   const {
     data: eventsData,
     isLoading: eventsLoading,
     error: eventsError,
   } = api.sanity.getEventsForExport.useQuery();
+  const layoutQuery = api.competitions.exportLayout.useQuery(
+    { id: selectedEvent },
+    { enabled: !!selectedEvent, refetchOnWindowFocus: false },
+  );
+  const exportReady =
+    !!selectedEvent &&
+    layoutQuery.data?.plan.state === "ready" &&
+    !!layoutQuery.data.layout &&
+    !layoutQuery.isFetching;
   const exportMutation = api.sanity.exportEventData.useMutation();
   const exportDocxMutation = api.sanity.exportEventDataToDocx.useMutation();
 
@@ -30,8 +45,13 @@ export default function EventExport() {
       return;
     }
 
+    if (!exportReady) {
+      toast.error("กรุณาตั้งค่ารูปแบบไฟล์และแก้รายการที่ขาดก่อนดาวน์โหลด");
+      return;
+    }
     setIsExporting(true);
     setExportWarnings([]);
+    setExportDiagnostics([]);
     try {
       const result = await exportMutation.mutateAsync({
         eventId: selectedEvent,
@@ -88,6 +108,7 @@ export default function EventExport() {
           );
         }
       } else {
+        setExportDiagnostics(result.diagnostics ?? []);
         toast.error(result.error ?? "Export failed");
       }
     } catch (error) {
@@ -104,8 +125,13 @@ export default function EventExport() {
       return;
     }
 
+    if (!exportReady) {
+      toast.error("กรุณาตั้งค่ารูปแบบไฟล์และแก้รายการที่ขาดก่อนดาวน์โหลด");
+      return;
+    }
     setIsExportingDocx(true);
     setExportWarnings([]);
+    setExportDiagnostics([]);
     try {
       const result = await exportDocxMutation.mutateAsync({
         eventId: selectedEvent,
@@ -136,6 +162,7 @@ export default function EventExport() {
           `Successfully exported ${result.data.recordCount} buffalo registration forms (${result.data.fileCount} DOCX files in ZIP)`,
         );
       } else {
+        setExportDiagnostics(result.diagnostics ?? []);
         toast.error(result.error ?? "Export failed");
       }
     } catch (error) {
@@ -179,6 +206,7 @@ export default function EventExport() {
                 onChange={(e) => {
                   setSelectedEvent(e.target.value);
                   setExportWarnings([]);
+                  setExportDiagnostics([]);
                 }}
                 disabled={eventsLoading || isExporting || isExportingDocx}
               >
@@ -208,6 +236,51 @@ export default function EventExport() {
               )}
             </div>
 
+            {selectedEvent ? (
+              <section
+                aria-label="ความพร้อมส่งออก"
+                className="mt-4 space-y-3 rounded-xl border border-white/20 p-4"
+              >
+                <p>ใช้ลำดับและคำแปลเดียวกับหน้าส่งออกการแข่งขัน</p>
+                <Link
+                  className="inline-flex min-h-12 items-center rounded-xl border px-4 py-2 focus-visible:outline"
+                  href={`/dashboard/competitions/${encodeURIComponent(selectedEvent)}/export`}
+                >
+                  ตั้งค่ารูปแบบไฟล์ของงานนี้
+                </Link>
+                {layoutQuery.isPending ? (
+                  <p role="status">กำลังตรวจความพร้อมส่งออก…</p>
+                ) : layoutQuery.error ? (
+                  <div role="alert">
+                    <p>{layoutQuery.error.message}</p>
+                    <button
+                      type="button"
+                      className="btn mt-2 min-h-12"
+                      onClick={() => void layoutQuery.refetch()}
+                    >
+                      ตรวจความพร้อมอีกครั้ง
+                    </button>
+                  </div>
+                ) : layoutQuery.data ? (
+                  <>
+                    <p>
+                      {exportReady
+                        ? "รูปแบบที่บันทึกพร้อมดาวน์โหลด"
+                        : "กรุณาแก้รายการที่ขาดก่อนดาวน์โหลด"}
+                    </p>
+                    <ExportDiagnostics plan={layoutQuery.data.plan} />
+                    {exportDiagnostics.length ? (
+                      <ExportDiagnostics
+                        plan={{
+                          ...layoutQuery.data.plan,
+                          diagnostics: exportDiagnostics,
+                        }}
+                      />
+                    ) : null}
+                  </>
+                ) : null}
+              </section>
+            ) : null}
             {exportWarnings.length > 0 && (
               <div role="status" className="alert alert-warning mt-4">
                 <div>
@@ -289,7 +362,7 @@ export default function EventExport() {
                 className="btn btn-primary"
                 onClick={handleExport}
                 disabled={
-                  !selectedEvent ||
+                  !exportReady ||
                   isExporting ||
                   exportMutation.isPending ||
                   isExportingDocx ||
@@ -313,7 +386,7 @@ export default function EventExport() {
                 className="btn btn-secondary"
                 onClick={handleExportDocx}
                 disabled={
-                  !selectedEvent ||
+                  !exportReady ||
                   isExporting ||
                   exportMutation.isPending ||
                   isExportingDocx ||

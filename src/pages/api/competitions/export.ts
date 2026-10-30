@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { readSourceExportDiagnostics } from "~/lib/competition-export-protocol";
 import { isAuth } from "~/server/services/auth.service";
 import {
   competitionAdminApiClient,
@@ -63,6 +64,7 @@ export default async function handler(
             : 502,
       )
       .json({
+        diagnostics: readSourceExportDiagnostics(error),
         message:
           error instanceof CompetitionApiError ||
           error instanceof CompetitionExportError
