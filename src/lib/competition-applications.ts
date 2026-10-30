@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { competitionSchema, mutationSchema } from "./competitions";
+import {
+  checkInFields,
+  checkInStatusSchema,
+  checkInCountsSchema,
+} from "./competition-check-in";
 
 export const registrationStatusSchema = z.enum([
   "registered",
@@ -20,6 +25,7 @@ export const applicationFiltersSchema = z.object({
   search: z.string().max(300).default(""),
   status: z.enum(["pending", "accepted", "rejected"]).optional(),
   registrationStatus: registrationStatusSchema.optional(),
+  checkInStatus: checkInStatusSchema.optional(),
   type: z.string().max(2000).optional(),
   level: z.enum(["national", "province"]).optional(),
   sex: z.string().max(100).optional(),
@@ -42,6 +48,7 @@ export const approvalSchema = z.object({
 });
 export const applicationSchema = z
   .object({
+    ...checkInFields,
     _id: z.string(),
     _rev: z.string(),
     name: text,
@@ -97,6 +104,8 @@ export const applicationSchema = z
   })
   .passthrough();
 export const applicationsResponseSchema = z.object({
+  checkInVersion: z.literal(1).optional(),
+  checkInCounts: checkInCountsSchema.optional(),
   registrationPolicyVersion: z.literal(1).optional(),
   registrationCounts: registrationCountsSchema.optional(),
   approvalRequirement: z

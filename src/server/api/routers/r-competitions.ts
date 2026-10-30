@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  checkInInputSchema,
+  undoCheckInInputSchema,
+  checkInTokenSchema,
+} from "~/lib/competition-check-in";
 import { createTRPCRouter, protectProcedure } from "~/server/api/trpc";
 import {
   competitionInputSchema,
@@ -30,6 +35,19 @@ async function safe<T>(fn: () => Promise<T>) {
   }
 }
 export const competitionsRouter = createTRPCRouter({
+  checkIn: protectProcedure
+    .input(checkInInputSchema.extend({ id, registrationId: id }))
+    .mutation(({ input: { id, registrationId, ...body } }) =>
+      safe(() => client.checkIn(id, registrationId, body)),
+    ),
+  undoCheckIn: protectProcedure
+    .input(undoCheckInInputSchema.extend({ id, registrationId: id }))
+    .mutation(({ input: { id, registrationId, ...body } }) =>
+      safe(() => client.undoCheckIn(id, registrationId, body)),
+    ),
+  resolveCheckIn: protectProcedure
+    .input(z.object({ token: checkInTokenSchema }))
+    .mutation(({ input }) => safe(() => client.resolveCheckIn(input.token))),
   applications: protectProcedure
     .input(applicationFiltersSchema.extend({ id }))
     .query(({ input: { id, ...query } }) =>

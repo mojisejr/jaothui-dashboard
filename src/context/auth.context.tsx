@@ -7,6 +7,11 @@ import {
   useState,
 } from "react";
 import { api } from "~/utils/api";
+import {
+  rememberCompetitionReturn,
+  consumeCompetitionReturn,
+  clearCompetitionReturn,
+} from "~/lib/competition-return-target";
 
 type authContextType = {
   login: (username: string, password: string) => void;
@@ -37,15 +42,17 @@ type Props = {
 export function AuthProvider({ children }: Props) {
   const [isAuth, setAuth] = useState<boolean>(false);
   const [token, setToken] = useState<string | null>(null);
-  const { replace } = useRouter();
+  const { replace, asPath, isReady } = useRouter();
 
   const { data, isPending, isSuccess, isError, mutate, error } =
     api.auth.login.useMutation();
 
   useEffect(() => {
+    if (isReady === false) return;
     const token = getToken();
     if (!token) {
-      void replace("/");
+      rememberCompetitionReturn(asPath);
+      if (asPath !== "/") void replace("/");
     } else {
       setToken(token);
       setAuth(true);
@@ -54,7 +61,7 @@ export function AuthProvider({ children }: Props) {
     // if (isAuth && token) {
     //   replace("/dashboard");
     // }
-  }, [isAuth, token]);
+  }, [asPath, isReady, replace]);
 
   useEffect(() => {
     if (isError && error != null) {
@@ -69,11 +76,12 @@ export function AuthProvider({ children }: Props) {
 
   useEffect(() => {
     if (isSuccess && data != undefined && error == null) {
-      updateToken(data);
+      localStorage.setItem("jaothui-jwt", data);
+      setToken(data);
       setAuth(true);
-      void replace("/dashboard");
+      void replace(consumeCompetitionReturn());
     }
-  }, [isSuccess]);
+  }, [isSuccess, data, error, replace]);
 
   const login = (username: string, password: string) => {
     mutate({ username, password });
@@ -82,15 +90,12 @@ export function AuthProvider({ children }: Props) {
   const logout = () => {
     setAuth(false);
     resetToken();
+    clearCompetitionReturn();
+    void replace("/");
   };
 
   const getToken = () => {
     return localStorage.getItem("jaothui-jwt");
-  };
-
-  const updateToken = (token: string) => {
-    localStorage.setItem("jaothui-jwt", token);
-    setToken(localStorage.getItem("jaothui-jwt"));
   };
 
   const resetToken = () => {
