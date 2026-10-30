@@ -14,6 +14,7 @@ import {
 import { formatDay } from "~/lib/competitions";
 import { Alert, button, control, primary } from "./Workspace";
 import { useUnsavedCompetitionChanges } from "./useUnsavedCompetitionChanges";
+import { ApplicationCheckIn } from "./ApplicationCheckIn";
 
 function reviewTime(value: string) {
   const parsed = new Date(value);
@@ -43,13 +44,14 @@ export function ApplicationReview({
   const [failure, setFailure] = useState("");
   const [conflict, setConflict] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [checkInBusy, setCheckInBusy] = useState(false);
   const operation = useRef<{ fingerprint: string; id: string }>();
   const pending = useRef(false);
   useUnsavedCompetitionChanges(comment !== (entry.approval?.comment ?? ""));
   const approval = api.competitions.approval.useMutation();
   const retry = api.competitions.retryNotification.useMutation();
   const utils = api.useUtils();
-  const busy = approval.isPending || retry.isPending || loading;
+  const busy = approval.isPending || retry.isPending || loading || checkInBusy;
   const op = (fingerprint: string) => {
     if (operation.current?.fingerprint !== fingerprint)
       operation.current = { fingerprint, id: crypto.randomUUID() };
@@ -180,6 +182,14 @@ export function ApplicationReview({
             {registrationLabel(entry)}
           </span>
         </div>
+        <ApplicationCheckIn
+          id={id}
+          entry={entry}
+          busy={approval.isPending || retry.isPending || loading}
+          onBusy={setCheckInBusy}
+          onUpdated={(next) => accept(next, true)}
+          reload={reload}
+        />
         <dl className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[
             ["รุ่นที่สมัคร", entry.type],

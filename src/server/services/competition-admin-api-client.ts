@@ -2,6 +2,11 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { env } from "~/env";
 import {
+  assertCheckInPayload,
+  CHECK_IN_UPGRADE_MESSAGE,
+  checkInResolutionSchema,
+} from "~/lib/competition-check-in";
+import {
   competitionSchema,
   listResponseSchema,
   impactSchema,
@@ -60,6 +65,7 @@ async function request<T>(
   init: RequestInit = {},
   query?: Record<string, string | number | undefined>,
   requiresRegistrationPolicy = false,
+  requiresCheckIn: false | "application" | "list" = false,
 ): Promise<T> {
   if (
     !env.JAOTHUI_COMPETITION_ADMIN_API_BASE_URL ||
@@ -106,6 +112,17 @@ async function request<T>(
         503,
         "SOURCE_UPGRADE_REQUIRED",
         SOURCE_POLICY_UPGRADE_MESSAGE,
+      );
+    }
+  }
+  if (requiresCheckIn) {
+    try {
+      assertCheckInPayload(data, requiresCheckIn === "list");
+    } catch {
+      throw new CompetitionApiError(
+        503,
+        "SOURCE_UPGRADE_REQUIRED",
+        CHECK_IN_UPGRADE_MESSAGE,
       );
     }
   }
@@ -170,6 +187,7 @@ export const competitionAdminApiClient = {
       {},
       query,
       true,
+      query.checkInStatus ? "list" : false,
     ),
   application: (id: string, registrationId: string) =>
     request(
@@ -178,6 +196,38 @@ export const competitionAdminApiClient = {
       {},
       undefined,
       true,
+    ),
+  checkIn: (
+    id: string,
+    registrationId: string,
+    body: { operationId: string; expectedRevision: string },
+  ) =>
+    request(
+      `/${encodeURIComponent(id)}/applications/${encodeURIComponent(registrationId)}/check-in`,
+      applicationSchema,
+      json("POST", body),
+      undefined,
+      true,
+      "application",
+    ),
+  undoCheckIn: (
+    id: string,
+    registrationId: string,
+    body: { operationId: string; expectedRevision: string; reason: string },
+  ) =>
+    request(
+      `/${encodeURIComponent(id)}/applications/${encodeURIComponent(registrationId)}/undo-check-in`,
+      applicationSchema,
+      json("POST", body),
+      undefined,
+      true,
+      "application",
+    ),
+  resolveCheckIn: (token: string) =>
+    request(
+      "/check-in/resolve",
+      checkInResolutionSchema,
+      json("POST", { token }),
     ),
   approval: (
     id: string,
