@@ -15,6 +15,8 @@ import {
   exportDataSchema,
   deleteApplicationResultSchema,
   recountResultSchema,
+  assertRegistrationPolicyPayload,
+  SOURCE_POLICY_UPGRADE_MESSAGE,
   type ApplicationFilters,
   type OnsiteRegistration,
 } from "~/lib/competition-applications";
@@ -45,7 +47,9 @@ export function toCompetitionTRPCError(error: unknown): TRPCError {
     message:
       code === "CONFLICT" && (!e.code || e.code === "REVISION_CONFLICT")
         ? "ข้อมูลถูกแก้ไขแล้ว กรุณาโหลดข้อมูลล่าสุดก่อนลองใหม่"
-        : code === "BAD_GATEWAY" && e.code !== "NOTIFICATION_DISABLED"
+        : code === "BAD_GATEWAY" &&
+            e.code !== "NOTIFICATION_DISABLED" &&
+            e.code !== "SOURCE_UPGRADE_REQUIRED"
           ? "ติดต่อระบบการแข่งขันไม่สำเร็จ กรุณาลองอีกครั้ง"
           : (e.message ?? "ดำเนินการไม่สำเร็จ"),
   });
@@ -55,6 +59,7 @@ async function request<T>(
   schema: z.ZodType<T, z.ZodTypeDef, unknown>,
   init: RequestInit = {},
   query?: Record<string, string | number | undefined>,
+  requiresRegistrationPolicy = false,
 ): Promise<T> {
   if (
     !env.JAOTHUI_COMPETITION_ADMIN_API_BASE_URL ||
@@ -92,7 +97,19 @@ async function request<T>(
       e.success ? e.data.error.message : "ติดต่อระบบการแข่งขันไม่สำเร็จ",
     );
   }
-  return schema.parse(z.object({ data: z.unknown() }).parse(body).data);
+  const data = z.object({ data: z.unknown() }).parse(body).data;
+  if (requiresRegistrationPolicy) {
+    try {
+      assertRegistrationPolicyPayload(data);
+    } catch {
+      throw new CompetitionApiError(
+        503,
+        "SOURCE_UPGRADE_REQUIRED",
+        SOURCE_POLICY_UPGRADE_MESSAGE,
+      );
+    }
+  }
+  return schema.parse(data);
 }
 const json = (method: string, body: unknown): RequestInit => ({
   method,
@@ -152,11 +169,15 @@ export const competitionAdminApiClient = {
       applicationsResponseSchema,
       {},
       query,
+      true,
     ),
   application: (id: string, registrationId: string) =>
     request(
       `/${encodeURIComponent(id)}/applications/${encodeURIComponent(registrationId)}`,
       applicationSchema,
+      {},
+      undefined,
+      true,
     ),
   approval: (
     id: string,
@@ -172,6 +193,8 @@ export const competitionAdminApiClient = {
       `/${encodeURIComponent(id)}/applications/${encodeURIComponent(registrationId)}/approval`,
       applicationSchema,
       json("POST", body),
+      undefined,
+      true,
     ),
   retryNotification: (
     id: string,
@@ -182,6 +205,8 @@ export const competitionAdminApiClient = {
       `/${encodeURIComponent(id)}/applications/${encodeURIComponent(registrationId)}/retry-notification`,
       applicationSchema,
       json("POST", body),
+      undefined,
+      true,
     ),
   metadata: (id: string, microchip: string) =>
     request(
@@ -202,6 +227,8 @@ export const competitionAdminApiClient = {
       `/${encodeURIComponent(id)}/onsite`,
       applicationSchema,
       json("POST", body),
+      undefined,
+      true,
     ),
   deleteApplication: (
     id: string,
@@ -228,7 +255,13 @@ export const competitionAdminApiClient = {
       json("POST", body),
     ),
   exportData: (id: string) =>
-    request(`/${encodeURIComponent(id)}/export`, exportDataSchema),
+    request(
+      `/${encodeURIComponent(id)}/export`,
+      exportDataSchema,
+      {},
+      undefined,
+      true,
+    ),
   upload: (bytes: Buffer, type: string, name: string) =>
     request("/cover", z.object({ assetId: z.string(), url: z.string() }), {
       method: "POST",

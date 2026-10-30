@@ -1,9 +1,25 @@
 import { z } from "zod";
 import { competitionSchema, mutationSchema } from "./competitions";
 
+export const registrationStatusSchema = z.enum([
+  "registered",
+  "pending",
+  "accepted",
+  "rejected",
+  "needs_type_review",
+]);
+export const registrationCountsSchema = z.object({
+  total: z.number(),
+  registered: z.number(),
+  pending: z.number(),
+  accepted: z.number(),
+  rejected: z.number(),
+  needs_type_review: z.number(),
+});
 export const applicationFiltersSchema = z.object({
   search: z.string().max(300).default(""),
   status: z.enum(["pending", "accepted", "rejected"]).optional(),
+  registrationStatus: registrationStatusSchema.optional(),
   type: z.string().max(2000).optional(),
   level: z.enum(["national", "province"]).optional(),
   sex: z.string().max(100).optional(),
@@ -46,6 +62,11 @@ export const applicationSchema = z
     deliveryEnabled: z.boolean().default(false),
     hasLineRecipient: z.boolean().default(false),
     approvalStatus: z.enum(["pending", "accepted", "rejected"]).optional(),
+    registrationPolicyVersion: z.literal(1).optional(),
+    approvalRequirement: z
+      .enum(["required", "not_required", "unknown"])
+      .optional(),
+    registrationStatus: registrationStatusSchema.optional(),
     applicant: z
       .object({ _id: z.string(), lineId: z.string().nullish() })
       .nullish(),
@@ -76,6 +97,11 @@ export const applicationSchema = z
   })
   .passthrough();
 export const applicationsResponseSchema = z.object({
+  registrationPolicyVersion: z.literal(1).optional(),
+  registrationCounts: registrationCountsSchema.optional(),
+  approvalRequirement: z
+    .enum(["required", "not_required", "unknown"])
+    .optional(),
   items: z.array(applicationSchema),
   total: z.number(),
   page: z.number(),
@@ -166,6 +192,7 @@ export const approvalInputSchema = mutationSchema
     path: ["comment"],
   });
 export const exportDataSchema = z.object({
+  registrationPolicyVersion: z.literal(1).optional(),
   event: competitionSchema,
   registrations: z.array(
     applicationSchema.extend({
@@ -205,3 +232,69 @@ export const notificationLabels: Record<string, string> = {
   "review-required": "ต้องตรวจผลการส่งก่อนลองใหม่",
   sending: "กำลังส่ง LINE",
 };
+
+/** Effective source policy; raw approval remains historical evidence only. */
+export const registrationLabels = {
+  ...approvalLabels,
+  registered: "สมัครสำเร็จ",
+  needs_type_review: "ต้องตรวจประเภทงาน",
+};
+export const SOURCE_POLICY_UPGRADE_MESSAGE =
+  "ระบบต้นทางยังไม่รองรับสถานะการสมัครตามประเภทงาน กรุณาอัปเดตระบบต้นทางก่อนใช้งาน";
+export function hasRegistrationPolicy(
+  entry: Pick<
+    Application,
+    "registrationPolicyVersion" | "approvalRequirement" | "registrationStatus"
+  >,
+) {
+  return (
+    entry.registrationPolicyVersion === 1 &&
+    !!entry.approvalRequirement &&
+    !!entry.registrationStatus &&
+    (entry.approvalRequirement === "required"
+      ? ["pending", "accepted", "rejected"].includes(entry.registrationStatus)
+      : entry.approvalRequirement === "not_required"
+        ? entry.registrationStatus === "registered"
+        : entry.registrationStatus === "needs_type_review")
+  );
+}
+export function registrationLabel(
+  entry: Pick<
+    Application,
+    "registrationPolicyVersion" | "approvalRequirement" | "registrationStatus"
+  >,
+) {
+  if (!hasRegistrationPolicy(entry))
+    throw new Error(SOURCE_POLICY_UPGRADE_MESSAGE);
+  return registrationLabels[entry.registrationStatus!];
+}
+export function assertRegistrationPolicyPayload(value: unknown): void {
+  const root = z
+    .object({ registrationPolicyVersion: z.literal(1) })
+    .safeParse(value);
+  if (!root.success) throw new Error(SOURCE_POLICY_UPGRADE_MESSAGE);
+  const payload = value as Record<string, unknown>;
+  const rows = Array.isArray(payload.items)
+    ? payload.items
+    : Array.isArray(payload.registrations)
+      ? payload.registrations
+      : [value];
+  const policy = z.object({
+    registrationPolicyVersion: z.literal(1),
+    approvalRequirement: z.enum(["required", "not_required", "unknown"]),
+    registrationStatus: registrationStatusSchema,
+  });
+  if (
+    rows.some((row) => {
+      const parsed = policy.safeParse(row);
+      return !parsed.success || !hasRegistrationPolicy(parsed.data);
+    }) ||
+    (Array.isArray(payload.items) &&
+      (!registrationCountsSchema.safeParse(payload.registrationCounts)
+        .success ||
+        !z
+          .enum(["required", "not_required", "unknown"])
+          .safeParse(payload.approvalRequirement).success))
+  )
+    throw new Error(SOURCE_POLICY_UPGRADE_MESSAGE);
+}

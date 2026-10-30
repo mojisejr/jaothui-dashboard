@@ -79,8 +79,8 @@ export default function CompetitionExportPage() {
           <section className="glass-card min-w-0 space-y-5 rounded-3xl p-4 md:p-6">
             <h2 className="text-xl font-semibold">ข้อมูลที่ส่งออก</h2>
             <p>
-              รวมทุกสถานะใบสมัคร: รอตรวจสอบ อนุมัติแล้ว และไม่อนุมัติ
-              มีสถานะกำกับในไฟล์
+              รวมทุกสถานะตามประเภทงาน: สมัครสำเร็จ รอตรวจสอบ อนุมัติแล้ว
+              ไม่อนุมัติ และต้องตรวจประเภทงาน มีสถานะกำกับในไฟล์
             </p>
             <dl className="grid gap-4 sm:grid-cols-2">
               <div>

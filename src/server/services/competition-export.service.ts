@@ -3,8 +3,8 @@ import archiver from "archiver";
 import { z } from "zod";
 import type { ExportData } from "~/lib/competition-applications";
 import {
-  applicationStatus,
-  approvalLabels,
+  registrationLabel,
+  assertRegistrationPolicyPayload,
 } from "~/lib/competition-applications";
 import { classDisplayName } from "~/lib/competition-classes";
 import { generateBuffaloRegistrationDoc } from "./docx-export.service";
@@ -32,6 +32,7 @@ export const ageWarningLabel = (warning?: string | null) =>
       ? "อายุหรือวันเกิด/วันตัดอายุไม่ครบหรือไม่ถูกต้อง ต้องตรวจสอบ"
       : (warning ?? "");
 export function validateExportData(eventId: string, data: ExportData) {
+  assertRegistrationPolicyPayload(data);
   if (data.event._id !== eventId)
     throw new CompetitionExportError("งานในข้อมูลส่งออกไม่ตรงกับงานที่เลือก");
   if (data.rowCount !== data.registrations.length)
@@ -68,7 +69,10 @@ export function createCompetitionWorkbook(
     ["งานแข่งขัน", data.event.title],
     ["รหัสงาน", eventId],
     ["จำนวนใบสมัคร", data.rowCount],
-    ["ขอบเขต", "รวมทุกสถานะใบสมัคร: รอตรวจสอบ อนุมัติแล้ว และไม่อนุมัติ"],
+    [
+      "ขอบเขต",
+      "รวมทุกสถานะตามประเภทงาน: สมัครสำเร็จ รอตรวจสอบ อนุมัติแล้ว ไม่อนุมัติ และต้องตรวจประเภทงาน",
+    ],
     ["วันตัดอายุ", data.event.buffaloAgeDeadline ?? "ไม่ระบุ"],
     [
       "หลักการอายุ",
@@ -134,7 +138,7 @@ export function createCompetitionWorkbook(
         row.ageSource,
         ageWarningLabel(row.ageWarning),
         row._id,
-        approvalLabels[applicationStatus(row)],
+        registrationLabel(row),
       ]),
     ]);
     sheet["!cols"] = [8, 22, 24, 18, 16, 24, 24, 24, 24, 20, 16, 60, 45].map(
@@ -180,7 +184,7 @@ export async function createCompetitionDocxZip(
           exportAge: row.exportAge ?? null,
           ageWarning: ageWarningLabel(row.ageWarning),
           registrationId: row._id,
-          approvalStatusLabel: approvalLabels[applicationStatus(row)],
+          approvalStatusLabel: registrationLabel(row),
           father: row.fatherName,
           mother: row.motherName,
           event: { title: data.event.title },

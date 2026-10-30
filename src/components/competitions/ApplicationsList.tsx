@@ -1,13 +1,19 @@
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "~/utils/api";
 import { useAuth } from "~/context/auth.context";
 import {
-  applicationStatus,
-  approvalLabels,
+  registrationLabel,
+  registrationLabels,
+  SOURCE_POLICY_UPGRADE_MESSAGE,
   type ApplicationFilters,
 } from "~/lib/competition-applications";
 import { Alert, button, control } from "./Workspace";
+const statusOptionsByRequirement = {
+  not_required: ["registered"],
+  required: ["pending", "accepted", "rejected"],
+  unknown: ["needs_type_review"],
+} as const;
 const emptyFilters: ApplicationFilters = { search: "", page: 1, pageSize: 20 };
 export function ApplicationsList({ id }: { id: string }) {
   const { isAuth } = useAuth();
@@ -21,6 +27,24 @@ export function ApplicationsList({ id }: { id: string }) {
     value: ApplicationFilters[K],
   ) => setFilters((v) => ({ ...v, [key]: value, page: 1 }));
   const facets = query.data?.facets;
+  const registrationCounts = query.data?.registrationCounts;
+  const requirement = query.data?.approvalRequirement;
+  const statusOptions = statusOptionsByRequirement[requirement ?? "unknown"];
+  useEffect(() => {
+    if (!requirement) return;
+    setFilters((current) =>
+      current.registrationStatus &&
+      !statusOptions.includes(current.registrationStatus as never)
+        ? { ...current, registrationStatus: undefined, page: 1 }
+        : current,
+    );
+  }, [requirement, statusOptions]);
+  if (
+    query.data &&
+    (query.data.registrationPolicyVersion !== 1 ||
+      !query.data.registrationCounts)
+  )
+    return <Alert error>{SOURCE_POLICY_UPGRADE_MESSAGE}</Alert>;
   return (
     <div className="min-w-0 space-y-6">
       <section
@@ -42,20 +66,21 @@ export function ApplicationsList({ id }: { id: string }) {
             สถานะใบสมัคร
             <select
               className={control}
-              value={filters.status ?? ""}
+              value={filters.registrationStatus ?? ""}
               onChange={(e) =>
                 change(
-                  "status",
+                  "registrationStatus",
                   e.target.value
-                    ? (e.target.value as ApplicationFilters["status"])
+                    ? (e.target
+                        .value as ApplicationFilters["registrationStatus"])
                     : undefined,
                 )
               }
             >
               <option value="">ทุกสถานะ</option>
-              {Object.entries(approvalLabels).map(([value, label]) => (
+              {statusOptions.map((value) => (
                 <option key={value} value={value}>
-                  {label}
+                  {registrationLabels[value]}
                 </option>
               ))}
             </select>
@@ -120,11 +145,15 @@ export function ApplicationsList({ id }: { id: string }) {
         >
           ล้างตัวกรอง
         </button>
-        {query.data ? (
+        {registrationCounts ? (
           <p className="break-words text-sm text-text-muted">
-            ตามตัวกรอง (ทุกสถานะ) {query.data.counts.total} • รอตรวจ{" "}
-            {query.data.counts.pending} • อนุมัติ {query.data.counts.accepted} •
-            ไม่อนุมัติ {query.data.counts.rejected}
+            ตามตัวกรอง (ทุกสถานะ) {registrationCounts.total}
+            {statusOptions.map((status) => (
+              <span key={status}>
+                {" "}
+                • {registrationLabels[status]} {registrationCounts[status]}
+              </span>
+            ))}
           </p>
         ) : null}
       </section>
@@ -157,7 +186,7 @@ export function ApplicationsList({ id }: { id: string }) {
                       {entry.name || "ไม่ระบุชื่อควาย"}
                     </h3>
                     <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-sm">
-                      {approvalLabels[applicationStatus(entry)]}
+                      {registrationLabel(entry)}
                     </span>
                   </div>
                   <p className="break-words">{entry.type || "ไม่ระบุรุ่น"}</p>
@@ -175,7 +204,9 @@ export function ApplicationsList({ id }: { id: string }) {
                     className={button}
                     href={`/dashboard/competitions/${encodeURIComponent(id)}/applications/${encodeURIComponent(entry._id)}`}
                   >
-                    ตรวจใบสมัคร
+                    {entry.approvalRequirement === "required"
+                      ? "ตรวจใบสมัคร"
+                      : "ดูใบสมัคร"}
                   </Link>
                 </li>
               ))}

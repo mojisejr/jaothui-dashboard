@@ -29,6 +29,9 @@ function fixture(): ExportData {
     },
   };
   const base = {
+    registrationPolicyVersion: 1,
+    approvalRequirement: "not_required",
+    registrationStatus: "registered",
     _id: "r1",
     _rev: "r1rev",
     event: { _ref: event._id },
@@ -50,6 +53,7 @@ function fixture(): ExportData {
     ageWarning: null,
   };
   return exportDataSchema.parse({
+    registrationPolicyVersion: 1,
     event,
     rowCount: 3,
     registrations: [
@@ -220,3 +224,46 @@ it("keeps the same microchip entered at national and province levels as two grou
   );
   expect(ids.sort()).toEqual(["r1", "r1-province"]);
 });
+
+it.each([
+  ["not_required", "registered", false, "สมัครสำเร็จ"],
+  ["required", "pending", null, "รอตรวจสอบ"],
+  ["required", "accepted", true, "อนุมัติแล้ว"],
+  ["required", "rejected", false, "ไม่อนุมัติ"],
+  ["unknown", "needs_type_review", true, "ต้องตรวจประเภทงาน"],
+] as const)(
+  "exports source effective %s/%s labels in XLSX and DOCX without rewriting raw history",
+  async (approvalRequirement, registrationStatus, result, label) => {
+    const data = fixture();
+    const row = data.registrations[0]!;
+    Object.assign(row, {
+      approvalRequirement,
+      registrationStatus,
+      approval: {
+        _id: "a1",
+        _rev: "a1rev",
+        approvementResult: result,
+        comment: "historical",
+        notificationState: "sent",
+        approvementDate: null,
+        notificationUpdatedAt: null,
+      },
+    });
+    data.registrations = [row];
+    data.rowCount = 1;
+    const book = read(createCompetitionWorkbook("event-106", data), {
+      type: "buffer",
+    });
+    const rows = utils.sheet_to_json<unknown[]>(
+      book.Sheets[book.SheetNames[1]!]!,
+      { header: 1 },
+    );
+    expect(rows.find((cells) => cells[12] === "r1")?.[13]).toBe(label);
+    const zip = readZip(await createCompetitionDocxZip("event-106", data));
+    const doc = zip.FileIndex.find((file) => file.name.endsWith(".docx"))!;
+    expect(zipText(Buffer.from(doc.content), "word/document.xml")).toContain(
+      `สถานะใบสมัคร: ${label}`,
+    );
+    expect(row.approval?.approvementResult).toBe(result);
+  },
+);
