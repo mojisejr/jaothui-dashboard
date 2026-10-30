@@ -26,6 +26,10 @@ export interface EventRegisterData {
   name: string;
   color: string;
   sex: string;
+  /** Approved source presentation bypasses the historical English mapper. */
+  colorLabelTh?: string;
+  sexLabelTh?: string;
+  levelLabelTh?: string;
   buffaloAge: number;
   /** New source-authoritative export path: presence, including null/zero, disables legacy fallback. */
   exportAge?: number | null;
@@ -52,7 +56,7 @@ const thaiFieldMapping = {
     white: "ขาว",
     gray: "เทา",
     brown: "น้ำตาล",
-    albino: "อัลไบโน",
+    albino: "เผือก",
   },
   sex: {
     male: "ผู้",
@@ -120,8 +124,8 @@ export const generateBuffaloRegistrationDoc = async (
   index: number,
 ): Promise<Buffer> => {
   // Map fields to Thai
-  const colorThai = mapColorToThai(data.color);
-  const sexThai = mapSexToThai(data.sex);
+  const colorThai = data.colorLabelTh ?? mapColorToThai(data.color);
+  const sexThai = data.sexLabelTh ?? mapSexToThai(data.sex);
   const ageInMonths =
     data.exportAge !== undefined
       ? data.exportAge
@@ -213,7 +217,7 @@ export const generateBuffaloRegistrationDoc = async (
               new TableRow({
                 children: [
                   createTableCell("ระดับ", { bold: true }),
-                  createTableCell(data.level || "-"),
+                  createTableCell(data.levelLabelTh ?? (data.level || "-")),
                 ],
               }),
 

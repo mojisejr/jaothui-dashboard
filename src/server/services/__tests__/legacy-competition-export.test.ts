@@ -27,6 +27,7 @@ import { CFB, read, utils } from "xlsx";
 import { sanityRouter } from "~/server/api/routers/r-sanity";
 import { compressLegacyWorkbook } from "../legacy-competition-export.service";
 import { encodeCompetitionClass } from "~/lib/competition-classes";
+import { sourceExportFixture } from "~/test-fixtures/competition-export";
 
 const fetchMock = jest.fn();
 const originalFetch = global.fetch;
@@ -60,56 +61,70 @@ function fixture() {
     ageSource: "stored",
     ageWarning: null,
   };
-  return {
-    registrationPolicyVersion: 1,
-    event: {
-      _id: eventId,
-      _rev: "rev",
-      title: "../งานชื่อซ้ำ/ทดสอบ",
-      buffaloAgeDeadline: "2026-10-16",
-      startAt: "2099-01-01",
-      registrationCount: 3,
-      catalogs: { national: [], province: [] },
-      policy: {
-        today: "2026-10-16",
-        lifecycle: "ended",
-        publicRegistration: "closed-date",
-        publicVisible: true,
-        onsiteAllowed: false,
-        warnings: [],
+  return sourceExportFixture(
+    {
+      registrationPolicyVersion: 1,
+      event: {
+        _id: eventId,
+        _rev: "rev",
+        title: "../งานชื่อซ้ำ/ทดสอบ",
+        buffaloAgeDeadline: "2026-10-16",
+        startAt: "2099-01-01",
+        registrationCount: 3,
+        catalogs: { national: [], province: [] },
+        policy: {
+          today: "2026-10-16",
+          lifecycle: "ended",
+          publicRegistration: "closed-date",
+          publicVisible: true,
+          onsiteAllowed: false,
+          warnings: [],
+        },
       },
+      registrations: [
+        row,
+        {
+          ...row,
+          _id: "r2",
+          buffaloAge: null,
+          exportAge: 13,
+          ageSource: "cutoff",
+          ageWarning: "calculated-from-cutoff",
+          type: encodeCompetitionClass({
+            name: "รุ่นพิเศษ",
+            kind: "special",
+            minMonths: null,
+            maxMonths: null,
+            minInclusive: true,
+            group: "",
+            criteria: "ตรวจฟัน",
+          }),
+        },
+        {
+          ...row,
+          _id: "r3",
+          birthday: "invalid",
+          buffaloAge: null,
+          exportAge: null,
+          ageSource: "missing",
+          ageWarning: "missing-or-invalid-age",
+        },
+      ],
+      rowCount: 3,
     },
-    registrations: [
-      row,
+    [
       {
-        ...row,
-        _id: "r2",
-        buffaloAge: null,
-        exportAge: 13,
-        ageSource: "cutoff",
-        ageWarning: "calculated-from-cutoff",
-        type: encodeCompetitionClass({
-          name: "รุ่นพิเศษ",
-          kind: "special",
-          minMonths: null,
-          maxMonths: null,
-          minInclusive: true,
-          group: "",
-          criteria: "ตรวจฟัน",
-        }),
+        registrationIds: ["r1", "r3"],
+        sheetName: "01-ลูกดำ-ผู้",
+        fullClassLabel: "รุ่นลูกควายดำ",
       },
       {
-        ...row,
-        _id: "r3",
-        birthday: "invalid",
-        buffaloAge: null,
-        exportAge: null,
-        ageSource: "missing",
-        ageWarning: "missing-or-invalid-age",
+        registrationIds: ["r2"],
+        sheetName: "09-พิเศษ-ผู้",
+        fullClassLabel: "รุ่นพิเศษ ตรวจฟัน",
       },
     ],
-    rowCount: 3,
-  };
+  );
 }
 const zipEntries = (buffer: Buffer) =>
   (
@@ -215,9 +230,9 @@ it("returns actual DOCX bundle with authoritative ages, human class and age warn
     zipText(Buffer.from(entry.content), "word/document.xml"),
   );
   expect(xmls[0]).toContain(">0</w:t>");
-  expect(xmls[1]).toContain("รุ่นพิเศษ");
-  expect(xmls[1]).toContain("วันตัดอายุของงาน");
-  expect(xmls[2]).toContain("ไม่ทราบอายุ — ต้องตรวจสอบ");
+  expect(xmls[2]).toContain("รุ่นพิเศษ");
+  expect(xmls[2]).toContain("วันตัดอายุของงาน");
+  expect(xmls[1]).toContain("ไม่ทราบอายุ — ต้องตรวจสอบ");
   expect(xmls.join("")).not.toContain("@jaothui/class:v1:");
   expect(zipText(bytes, "event-info.txt")).toContain(eventId);
 });
@@ -249,6 +264,7 @@ it.each(["exportEventData", "exportEventDataToDocx"] as const)(
 );
 it("distinguishes a valid empty event from source errors", async () => {
   const data = { ...fixture(), registrations: [], rowCount: 0 };
+  data.exportPlan.groups = [];
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ data }) });
   const result = await caller().exportEventData({ eventId });
   expect(result.data).toMatchObject({

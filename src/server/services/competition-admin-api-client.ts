@@ -392,7 +392,7 @@ export const competitionAdminApiClient = {
       undefined,
       true,
       false,
-      false,
+      "packet",
     ),
   upload: (bytes: Buffer, type: string, name: string) =>
     request("/cover", z.object({ assetId: z.string(), url: z.string() }), {
