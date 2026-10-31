@@ -24,6 +24,7 @@ Shared-account operator dashboard for JAOTHUI buffalo records, news and competit
 
 - Event lifecycle and public registration status are separate. All dates are day-only Asia/Bangkok; the closing day is inclusive. Age cutoff is independent from registration closing date.
 - Class builder uses existing Sanity string fields with a compatible codec, national-backed rows for new events, and readable legacy province rows. Stored application age wins during export, including zero.
+- Competition export uses source-owned per-event layouts and a strict versioned presentation packet. Both download entry points share Thai labels, ordered groups and linked contents in the existing information sheet; missing/ambiguous mappings block download. Layout-only writes preserve signup rules and original applications. [Export setup/UAT](docs/competition-export.md) records source-first release and owner UI/Excel acceptance still pending; synthetic contract fixtures prove compatibility, not readiness of every live event.
 - Source revisions/idempotency keys guard conflicting writes. A shared login cannot identify individual staff or prove the identity of a special-rule reviewer.
 - Approval result and LINE provider outcome are separate. Retrying notification must not reapprove an application. Provider acceptance is not physical delivery/read proof.
 - Cutover disables obsolete competition APIs only after the new dashboard is ready. It must not remove public signup/history or vote/raffle. Recovery disables new bridge writes and preserves compatible readers, IDs and history.

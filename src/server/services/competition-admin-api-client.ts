@@ -1,3 +1,16 @@
+import {
+  exportReadinessSchema,
+  exportLayoutDetailSchema,
+  exportLayoutPreviewSchema,
+  exportFailureDetailsSchema,
+  type SaveExportLayoutInput,
+} from "~/lib/competition-export-protocol";
+import {
+  EXPORT_UPGRADE_MESSAGE,
+  exportPlanSchema,
+  type ExportDiagnostic,
+  type ExportLayout,
+} from "~/lib/competition-export-layout";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { env } from "~/env";
@@ -30,6 +43,7 @@ export class CompetitionApiError extends Error {
     public status: number,
     public code: string,
     message: string,
+    public exportDiagnostics: ExportDiagnostic[] = [],
   ) {
     super(message);
   }
@@ -49,6 +63,7 @@ export function toCompetitionTRPCError(error: unknown): TRPCError {
             : "BAD_GATEWAY";
   return new TRPCError({
     code,
+    cause: error,
     message:
       code === "CONFLICT" && (!e.code || e.code === "REVISION_CONFLICT")
         ? "ข้อมูลถูกแก้ไขแล้ว กรุณาโหลดข้อมูลล่าสุดก่อนลองใหม่"
@@ -66,6 +81,7 @@ async function request<T>(
   query?: Record<string, string | number | undefined>,
   requiresRegistrationPolicy = false,
   requiresCheckIn: false | "application" | "list" = false,
+  requiresExportPresentation: boolean | "packet" = false,
 ): Promise<T> {
   if (
     !env.JAOTHUI_COMPETITION_ADMIN_API_BASE_URL ||
@@ -95,12 +111,19 @@ async function request<T>(
   const body: unknown = await response.json();
   if (!response.ok) {
     const e = z
-      .object({ error: z.object({ code: z.string(), message: z.string() }) })
+      .object({
+        error: z.object({
+          code: z.string(),
+          message: z.string(),
+          details: exportFailureDetailsSchema.optional(),
+        }),
+      })
       .safeParse(body);
     throw new CompetitionApiError(
       response.status,
       e.success ? e.data.error.code : "UPSTREAM_ERROR",
       e.success ? e.data.error.message : "ติดต่อระบบการแข่งขันไม่สำเร็จ",
+      e.success ? (e.data.error.details?.diagnostics ?? []) : [],
     );
   }
   const data = z.object({ data: z.unknown() }).parse(body).data;
@@ -126,6 +149,23 @@ async function request<T>(
       );
     }
   }
+  if (
+    requiresExportPresentation &&
+    (!z.object({ exportPresentationVersion: z.literal(1) }).safeParse(data)
+      .success ||
+      (requiresExportPresentation === "packet" &&
+        !z
+          .object({
+            exportPlan: exportPlanSchema,
+            registrations: z.array(z.object({ rawType: z.string() })),
+          })
+          .safeParse(data).success))
+  )
+    throw new CompetitionApiError(
+      503,
+      "SOURCE_UPGRADE_REQUIRED",
+      EXPORT_UPGRADE_MESSAGE,
+    );
   return schema.parse(data);
 }
 const json = (method: string, body: unknown): RequestInit => ({
@@ -134,6 +174,46 @@ const json = (method: string, body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 export const competitionAdminApiClient = {
+  exportReadiness: (query: { page: number; pageSize: number }) =>
+    request(
+      "/export-readiness",
+      exportReadinessSchema,
+      {},
+      query,
+      false,
+      false,
+      true,
+    ),
+  exportLayout: (id: string) =>
+    request(
+      `/${encodeURIComponent(id)}/export-layout`,
+      exportLayoutDetailSchema,
+      {},
+      undefined,
+      false,
+      false,
+      true,
+    ),
+  previewExportLayout: (id: string, body: { layout: ExportLayout }) =>
+    request(
+      `/${encodeURIComponent(id)}/export-layout/preview`,
+      exportLayoutPreviewSchema,
+      json("POST", body),
+      undefined,
+      false,
+      false,
+      true,
+    ),
+  saveExportLayout: (id: string, body: SaveExportLayoutInput) =>
+    request(
+      `/${encodeURIComponent(id)}/export-layout`,
+      exportLayoutDetailSchema,
+      json("PATCH", body),
+      undefined,
+      false,
+      false,
+      true,
+    ),
   list: (q: CompetitionFilters) => request("", listResponseSchema, {}, q),
   get: (id: string) => request(`/${encodeURIComponent(id)}`, competitionSchema),
   create: (body: { operationId: string; input: CompetitionInput }) =>
@@ -308,9 +388,11 @@ export const competitionAdminApiClient = {
     request(
       `/${encodeURIComponent(id)}/export`,
       exportDataSchema,
-      {},
+      { headers: { "x-export-presentation-version": "1" } },
       undefined,
       true,
+      false,
+      "packet",
     ),
   upload: (bytes: Buffer, type: string, name: string) =>
     request("/cover", z.object({ assetId: z.string(), url: z.string() }), {

@@ -1,3 +1,8 @@
+import {
+  exportReadinessInputSchema,
+  saveExportLayoutInputSchema,
+  previewExportLayoutInputSchema,
+} from "~/lib/competition-export-protocol";
 import { z } from "zod";
 import {
   checkInInputSchema,
@@ -35,6 +40,22 @@ async function safe<T>(fn: () => Promise<T>) {
   }
 }
 export const competitionsRouter = createTRPCRouter({
+  exportReadiness: protectProcedure
+    .input(exportReadinessInputSchema)
+    .query(({ input }) => safe(() => client.exportReadiness(input))),
+  exportLayout: protectProcedure
+    .input(z.object({ id }))
+    .query(({ input }) => safe(() => client.exportLayout(input.id))),
+  previewExportLayout: protectProcedure
+    .input(previewExportLayoutInputSchema.extend({ id }))
+    .mutation(({ input: { id, ...body } }) =>
+      safe(() => client.previewExportLayout(id, body)),
+    ),
+  saveExportLayout: protectProcedure
+    .input(saveExportLayoutInputSchema.extend({ id }))
+    .mutation(({ input: { id, ...body } }) =>
+      safe(() => client.saveExportLayout(id, body)),
+    ),
   checkIn: protectProcedure
     .input(checkInInputSchema.extend({ id, registrationId: id }))
     .mutation(({ input: { id, registrationId, ...body } }) =>

@@ -1,3 +1,4 @@
+import { exportErrorDiagnosticsSchema } from "~/lib/competition-export-protocol";
 import { diagnosticTRPCError } from "~/server/diagnostics/transport";
 /**
  * YOU PROBABLY DON'T NEED TO EDIT THIS FILE, UNLESS:
@@ -75,6 +76,7 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
   transformer: superjson,
   errorFormatter({ shape, error, path }) {
     const diagnostic = reportDiagnostic(error);
+    const exportDetails = exportErrorDiagnosticsSchema.safeParse(error.cause);
     const buffalo =
       !path ||
       /^(buffaloCreate|buffaloEdit|buffaloOperations|buffaloRepair|metadata|ped|dna|reward)\./.test(
@@ -89,6 +91,9 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
         ...shape.data,
         stack: undefined,
         diagnostic,
+        ...(exportDetails.success
+          ? { exportDiagnostics: exportDetails.data.exportDiagnostics }
+          : {}),
         zodError:
           error.cause instanceof ZodError
             ? buffalo
