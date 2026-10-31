@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { competitionSchema, mutationSchema } from "./competitions";
+import { exportPlanSchema } from "./competition-export-layout";
 import {
   checkInFields,
   checkInStatusSchema,
@@ -201,10 +202,13 @@ export const approvalInputSchema = mutationSchema
     path: ["comment"],
   });
 export const exportDataSchema = z.object({
+  exportPresentationVersion: z.literal(1),
+  exportPlan: exportPlanSchema,
   registrationPolicyVersion: z.literal(1).optional(),
   event: competitionSchema,
   registrations: z.array(
     applicationSchema.extend({
+      rawType: z.string().min(1).max(2000),
       exportAge: z.number().nullish(),
       ageSource: z.enum(["stored", "cutoff", "missing"]),
       ageWarning: z.string().nullish(),

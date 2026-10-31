@@ -2,6 +2,7 @@ import {
   competitionAdminApiClient,
   toCompetitionTRPCError,
 } from "../competition-admin-api-client";
+import { sourceExportFixture } from "~/test-fixtures/competition-export";
 jest.mock("~/env", () => ({
   env: {
     JAOTHUI_COMPETITION_ADMIN_API_BASE_URL: "https://source.example",
@@ -217,12 +218,10 @@ it.each(["REFERENCED_DOCUMENTS", "REGISTRATION_INDEX_PENDING"])(
   },
 );
 it("rejects old source capabilities with an actionable upgrade error", async () => {
-  global.fetch = jest
-    .fn()
-    .mockResolvedValue({
-      ok: true,
-      json: async () => ({ data: { _id: "old", _rev: "rev" } }),
-    }) as unknown as typeof fetch;
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ data: { _id: "old", _rev: "rev" } }),
+  }) as unknown as typeof fetch;
   await expect(
     competitionAdminApiClient.application("event", "old"),
   ).rejects.toMatchObject({ code: "SOURCE_UPGRADE_REQUIRED" });
@@ -233,4 +232,57 @@ it("rejects old source capabilities with an actionable upgrade error", async () 
       message: "อัปเดตต้นทาง",
     }).message,
   ).toBe("อัปเดตต้นทาง");
+});
+
+it("requests the strict source export capability and preserves the versioned plan", async () => {
+  const packet = sourceExportFixture(
+    {
+      registrationPolicyVersion: 1,
+      event: {
+        _id: "event",
+        _rev: "rev",
+        title: "งานทดสอบ",
+        catalogs: { national: [], province: [] },
+        registrationCount: 0,
+        policy: {
+          today: "2026-10-31",
+          lifecycle: "ended",
+          publicRegistration: "closed-date",
+          publicVisible: true,
+          onsiteAllowed: false,
+          warnings: [],
+        },
+      },
+      registrations: [],
+      rowCount: 0,
+    },
+    [],
+  );
+  const mock = jest
+    .fn()
+    .mockResolvedValue({ ok: true, json: async () => ({ data: packet }) });
+  global.fetch = mock as unknown as typeof fetch;
+  expect(await competitionAdminApiClient.exportData("event")).toMatchObject({
+    exportPresentationVersion: 1,
+    exportPlan: packet.exportPlan,
+  });
+  const [url, init] = mock.mock.calls[0] as [URL, RequestInit];
+  expect(url.pathname).toBe("/api/admin/competitions/event/export");
+  expect(new Headers(init.headers).get("x-export-presentation-version")).toBe(
+    "1",
+  );
+});
+
+it("rejects unversioned exports even when the source supports registration policy", async () => {
+  global.fetch = jest
+    .fn()
+    .mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: { registrationPolicyVersion: 1, registrations: [] },
+      }),
+    }) as unknown as typeof fetch;
+  await expect(
+    competitionAdminApiClient.exportData("event"),
+  ).rejects.toMatchObject({ code: "SOURCE_UPGRADE_REQUIRED" });
 });

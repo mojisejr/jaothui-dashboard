@@ -1,6 +1,5 @@
 import archiver from "archiver";
 import dayjs from "dayjs";
-import { classDisplayName } from "~/lib/competition-classes";
 import type { ExportData } from "~/lib/competition-applications";
 import {
   competitionAdminApiClient,
@@ -68,19 +67,7 @@ export async function createLegacyCompetitionExport(
           filename: `${stem}_registrations_${timestamp}.zip`,
           isCompressed: false,
         };
-  // Summary + the same class/level/color/sex grouping used by the shared XLSX engine.
-  const sheetCount =
-    1 +
-    new Set(
-      data.registrations.map((row) =>
-        JSON.stringify([
-          classDisplayName(row.type) || row.type,
-          row.level,
-          row.color,
-          row.sex,
-        ]),
-      ),
-    ).size;
+  const sheetCount = 1 + data.exportPlan.groups.length;
   return {
     buffer: result.buffer.toString("base64"),
     filename: result.filename,

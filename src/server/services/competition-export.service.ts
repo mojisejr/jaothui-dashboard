@@ -1,15 +1,31 @@
-import { utils, write } from "xlsx";
+import { utils, write, type CellObject } from "xlsx";
 import archiver from "archiver";
 import { z } from "zod";
+import { createHash } from "node:crypto";
 import type { ExportData } from "~/lib/competition-applications";
 import {
   registrationLabel,
   assertRegistrationPolicyPayload,
+  exportDataSchema,
 } from "~/lib/competition-applications";
-import { classDisplayName } from "~/lib/competition-classes";
+import {
+  EXPORT_INFORMATION_SHEET,
+  EXPORT_UPGRADE_MESSAGE,
+  EXPORT_AGE_SOURCE_LABELS,
+  EXPORT_AGE_WARNING_LABELS,
+  type ExportDiagnostic,
+} from "~/lib/competition-export-layout";
 import { generateBuffaloRegistrationDoc } from "./docx-export.service";
 
-export class CompetitionExportError extends Error {}
+export class CompetitionExportError extends Error {
+  constructor(
+    message: string,
+    public readonly diagnostics: ExportDiagnostic[] = [],
+  ) {
+    super(message);
+    this.name = "CompetitionExportError";
+  }
+}
 export const safeExportName = (value: string) => {
   const clean = value
     .normalize("NFC")
@@ -24,17 +40,58 @@ export const safeExportName = (value: string) => {
   }
   return result || "competition";
 };
-const humanClass = (value: string) => classDisplayName(value) || value;
-export const ageWarningLabel = (warning?: string | null) =>
-  warning === "calculated-from-cutoff"
-    ? "ไม่มีอายุที่บันทึกไว้ คำนวณจากวันตัดอายุของงาน"
-    : warning === "missing-or-invalid-age"
-      ? "อายุหรือวันเกิด/วันตัดอายุไม่ครบหรือไม่ถูกต้อง ต้องตรวจสอบ"
-      : (warning ?? "");
+const ownValue = (values: Record<string, string>, key: string) =>
+  Object.prototype.hasOwnProperty.call(values, key) ? values[key] : undefined;
+export const ageWarningLabel = (warning?: string | null) => {
+  if (!warning) return "";
+  const label = ownValue(EXPORT_AGE_WARNING_LABELS, warning);
+  if (!label)
+    throw new CompetitionExportError(
+      "ไม่รองรับหมายเหตุอายุจากต้นทาง กรุณาตรวจข้อมูลก่อนดาวน์โหลด",
+    );
+  return label;
+};
+const thaiLabel = (value: string) =>
+  /[ก-๙]/.test(value) && !/[a-z]/i.test(value);
 export function validateExportData(eventId: string, data: ExportData) {
   assertRegistrationPolicyPayload(data);
+  if (data.exportPresentationVersion !== 1)
+    throw new CompetitionExportError(EXPORT_UPGRADE_MESSAGE);
+  const parsed = exportDataSchema.safeParse(data);
+  if (!parsed.success)
+    throw new CompetitionExportError(
+      "ข้อมูลหรือรูปแบบไฟล์จากต้นทางไม่ครบ กรุณาตรวจและโหลดข้อมูลใหม่",
+    );
+  data = parsed.data;
   if (data.event._id !== eventId)
     throw new CompetitionExportError("งานในข้อมูลส่งออกไม่ตรงกับงานที่เลือก");
+  const plan = data.exportPlan;
+  if (plan.state !== "ready" || plan.diagnostics.length)
+    throw new CompetitionExportError(
+      plan.diagnostics.map((diagnostic) => diagnostic.message).join(" • ") ||
+        "กรุณาแก้รายการที่ขาดและบันทึกรูปแบบไฟล์ก่อนดาวน์โหลด",
+      plan.diagnostics,
+    );
+  if (plan.eventId !== eventId || plan.eventRevision !== data.event._rev)
+    throw new CompetitionExportError(
+      "รุ่นข้อมูลในรูปแบบไฟล์ไม่ตรงกับงานล่าสุด กรุณาโหลดข้อมูลใหม่",
+    );
+  const fingerprint = createHash("sha256")
+    .update(
+      JSON.stringify({
+        national: data.event.catalogs.national,
+        province: data.event.catalogs.province,
+      }),
+    )
+    .digest("hex");
+  if (
+    plan.catalogFingerprint !== fingerprint ||
+    !plan.layoutFingerprint ||
+    !/^[a-f0-9]{64}$/.test(plan.layoutFingerprint)
+  )
+    throw new CompetitionExportError(
+      "ชุดรุ่นหรือรูปแบบไฟล์เปลี่ยนไป กรุณาตรวจและโหลดข้อมูลใหม่",
+    );
   if (data.rowCount !== data.registrations.length)
     throw new CompetitionExportError("จำนวนรายการส่งออกไม่ตรงกับข้อมูลต้นทาง");
   const ids = new Set<string>();
@@ -45,6 +102,10 @@ export function validateExportData(eventId: string, data: ExportData) {
     if (ids.has(row._id))
       throw new CompetitionExportError("พบรหัสใบสมัครซ้ำในข้อมูลส่งออก");
     ids.add(row._id);
+    if (!row._id || !row.rawType.trim())
+      throw new CompetitionExportError(
+        "รหัสหรือข้อมูลรุ่นเดิมของใบสมัครไม่ครบ กรุณาตรวจต้นทาง",
+      );
     if (
       row.exportAge !== null &&
       row.exportAge !== undefined &&
@@ -53,7 +114,73 @@ export function validateExportData(eventId: string, data: ExportData) {
       throw new CompetitionExportError("อายุส่งออกไม่ถูกต้อง");
     if (row.ageSource === "stored" && row.exportAge !== row.buffaloAge)
       throw new CompetitionExportError("อายุส่งออกไม่ตรงกับอายุที่บันทึกไว้");
+    if (
+      (row.ageSource === "missing") !==
+      (row.exportAge === null || row.exportAge === undefined)
+    )
+      throw new CompetitionExportError(
+        "แหล่งอายุและข้อมูลอายุจากต้นทางไม่สอดคล้องกัน กรุณาตรวจข้อมูลก่อนดาวน์โหลด",
+      );
+    ageWarningLabel(row.ageWarning);
   }
+  const covered = new Set<string>();
+  const groupKeys = new Set<string>();
+  const names = new Set([
+    EXPORT_INFORMATION_SHEET.toLocaleLowerCase(),
+    "history",
+  ]);
+  for (const [index, group] of plan.groups.entries()) {
+    if (
+      !group.key ||
+      !group.categoryId ||
+      groupKeys.has(group.key) ||
+      group.ordinal !== index + 1 ||
+      !group.registrationIds.length
+    )
+      throw new CompetitionExportError(
+        "กลุ่มข้อมูลส่งออกซ้ำ ว่าง หรือเรียงลำดับไม่ถูกต้อง กรุณาตรวจรูปแบบไฟล์",
+      );
+    groupKeys.add(group.key);
+    const name = group.sheetName;
+    if (
+      !name.trim() ||
+      name !== name.trim() ||
+      name.length > 31 ||
+      /[\x00-\x1f\x7f\[\]:*?/\\]|^'|'$/.test(name) ||
+      names.has(name.toLocaleLowerCase())
+    )
+      throw new CompetitionExportError(
+        "ชื่อชีตส่งออกไม่ถูกต้องหรือซ้ำ กรุณาตรวจชื่อย่อของรุ่น",
+      );
+    names.add(name.toLocaleLowerCase());
+    if (!/^[ก-๙0-9 ._()\-]+$/.test(group.posterNumber))
+      throw new CompetitionExportError(
+        "เลขรุ่นบนป้ายยังไม่ถูกต้อง กรุณาตรวจรูปแบบไฟล์",
+      );
+    if (
+      ![
+        group.fullClassLabel,
+        group.levelLabel,
+        group.colorLabel,
+        group.sexLabel,
+      ].every(thaiLabel)
+    )
+      throw new CompetitionExportError(
+        "คำแสดงผลของรุ่น ระดับ สี หรือเพศยังไม่เป็นภาษาไทย กรุณาตรวจรูปแบบไฟล์",
+      );
+    for (const id of group.registrationIds) {
+      if (!ids.has(id) || covered.has(id))
+        throw new CompetitionExportError(
+          "รายการใบสมัครในกลุ่มส่งออกขาด เกิน หรือซ้ำ กรุณาโหลดข้อมูลล่าสุด",
+        );
+      covered.add(id);
+    }
+  }
+  if (covered.size !== ids.size)
+    throw new CompetitionExportError(
+      "ยังมีใบสมัครที่ไม่ได้กำหนดกลุ่มส่งออก กรุณาแก้ให้ครบก่อนดาวน์โหลด",
+    );
+  return data;
 }
 const birthdayLabel = (value: string) =>
   /^\d{4}-\d{2}-\d{2}/.test(value)
@@ -63,9 +190,10 @@ export function createCompetitionWorkbook(
   eventId: string,
   data: ExportData,
 ): Buffer {
-  validateExportData(eventId, data);
+  data = validateExportData(eventId, data);
   const workbook = utils.book_new();
-  const summary = utils.aoa_to_sheet([
+  const summaryRows: (string | number)[][] = [
+    ["สารบัญและข้อมูลงาน"],
     ["งานแข่งขัน", data.event.title],
     ["รหัสงาน", eventId],
     ["จำนวนใบสมัคร", data.rowCount],
@@ -83,30 +211,50 @@ export function createCompetitionWorkbook(
       data.registrations.filter((row) => !!row.ageWarning).length,
     ],
     ...(data.rowCount ? [] : [["สถานะข้อมูล", "ไม่มีใบสมัครในงานนี้"]]),
-  ]);
-  summary["!cols"] = [{ wch: 24 }, { wch: 90 }];
-  utils.book_append_sheet(workbook, summary, "ข้อมูลงาน");
-  const groups = new Map<string, ExportData["registrations"]>();
-  for (const row of data.registrations) {
-    const key = JSON.stringify([
-      humanClass(row.type),
-      row.level,
-      row.color,
-      row.sex,
+    [],
+    [
+      "วิธีใช้",
+      "คลิก เปิดชีต เพื่อไปยังข้อมูลรุ่น และใช้ กลับสารบัญ เพื่อกลับมายังแถวเดิม",
+    ],
+    [
+      "รุ่นบนป้าย",
+      "ชื่อแท็บ",
+      "รุ่นแข่งขัน",
+      "ระดับ",
+      "สี",
+      "เพศ",
+      "จำนวนใบสมัคร",
+      "ไปยังข้อมูล",
+    ],
+  ];
+  const firstContentsRow = summaryRows.length + 1;
+  for (const group of data.exportPlan.groups)
+    summaryRows.push([
+      group.posterNumber,
+      group.sheetName,
+      group.fullClassLabel,
+      group.levelLabel,
+      group.colorLabel,
+      group.sexLabel,
+      group.registrationIds.length,
+      "เปิดชีต →",
     ]);
-    groups.set(key, [...(groups.get(key) ?? []), row]);
-  }
-  let index = 0;
-  for (const rows of groups.values()) {
-    index++;
-    const first = rows[0]!;
+  const summary = utils.aoa_to_sheet(summaryRows);
+  summary["!cols"] = [24, 40, 70, 30, 14, 14, 18, 20].map((wch) => ({ wch }));
+  utils.book_append_sheet(workbook, summary, EXPORT_INFORMATION_SHEET);
+  const rowsById = new Map(data.registrations.map((row) => [row._id, row]));
+  const internalTarget = (sheetName: string, cell: string) =>
+    `#'${sheetName.replace(/'/g, "''")}'!${cell}`;
+  for (const [index, group] of data.exportPlan.groups.entries()) {
+    const rows = group.registrationIds.map((id) => rowsById.get(id)!);
     const sheet = utils.aoa_to_sheet([
+      ["← กลับสารบัญ"],
       [`งาน: ${data.event.title}`, "รหัสงาน", eventId],
       [
-        `รุ่น: ${humanClass(first.type)}`,
-        `สี: ${first.color}`,
-        `เพศ: ${first.sex}`,
-        `ชุดรุ่น: ${first.level}`,
+        `รุ่น: ${group.fullClassLabel}`,
+        `สี: ${group.colorLabel}`,
+        `เพศ: ${group.sexLabel}`,
+        `ชุดรุ่น: ${group.levelLabel}`,
       ],
       [
         "ลำดับ",
@@ -135,21 +283,25 @@ export function createCompetitionWorkbook(
         row.farmName,
         row.ownerName,
         row.ownerTel,
-        row.ageSource,
+        EXPORT_AGE_SOURCE_LABELS[row.ageSource],
         ageWarningLabel(row.ageWarning),
         row._id,
         registrationLabel(row),
       ]),
     ]);
-    sheet["!cols"] = [8, 22, 24, 18, 16, 24, 24, 24, 24, 20, 16, 60, 45].map(
-      (wch) => ({ wch }),
-    );
-    // A numeric prefix guarantees unique, valid Excel sheet names, even for duplicate/truncated Thai labels.
-    const name = `${index}-${humanClass(first.type)}`
-      .replace(/[\[\]:*?/\\]/g, "_")
-      .replace(/^'+|'+$/g, "")
-      .slice(0, 31);
-    utils.book_append_sheet(workbook, sheet, name);
+    sheet["!cols"] = [
+      8, 22, 24, 18, 16, 24, 24, 24, 24, 20, 28, 60, 45, 24,
+    ].map((wch) => ({ wch }));
+    const contentsRow = firstContentsRow + index;
+    (summary[`H${contentsRow}`] as CellObject).l = {
+      Target: internalTarget(group.sheetName, "A1"),
+      Tooltip: "เปิดข้อมูลรุ่นนี้",
+    };
+    (sheet.A1 as CellObject).l = {
+      Target: internalTarget(EXPORT_INFORMATION_SHEET, `A${contentsRow}`),
+      Tooltip: "กลับสารบัญของรุ่นนี้",
+    };
+    utils.book_append_sheet(workbook, sheet, group.sheetName);
   }
   return write(workbook, {
     type: "buffer",
@@ -161,7 +313,7 @@ export async function createCompetitionDocxZip(
   eventId: string,
   data: ExportData,
 ): Promise<Buffer> {
-  validateExportData(eventId, data);
+  data = validateExportData(eventId, data);
   const archive = archiver("zip", { zlib: { level: 6 } });
   const chunks: Buffer[] = [];
   const completed = new Promise<Buffer>((resolve, reject) => {
@@ -174,12 +326,18 @@ export async function createCompetitionDocxZip(
     { name: "event-info.txt" },
   );
   try {
-    for (let i = 0; i < data.registrations.length; i++) {
-      const row = data.registrations[i]!;
+    const rowsById = new Map(data.registrations.map((row) => [row._id, row]));
+    const ordered = data.exportPlan.groups.flatMap((group) =>
+      group.registrationIds.map((id) => ({ row: rowsById.get(id)!, group })),
+    );
+    for (const [i, { row, group }] of ordered.entries()) {
       const buffer = await generateBuffaloRegistrationDoc(
         {
           ...row,
-          type: humanClass(row.type),
+          type: group.fullClassLabel,
+          colorLabelTh: group.colorLabel,
+          sexLabelTh: group.sexLabel,
+          levelLabelTh: group.levelLabel,
           buffaloAge: row.exportAge ?? 0,
           exportAge: row.exportAge ?? null,
           ageWarning: ageWarningLabel(row.ageWarning),

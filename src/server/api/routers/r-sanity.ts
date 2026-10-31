@@ -1,3 +1,5 @@
+import { competitionAdminApiClient } from "~/server/services/competition-admin-api-client";
+import { readSourceExportDiagnostics } from "~/lib/competition-export-protocol";
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
 import { z } from "zod";
 import { createTRPCRouter, protectProcedure } from "~/server/api/trpc";
@@ -137,26 +139,52 @@ export const sanityRouter = createTRPCRouter({
       }
     }),
 
-  // Get events for export dropdown (using actual event documents)
+  // All export entry points use the same source-owned event inventory, including drafts.
   getEventsForExport: protectProcedure.query(async () => {
     try {
-      const events = await sanityClient.fetch(
-        `*[_type == "event" && !(_id in path("drafts.**")) && (!defined(competitionState) || competitionState != "draft")]{
-          _id,
-          title,
-          _type
-        } | order(title asc)`
+      const events: Array<{ _id: string; title: string; _type: "event" }> = [];
+      const ids = new Set<string>();
+      let expectedTotal: number | null = null;
+      const pageSize = 100;
+      for (let page = 1; ; page++) {
+        const result = await competitionAdminApiClient.list({
+          search: "",
+          page,
+          pageSize,
+        });
+        if (
+          !Number.isSafeInteger(result.total) ||
+          result.total < 0 ||
+          result.page !== page ||
+          result.pageSize !== pageSize
+        )
+          throw new Error("Invalid source event pagination");
+        if (expectedTotal === null) expectedTotal = result.total;
+        if (
+          result.total !== expectedTotal ||
+          result.items.length !==
+            Math.min(pageSize, Math.max(0, expectedTotal - events.length))
+        )
+          throw new Error("Source event inventory changed or is incomplete");
+        for (const event of result.items) {
+          if (ids.has(event._id)) throw new Error("Repeated source event page");
+          ids.add(event._id);
+          events.push({ _id: event._id, title: event.title, _type: "event" });
+        }
+        if (events.length === expectedTotal) break;
+      }
+      events.sort(
+        (left, right) =>
+          left.title.localeCompare(right.title, "th", { numeric: true }) ||
+          (left._id < right._id ? -1 : left._id > right._id ? 1 : 0),
       );
-      return {
-        success: true,
-        data: events,
-      };
+      return { success: true, data: events };
     } catch (error) {
-      console.error("Error fetching events for export:", error);
+      console.error("Error fetching source events for export:", error);
       return {
         success: false,
-        error: "Failed to fetch events from Sanity CMS",
-        data: [],
+        error: "โหลดรายการงานจากระบบการแข่งขันไม่สำเร็จหรือไม่ครบ กรุณาลองใหม่",
+        data: [] as Array<{ _id: string; title: string; _type: "event" }>,
       };
     }
   }),
@@ -171,7 +199,12 @@ export const sanityRouter = createTRPCRouter({
           data: await createLegacyCompetitionExport(input.eventId, "xlsx"),
         };
       } catch (error) {
-        return { success: false, error: legacyExportError(error), data: null };
+        return {
+          success: false,
+          error: legacyExportError(error),
+          diagnostics: readSourceExportDiagnostics(error),
+          data: null,
+        };
       }
     }),
   exportEventDataToDocx: protectProcedure
@@ -183,7 +216,12 @@ export const sanityRouter = createTRPCRouter({
           data: await createLegacyCompetitionExport(input.eventId, "docx"),
         };
       } catch (error) {
-        return { success: false, error: legacyExportError(error), data: null };
+        return {
+          success: false,
+          error: legacyExportError(error),
+          diagnostics: readSourceExportDiagnostics(error),
+          data: null,
+        };
       }
     }),
 });

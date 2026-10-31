@@ -1,0 +1,1298 @@
+{
+  "fixtureVersion": 1,
+  "description": "Synthetic source-generated contract only; no real people, credentials or production records.",
+  "clock": "2026-10-31T05:00:00.000Z",
+  "scenarios": [
+    {
+      "name": "normal",
+      "sourceEvent": {
+        "_id": "synthetic-contract-normal",
+        "_rev": "synthetic-event-rev-1",
+        "_type": "event",
+        "title": "งานประกวดข้อมูลจำลองสำหรับทดสอบสัญญาส่งออก",
+        "description": "ข้อมูลจำลองทั้งหมด ไม่มีบุคคลจริง",
+        "location": "สถานที่ทดสอบจำลอง",
+        "competitionState": "published",
+        "isActive": true,
+        "registrationActive": true,
+        "startAt": "2026-10-31",
+        "endAt": "2026-11-01",
+        "registrationStartAt": "2026-10-01",
+        "registrationDeadline": "2026-10-30",
+        "buffaloAgeDeadline": "2026-10-31",
+        "eventType": "normal",
+        "competitionRegistrationCount": 3,
+        "registrationCount": 3,
+        "catalogDocuments": [
+          {
+            "_id": "synthetic-contract-normal-national",
+            "_rev": "synthetic-catalog-rev-1",
+            "_type": "nationalEventType",
+            "event": {
+              "_ref": "synthetic-contract-normal"
+            },
+            "data": [
+              "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}"
+            ]
+          },
+          {
+            "_id": "synthetic-contract-normal-province",
+            "_rev": "synthetic-catalog-rev-2",
+            "_type": "provinceEventType",
+            "event": {
+              "_ref": "synthetic-contract-normal"
+            },
+            "data": [
+              "ลูกควายท้องถิ่น"
+            ]
+          }
+        ]
+      },
+      "rawRegistrations": [
+        {
+          "_rev": "synthetic-registration-rev-1",
+          "_type": "eventRegister",
+          "event": {
+            "_ref": "synthetic-contract-normal"
+          },
+          "microchip": "000000000000001",
+          "ownerName": "เจ้าของข้อมูลจำลอง",
+          "ownerTel": "0000000000",
+          "fatherName": "พ่อควายจำลอง",
+          "motherName": "แม่ควายจำลอง",
+          "farmName": "ฟาร์มข้อมูลจำลอง",
+          "level": "national",
+          "color": "black",
+          "sex": "male",
+          "_id": "synthetic-contract-normal-stored",
+          "type": "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}",
+          "name": "ควายข้อมูลจำลองหนึ่ง",
+          "birthday": "2025-10-31",
+          "buffaloAge": 0,
+          "approval": {
+            "_id": "synthetic-contract-normal-approval-accepted",
+            "_rev": "synthetic-approval-rev-1",
+            "approvementResult": true
+          }
+        },
+        {
+          "_rev": "synthetic-registration-rev-1",
+          "_type": "eventRegister",
+          "event": {
+            "_ref": "synthetic-contract-normal"
+          },
+          "microchip": "000000000000001",
+          "ownerName": "เจ้าของข้อมูลจำลอง",
+          "ownerTel": "0000000000",
+          "fatherName": "พ่อควายจำลอง",
+          "motherName": "แม่ควายจำลอง",
+          "farmName": "ฟาร์มข้อมูลจำลอง",
+          "level": "จังหวัด",
+          "color": "black",
+          "sex": "male",
+          "_id": "synthetic-contract-normal-cutoff",
+          "type": "ลูกควายท้องถิ่น",
+          "name": "ควายข้อมูลจำลองสอง",
+          "birthday": "2025-10-30",
+          "approval": {
+            "_id": "synthetic-contract-normal-approval-rejected",
+            "_rev": "synthetic-approval-rev-2",
+            "approvementResult": false,
+            "comment": "เหตุผลจำลองสำหรับการทดสอบ"
+          }
+        },
+        {
+          "_rev": "synthetic-registration-rev-1",
+          "_type": "eventRegister",
+          "event": {
+            "_ref": "synthetic-contract-normal"
+          },
+          "microchip": "000000000000002",
+          "ownerName": "เจ้าของข้อมูลจำลอง",
+          "ownerTel": "0000000000",
+          "fatherName": "พ่อควายจำลอง",
+          "motherName": "แม่ควายจำลอง",
+          "farmName": "ฟาร์มข้อมูลจำลอง",
+          "level": "ประเทศ",
+          "color": "albino",
+          "sex": "female",
+          "_id": "synthetic-contract-normal-missing",
+          "type": "รุ่นเดิมตามประวัติ",
+          "name": "ควายข้อมูลจำลองสาม",
+          "birthday": "invalid"
+        }
+      ],
+      "layout": {
+        "version": 1,
+        "reviewedCatalogFingerprint": "832b756d002ccb839753e0d910ddfd55ac86297ede6faad9bad19d290b4af060",
+        "aliases": [],
+        "categories": [
+          {
+            "id": "historical-class",
+            "level": "national",
+            "historical": true,
+            "registrationTypeValues": [
+              "รุ่นเดิมตามประวัติ"
+            ],
+            "posterNumber": "01",
+            "fullLabelTh": "รุ่นเดิมตามประวัติ",
+            "shortLabelTh": "รุ่น'ทดสอบชื่อชีตยาวสำหรับตรวจการชนกันของชื่อและการตัดข้อความ",
+            "groups": [
+              {
+                "color": "albino",
+                "sex": "female"
+              }
+            ]
+          },
+          {
+            "id": "local-class",
+            "level": "province",
+            "catalogValue": "ลูกควายท้องถิ่น",
+            "registrationTypeValues": [
+              "ลูกควายท้องถิ่น"
+            ],
+            "posterNumber": "02",
+            "fullLabelTh": "ลูกควายท้องถิ่น",
+            "shortLabelTh": "รุ่น'ทดสอบชื่อชีตยาวสำหรับตรวจการชนกันของชื่อและการตัดข้อความ",
+            "groups": [
+              {
+                "color": "black",
+                "sex": "male"
+              }
+            ]
+          },
+          {
+            "id": "age-class",
+            "level": "national",
+            "catalogValue": "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}",
+            "registrationTypeValues": [
+              "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}"
+            ],
+            "posterNumber": "01",
+            "fullLabelTh": "ลูกควายตามเกณฑ์อายุ เจ้าหน้าที่ตรวจฟันเพิ่มเติม",
+            "shortLabelTh": "รุ่น'ทดสอบชื่อชีตยาวสำหรับตรวจการชนกันของชื่อและการตัดข้อความ",
+            "groups": [
+              {
+                "color": "black",
+                "sex": "male"
+              }
+            ]
+          }
+        ]
+      },
+      "packet": {
+        "event": {
+          "_id": "synthetic-contract-normal",
+          "_rev": "synthetic-event-rev-1",
+          "title": "งานประกวดข้อมูลจำลองสำหรับทดสอบสัญญาส่งออก",
+          "description": "ข้อมูลจำลองทั้งหมด ไม่มีบุคคลจริง",
+          "location": "สถานที่ทดสอบจำลอง",
+          "startAt": "2026-10-31",
+          "endAt": "2026-11-01",
+          "registrationStartAt": "2026-10-01",
+          "registrationDeadline": "2026-10-30",
+          "buffaloAgeDeadline": "2026-10-31",
+          "eventType": "normal",
+          "competitionState": "published",
+          "isActive": true,
+          "registrationActive": true,
+          "registrationCount": 3,
+          "catalogs": {
+            "national": [
+              "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}"
+            ],
+            "province": [
+              "ลูกควายท้องถิ่น"
+            ]
+          },
+          "policy": {
+            "today": "2026-10-31",
+            "lifecycle": "ongoing",
+            "publicRegistration": "closed-date",
+            "publicVisible": true,
+            "onsiteAllowed": true,
+            "warnings": []
+          }
+        },
+        "registrations": [
+          {
+            "_rev": "synthetic-registration-rev-1",
+            "_type": "eventRegister",
+            "event": {
+              "_ref": "synthetic-contract-normal"
+            },
+            "microchip": "000000000000001",
+            "ownerName": "เจ้าของข้อมูลจำลอง",
+            "ownerTel": "0000000000",
+            "fatherName": "พ่อควายจำลอง",
+            "motherName": "แม่ควายจำลอง",
+            "farmName": "ฟาร์มข้อมูลจำลอง",
+            "level": "national",
+            "color": "black",
+            "sex": "male",
+            "_id": "synthetic-contract-normal-stored",
+            "type": "ลูกควายตามเกณฑ์อายุ",
+            "name": "ควายข้อมูลจำลองหนึ่ง",
+            "birthday": "2025-10-31",
+            "buffaloAge": 0,
+            "approval": {
+              "_id": "synthetic-contract-normal-approval-accepted",
+              "_rev": "synthetic-approval-rev-1",
+              "approvementResult": true,
+              "comment": "",
+              "approvementDate": null,
+              "notificationState": "unknown",
+              "notificationUpdatedAt": null
+            },
+            "province": "",
+            "registrationPolicyVersion": 1,
+            "approvalRequirement": "not_required",
+            "registrationStatus": "registered",
+            "checkInVersion": 1,
+            "checkInStatus": "not_checked_in",
+            "checkedInAt": null,
+            "checkedInBy": null,
+            "checkInEligibility": {
+              "eligible": true,
+              "reason": null
+            },
+            "qrAvailable": true,
+            "checkInHistory": [],
+            "approvalStatus": "accepted",
+            "applicant": null,
+            "hasLineRecipient": false,
+            "deliveryEnabled": false,
+            "images": [],
+            "address": null,
+            "isAdminRegistration": false,
+            "registeredAt": null,
+            "rawType": "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}",
+            "exportAge": 0,
+            "ageSource": "stored",
+            "ageWarning": null
+          },
+          {
+            "_rev": "synthetic-registration-rev-1",
+            "_type": "eventRegister",
+            "event": {
+              "_ref": "synthetic-contract-normal"
+            },
+            "microchip": "000000000000001",
+            "ownerName": "เจ้าของข้อมูลจำลอง",
+            "ownerTel": "0000000000",
+            "fatherName": "พ่อควายจำลอง",
+            "motherName": "แม่ควายจำลอง",
+            "farmName": "ฟาร์มข้อมูลจำลอง",
+            "level": "จังหวัด",
+            "color": "black",
+            "sex": "male",
+            "_id": "synthetic-contract-normal-cutoff",
+            "type": "ลูกควายท้องถิ่น",
+            "name": "ควายข้อมูลจำลองสอง",
+            "birthday": "2025-10-30",
+            "approval": {
+              "_id": "synthetic-contract-normal-approval-rejected",
+              "_rev": "synthetic-approval-rev-2",
+              "approvementResult": false,
+              "comment": "เหตุผลจำลองสำหรับการทดสอบ",
+              "approvementDate": null,
+              "notificationState": "unknown",
+              "notificationUpdatedAt": null
+            },
+            "province": "",
+            "buffaloAge": null,
+            "registrationPolicyVersion": 1,
+            "approvalRequirement": "not_required",
+            "registrationStatus": "registered",
+            "checkInVersion": 1,
+            "checkInStatus": "not_checked_in",
+            "checkedInAt": null,
+            "checkedInBy": null,
+            "checkInEligibility": {
+              "eligible": true,
+              "reason": null
+            },
+            "qrAvailable": true,
+            "checkInHistory": [],
+            "approvalStatus": "rejected",
+            "applicant": null,
+            "hasLineRecipient": false,
+            "deliveryEnabled": false,
+            "images": [],
+            "address": null,
+            "isAdminRegistration": false,
+            "registeredAt": null,
+            "rawType": "ลูกควายท้องถิ่น",
+            "exportAge": 13,
+            "ageSource": "cutoff",
+            "ageWarning": "calculated-from-cutoff"
+          },
+          {
+            "_rev": "synthetic-registration-rev-1",
+            "_type": "eventRegister",
+            "event": {
+              "_ref": "synthetic-contract-normal"
+            },
+            "microchip": "000000000000002",
+            "ownerName": "เจ้าของข้อมูลจำลอง",
+            "ownerTel": "0000000000",
+            "fatherName": "พ่อควายจำลอง",
+            "motherName": "แม่ควายจำลอง",
+            "farmName": "ฟาร์มข้อมูลจำลอง",
+            "level": "ประเทศ",
+            "color": "albino",
+            "sex": "female",
+            "_id": "synthetic-contract-normal-missing",
+            "type": "รุ่นเดิมตามประวัติ",
+            "name": "ควายข้อมูลจำลองสาม",
+            "birthday": "invalid",
+            "province": "",
+            "buffaloAge": null,
+            "approval": null,
+            "registrationPolicyVersion": 1,
+            "approvalRequirement": "not_required",
+            "registrationStatus": "registered",
+            "checkInVersion": 1,
+            "checkInStatus": "not_checked_in",
+            "checkedInAt": null,
+            "checkedInBy": null,
+            "checkInEligibility": {
+              "eligible": true,
+              "reason": null
+            },
+            "qrAvailable": true,
+            "checkInHistory": [],
+            "approvalStatus": "pending",
+            "applicant": null,
+            "hasLineRecipient": false,
+            "deliveryEnabled": false,
+            "images": [],
+            "address": null,
+            "isAdminRegistration": false,
+            "registeredAt": null,
+            "rawType": "รุ่นเดิมตามประวัติ",
+            "exportAge": null,
+            "ageSource": "missing",
+            "ageWarning": "missing-or-invalid-age"
+          }
+        ],
+        "rowCount": 3,
+        "registrationPolicyVersion": 1,
+        "exportPresentationVersion": 1,
+        "exportPlan": {
+          "version": 1,
+          "eventId": "synthetic-contract-normal",
+          "eventRevision": "synthetic-event-rev-1",
+          "catalogFingerprint": "832b756d002ccb839753e0d910ddfd55ac86297ede6faad9bad19d290b4af060",
+          "layoutFingerprint": "b2b23428cfa091c9d848b5af1a404080579367efc73dc1d649b984d48a59d8d6",
+          "diagnostics": [],
+          "groups": [
+            {
+              "key": "2afa1a9445fe301307d7baa3d1445fe2c15025480abe669c67315ab77e821c7e",
+              "categoryId": "historical-class",
+              "ordinal": 1,
+              "posterNumber": "01",
+              "sheetName": "ป01-รุ่น'ทดสอบชื่อชี-เผือก-เมีย",
+              "fullClassLabel": "รุ่นเดิมตามประวัติ",
+              "levelLabel": "ระดับประเทศ",
+              "colorLabel": "เผือก",
+              "sexLabel": "เมีย",
+              "registrationIds": [
+                "synthetic-contract-normal-missing"
+              ]
+            },
+            {
+              "key": "93018039b818ed14d810391ede6d3be8092e8fe0ff12a52fef0a68a694823b63",
+              "categoryId": "local-class",
+              "ordinal": 2,
+              "posterNumber": "02",
+              "sheetName": "ท02-รุ่น'ทดสอบชื่อชีตยาว-ดำ-ผู้",
+              "fullClassLabel": "ลูกควายท้องถิ่น",
+              "levelLabel": "ระดับจังหวัด / ท้องถิ่น",
+              "colorLabel": "ดำ",
+              "sexLabel": "ผู้",
+              "registrationIds": [
+                "synthetic-contract-normal-cutoff"
+              ]
+            },
+            {
+              "key": "ece39a731e1108c1e18c6ccf3fd8d664bc9c8a4daf192e75c8be4efe86063564",
+              "categoryId": "age-class",
+              "ordinal": 3,
+              "posterNumber": "01",
+              "sheetName": "ป01-รุ่น'ทดสอบชื่อชีตยาว-ดำ-ผู้",
+              "fullClassLabel": "ลูกควายตามเกณฑ์อายุ เจ้าหน้าที่ตรวจฟันเพิ่มเติม",
+              "levelLabel": "ระดับประเทศ",
+              "colorLabel": "ดำ",
+              "sexLabel": "ผู้",
+              "registrationIds": [
+                "synthetic-contract-normal-stored"
+              ]
+            }
+          ],
+          "state": "ready"
+        }
+      }
+    },
+    {
+      "name": "royal",
+      "sourceEvent": {
+        "_id": "synthetic-contract-royal",
+        "_rev": "synthetic-event-rev-1",
+        "_type": "event",
+        "title": "งานประกวดข้อมูลจำลองสำหรับทดสอบสัญญาส่งออก",
+        "description": "ข้อมูลจำลองทั้งหมด ไม่มีบุคคลจริง",
+        "location": "สถานที่ทดสอบจำลอง",
+        "competitionState": "published",
+        "isActive": true,
+        "registrationActive": true,
+        "startAt": "2026-10-31",
+        "endAt": "2026-11-01",
+        "registrationStartAt": "2026-10-01",
+        "registrationDeadline": "2026-10-30",
+        "buffaloAgeDeadline": "2026-10-31",
+        "eventType": "royal",
+        "competitionRegistrationCount": 3,
+        "registrationCount": 3,
+        "catalogDocuments": [
+          {
+            "_id": "synthetic-contract-royal-national",
+            "_rev": "synthetic-catalog-rev-1",
+            "_type": "nationalEventType",
+            "event": {
+              "_ref": "synthetic-contract-royal"
+            },
+            "data": [
+              "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}"
+            ]
+          },
+          {
+            "_id": "synthetic-contract-royal-province",
+            "_rev": "synthetic-catalog-rev-2",
+            "_type": "provinceEventType",
+            "event": {
+              "_ref": "synthetic-contract-royal"
+            },
+            "data": [
+              "ลูกควายท้องถิ่น"
+            ]
+          }
+        ]
+      },
+      "rawRegistrations": [
+        {
+          "_rev": "synthetic-registration-rev-1",
+          "_type": "eventRegister",
+          "event": {
+            "_ref": "synthetic-contract-royal"
+          },
+          "microchip": "000000000000001",
+          "ownerName": "เจ้าของข้อมูลจำลอง",
+          "ownerTel": "0000000000",
+          "fatherName": "พ่อควายจำลอง",
+          "motherName": "แม่ควายจำลอง",
+          "farmName": "ฟาร์มข้อมูลจำลอง",
+          "level": "national",
+          "color": "black",
+          "sex": "male",
+          "_id": "synthetic-contract-royal-stored",
+          "type": "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}",
+          "name": "ควายข้อมูลจำลองหนึ่ง",
+          "birthday": "2025-10-31",
+          "buffaloAge": 0,
+          "approval": {
+            "_id": "synthetic-contract-royal-approval-accepted",
+            "_rev": "synthetic-approval-rev-1",
+            "approvementResult": true
+          }
+        },
+        {
+          "_rev": "synthetic-registration-rev-1",
+          "_type": "eventRegister",
+          "event": {
+            "_ref": "synthetic-contract-royal"
+          },
+          "microchip": "000000000000001",
+          "ownerName": "เจ้าของข้อมูลจำลอง",
+          "ownerTel": "0000000000",
+          "fatherName": "พ่อควายจำลอง",
+          "motherName": "แม่ควายจำลอง",
+          "farmName": "ฟาร์มข้อมูลจำลอง",
+          "level": "จังหวัด",
+          "color": "black",
+          "sex": "male",
+          "_id": "synthetic-contract-royal-cutoff",
+          "type": "ลูกควายท้องถิ่น",
+          "name": "ควายข้อมูลจำลองสอง",
+          "birthday": "2025-10-30",
+          "approval": {
+            "_id": "synthetic-contract-royal-approval-rejected",
+            "_rev": "synthetic-approval-rev-2",
+            "approvementResult": false,
+            "comment": "เหตุผลจำลองสำหรับการทดสอบ"
+          }
+        },
+        {
+          "_rev": "synthetic-registration-rev-1",
+          "_type": "eventRegister",
+          "event": {
+            "_ref": "synthetic-contract-royal"
+          },
+          "microchip": "000000000000002",
+          "ownerName": "เจ้าของข้อมูลจำลอง",
+          "ownerTel": "0000000000",
+          "fatherName": "พ่อควายจำลอง",
+          "motherName": "แม่ควายจำลอง",
+          "farmName": "ฟาร์มข้อมูลจำลอง",
+          "level": "ประเทศ",
+          "color": "albino",
+          "sex": "female",
+          "_id": "synthetic-contract-royal-missing",
+          "type": "รุ่นเดิมตามประวัติ",
+          "name": "ควายข้อมูลจำลองสาม",
+          "birthday": "invalid"
+        }
+      ],
+      "layout": {
+        "version": 1,
+        "reviewedCatalogFingerprint": "832b756d002ccb839753e0d910ddfd55ac86297ede6faad9bad19d290b4af060",
+        "aliases": [],
+        "categories": [
+          {
+            "id": "age-class",
+            "level": "national",
+            "catalogValue": "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}",
+            "registrationTypeValues": [
+              "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}"
+            ],
+            "posterNumber": "01",
+            "fullLabelTh": "ลูกควายตามเกณฑ์อายุ เจ้าหน้าที่ตรวจฟันเพิ่มเติม",
+            "shortLabelTh": "รุ่น'ทดสอบชื่อชีตยาวสำหรับตรวจการชนกันของชื่อและการตัดข้อความ",
+            "groups": [
+              {
+                "color": "black",
+                "sex": "male"
+              }
+            ]
+          },
+          {
+            "id": "local-class",
+            "level": "province",
+            "catalogValue": "ลูกควายท้องถิ่น",
+            "registrationTypeValues": [
+              "ลูกควายท้องถิ่น"
+            ],
+            "posterNumber": "02",
+            "fullLabelTh": "ลูกควายท้องถิ่น",
+            "shortLabelTh": "รุ่น'ทดสอบชื่อชีตยาวสำหรับตรวจการชนกันของชื่อและการตัดข้อความ",
+            "groups": [
+              {
+                "color": "black",
+                "sex": "male"
+              }
+            ]
+          },
+          {
+            "id": "historical-class",
+            "level": "national",
+            "historical": true,
+            "registrationTypeValues": [
+              "รุ่นเดิมตามประวัติ"
+            ],
+            "posterNumber": "01",
+            "fullLabelTh": "รุ่นเดิมตามประวัติ",
+            "shortLabelTh": "รุ่น'ทดสอบชื่อชีตยาวสำหรับตรวจการชนกันของชื่อและการตัดข้อความ",
+            "groups": [
+              {
+                "color": "albino",
+                "sex": "female"
+              }
+            ]
+          }
+        ]
+      },
+      "packet": {
+        "event": {
+          "_id": "synthetic-contract-royal",
+          "_rev": "synthetic-event-rev-1",
+          "title": "งานประกวดข้อมูลจำลองสำหรับทดสอบสัญญาส่งออก",
+          "description": "ข้อมูลจำลองทั้งหมด ไม่มีบุคคลจริง",
+          "location": "สถานที่ทดสอบจำลอง",
+          "startAt": "2026-10-31",
+          "endAt": "2026-11-01",
+          "registrationStartAt": "2026-10-01",
+          "registrationDeadline": "2026-10-30",
+          "buffaloAgeDeadline": "2026-10-31",
+          "eventType": "royal",
+          "competitionState": "published",
+          "isActive": true,
+          "registrationActive": true,
+          "registrationCount": 3,
+          "catalogs": {
+            "national": [
+              "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}"
+            ],
+            "province": [
+              "ลูกควายท้องถิ่น"
+            ]
+          },
+          "policy": {
+            "today": "2026-10-31",
+            "lifecycle": "ongoing",
+            "publicRegistration": "closed-date",
+            "publicVisible": true,
+            "onsiteAllowed": true,
+            "warnings": []
+          }
+        },
+        "registrations": [
+          {
+            "_rev": "synthetic-registration-rev-1",
+            "_type": "eventRegister",
+            "event": {
+              "_ref": "synthetic-contract-royal"
+            },
+            "microchip": "000000000000001",
+            "ownerName": "เจ้าของข้อมูลจำลอง",
+            "ownerTel": "0000000000",
+            "fatherName": "พ่อควายจำลอง",
+            "motherName": "แม่ควายจำลอง",
+            "farmName": "ฟาร์มข้อมูลจำลอง",
+            "level": "national",
+            "color": "black",
+            "sex": "male",
+            "_id": "synthetic-contract-royal-stored",
+            "type": "ลูกควายตามเกณฑ์อายุ",
+            "name": "ควายข้อมูลจำลองหนึ่ง",
+            "birthday": "2025-10-31",
+            "buffaloAge": 0,
+            "approval": {
+              "_id": "synthetic-contract-royal-approval-accepted",
+              "_rev": "synthetic-approval-rev-1",
+              "approvementResult": true,
+              "comment": "",
+              "approvementDate": null,
+              "notificationState": "unknown",
+              "notificationUpdatedAt": null
+            },
+            "province": "",
+            "registrationPolicyVersion": 1,
+            "approvalRequirement": "required",
+            "registrationStatus": "accepted",
+            "checkInVersion": 1,
+            "checkInStatus": "not_checked_in",
+            "checkedInAt": null,
+            "checkedInBy": null,
+            "checkInEligibility": {
+              "eligible": true,
+              "reason": null
+            },
+            "qrAvailable": true,
+            "checkInHistory": [],
+            "approvalStatus": "accepted",
+            "applicant": null,
+            "hasLineRecipient": false,
+            "deliveryEnabled": false,
+            "images": [],
+            "address": null,
+            "isAdminRegistration": false,
+            "registeredAt": null,
+            "rawType": "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}",
+            "exportAge": 0,
+            "ageSource": "stored",
+            "ageWarning": null
+          },
+          {
+            "_rev": "synthetic-registration-rev-1",
+            "_type": "eventRegister",
+            "event": {
+              "_ref": "synthetic-contract-royal"
+            },
+            "microchip": "000000000000001",
+            "ownerName": "เจ้าของข้อมูลจำลอง",
+            "ownerTel": "0000000000",
+            "fatherName": "พ่อควายจำลอง",
+            "motherName": "แม่ควายจำลอง",
+            "farmName": "ฟาร์มข้อมูลจำลอง",
+            "level": "จังหวัด",
+            "color": "black",
+            "sex": "male",
+            "_id": "synthetic-contract-royal-cutoff",
+            "type": "ลูกควายท้องถิ่น",
+            "name": "ควายข้อมูลจำลองสอง",
+            "birthday": "2025-10-30",
+            "approval": {
+              "_id": "synthetic-contract-royal-approval-rejected",
+              "_rev": "synthetic-approval-rev-2",
+              "approvementResult": false,
+              "comment": "เหตุผลจำลองสำหรับการทดสอบ",
+              "approvementDate": null,
+              "notificationState": "unknown",
+              "notificationUpdatedAt": null
+            },
+            "province": "",
+            "buffaloAge": null,
+            "registrationPolicyVersion": 1,
+            "approvalRequirement": "required",
+            "registrationStatus": "rejected",
+            "checkInVersion": 1,
+            "checkInStatus": "not_checked_in",
+            "checkedInAt": null,
+            "checkedInBy": null,
+            "checkInEligibility": {
+              "eligible": false,
+              "reason": "ใบสมัครต้องผ่านการอนุมัติก่อนรายงานตัว"
+            },
+            "qrAvailable": false,
+            "checkInHistory": [],
+            "approvalStatus": "rejected",
+            "applicant": null,
+            "hasLineRecipient": false,
+            "deliveryEnabled": false,
+            "images": [],
+            "address": null,
+            "isAdminRegistration": false,
+            "registeredAt": null,
+            "rawType": "ลูกควายท้องถิ่น",
+            "exportAge": 13,
+            "ageSource": "cutoff",
+            "ageWarning": "calculated-from-cutoff"
+          },
+          {
+            "_rev": "synthetic-registration-rev-1",
+            "_type": "eventRegister",
+            "event": {
+              "_ref": "synthetic-contract-royal"
+            },
+            "microchip": "000000000000002",
+            "ownerName": "เจ้าของข้อมูลจำลอง",
+            "ownerTel": "0000000000",
+            "fatherName": "พ่อควายจำลอง",
+            "motherName": "แม่ควายจำลอง",
+            "farmName": "ฟาร์มข้อมูลจำลอง",
+            "level": "ประเทศ",
+            "color": "albino",
+            "sex": "female",
+            "_id": "synthetic-contract-royal-missing",
+            "type": "รุ่นเดิมตามประวัติ",
+            "name": "ควายข้อมูลจำลองสาม",
+            "birthday": "invalid",
+            "province": "",
+            "buffaloAge": null,
+            "approval": null,
+            "registrationPolicyVersion": 1,
+            "approvalRequirement": "required",
+            "registrationStatus": "pending",
+            "checkInVersion": 1,
+            "checkInStatus": "not_checked_in",
+            "checkedInAt": null,
+            "checkedInBy": null,
+            "checkInEligibility": {
+              "eligible": false,
+              "reason": "ใบสมัครต้องผ่านการอนุมัติก่อนรายงานตัว"
+            },
+            "qrAvailable": false,
+            "checkInHistory": [],
+            "approvalStatus": "pending",
+            "applicant": null,
+            "hasLineRecipient": false,
+            "deliveryEnabled": false,
+            "images": [],
+            "address": null,
+            "isAdminRegistration": false,
+            "registeredAt": null,
+            "rawType": "รุ่นเดิมตามประวัติ",
+            "exportAge": null,
+            "ageSource": "missing",
+            "ageWarning": "missing-or-invalid-age"
+          }
+        ],
+        "rowCount": 3,
+        "registrationPolicyVersion": 1,
+        "exportPresentationVersion": 1,
+        "exportPlan": {
+          "version": 1,
+          "eventId": "synthetic-contract-royal",
+          "eventRevision": "synthetic-event-rev-1",
+          "catalogFingerprint": "832b756d002ccb839753e0d910ddfd55ac86297ede6faad9bad19d290b4af060",
+          "layoutFingerprint": "a7d809a95668edd0620d14df95b9b23ec5877bea7ad2ec64c969968f4d412a57",
+          "diagnostics": [],
+          "groups": [
+            {
+              "key": "8581d0bda1ae6ec053d7578488d6b2490cf90d2df3c77e6608cb08dadb3fc372",
+              "categoryId": "age-class",
+              "ordinal": 1,
+              "posterNumber": "01",
+              "sheetName": "ป01-รุ่น'ทดสอบชื่อชีตยาว-ดำ-ผู้",
+              "fullClassLabel": "ลูกควายตามเกณฑ์อายุ เจ้าหน้าที่ตรวจฟันเพิ่มเติม",
+              "levelLabel": "ระดับประเทศ",
+              "colorLabel": "ดำ",
+              "sexLabel": "ผู้",
+              "registrationIds": [
+                "synthetic-contract-royal-stored"
+              ]
+            },
+            {
+              "key": "bf4acdb0c2c5739eaf3014bb9fb0f401daeb07d61e2118f57b05db75b946edcb",
+              "categoryId": "local-class",
+              "ordinal": 2,
+              "posterNumber": "02",
+              "sheetName": "ท02-รุ่น'ทดสอบชื่อชีตยาว-ดำ-ผู้",
+              "fullClassLabel": "ลูกควายท้องถิ่น",
+              "levelLabel": "ระดับจังหวัด / ท้องถิ่น",
+              "colorLabel": "ดำ",
+              "sexLabel": "ผู้",
+              "registrationIds": [
+                "synthetic-contract-royal-cutoff"
+              ]
+            },
+            {
+              "key": "076ea2aef4f1c4ac71b8330b0921c79f67204562591fcc397f242a617e1ac4b9",
+              "categoryId": "historical-class",
+              "ordinal": 3,
+              "posterNumber": "01",
+              "sheetName": "ป01-รุ่น'ทดสอบชื่อชี-เผือก-เมีย",
+              "fullClassLabel": "รุ่นเดิมตามประวัติ",
+              "levelLabel": "ระดับประเทศ",
+              "colorLabel": "เผือก",
+              "sexLabel": "เมีย",
+              "registrationIds": [
+                "synthetic-contract-royal-missing"
+              ]
+            }
+          ],
+          "state": "ready"
+        }
+      }
+    },
+    {
+      "name": "unknown-event-type",
+      "sourceEvent": {
+        "_id": "synthetic-contract-unknown-event-type",
+        "_rev": "synthetic-event-rev-1",
+        "_type": "event",
+        "title": "งานประกวดข้อมูลจำลองสำหรับทดสอบสัญญาส่งออก",
+        "description": "ข้อมูลจำลองทั้งหมด ไม่มีบุคคลจริง",
+        "location": "สถานที่ทดสอบจำลอง",
+        "competitionState": "published",
+        "isActive": true,
+        "registrationActive": true,
+        "startAt": "2026-10-31",
+        "endAt": "2026-11-01",
+        "registrationStartAt": "2026-10-01",
+        "registrationDeadline": "2026-10-30",
+        "buffaloAgeDeadline": "2026-10-31",
+        "competitionRegistrationCount": 3,
+        "registrationCount": 3,
+        "catalogDocuments": [
+          {
+            "_id": "synthetic-contract-unknown-event-type-national",
+            "_rev": "synthetic-catalog-rev-1",
+            "_type": "nationalEventType",
+            "event": {
+              "_ref": "synthetic-contract-unknown-event-type"
+            },
+            "data": [
+              "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}"
+            ]
+          },
+          {
+            "_id": "synthetic-contract-unknown-event-type-province",
+            "_rev": "synthetic-catalog-rev-2",
+            "_type": "provinceEventType",
+            "event": {
+              "_ref": "synthetic-contract-unknown-event-type"
+            },
+            "data": [
+              "ลูกควายท้องถิ่น"
+            ]
+          }
+        ]
+      },
+      "rawRegistrations": [
+        {
+          "_rev": "synthetic-registration-rev-1",
+          "_type": "eventRegister",
+          "event": {
+            "_ref": "synthetic-contract-unknown-event-type"
+          },
+          "microchip": "000000000000001",
+          "ownerName": "เจ้าของข้อมูลจำลอง",
+          "ownerTel": "0000000000",
+          "fatherName": "พ่อควายจำลอง",
+          "motherName": "แม่ควายจำลอง",
+          "farmName": "ฟาร์มข้อมูลจำลอง",
+          "level": "national",
+          "color": "black",
+          "sex": "male",
+          "_id": "synthetic-contract-unknown-event-type-stored",
+          "type": "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}",
+          "name": "ควายข้อมูลจำลองหนึ่ง",
+          "birthday": "2025-10-31",
+          "buffaloAge": 0,
+          "approval": {
+            "_id": "synthetic-contract-unknown-event-type-approval-accepted",
+            "_rev": "synthetic-approval-rev-1",
+            "approvementResult": true
+          }
+        },
+        {
+          "_rev": "synthetic-registration-rev-1",
+          "_type": "eventRegister",
+          "event": {
+            "_ref": "synthetic-contract-unknown-event-type"
+          },
+          "microchip": "000000000000001",
+          "ownerName": "เจ้าของข้อมูลจำลอง",
+          "ownerTel": "0000000000",
+          "fatherName": "พ่อควายจำลอง",
+          "motherName": "แม่ควายจำลอง",
+          "farmName": "ฟาร์มข้อมูลจำลอง",
+          "level": "จังหวัด",
+          "color": "black",
+          "sex": "male",
+          "_id": "synthetic-contract-unknown-event-type-cutoff",
+          "type": "ลูกควายท้องถิ่น",
+          "name": "ควายข้อมูลจำลองสอง",
+          "birthday": "2025-10-30",
+          "approval": {
+            "_id": "synthetic-contract-unknown-event-type-approval-rejected",
+            "_rev": "synthetic-approval-rev-2",
+            "approvementResult": false,
+            "comment": "เหตุผลจำลองสำหรับการทดสอบ"
+          }
+        },
+        {
+          "_rev": "synthetic-registration-rev-1",
+          "_type": "eventRegister",
+          "event": {
+            "_ref": "synthetic-contract-unknown-event-type"
+          },
+          "microchip": "000000000000002",
+          "ownerName": "เจ้าของข้อมูลจำลอง",
+          "ownerTel": "0000000000",
+          "fatherName": "พ่อควายจำลอง",
+          "motherName": "แม่ควายจำลอง",
+          "farmName": "ฟาร์มข้อมูลจำลอง",
+          "level": "ประเทศ",
+          "color": "albino",
+          "sex": "female",
+          "_id": "synthetic-contract-unknown-event-type-missing",
+          "type": "รุ่นเดิมตามประวัติ",
+          "name": "ควายข้อมูลจำลองสาม",
+          "birthday": "invalid"
+        }
+      ],
+      "layout": {
+        "version": 1,
+        "reviewedCatalogFingerprint": "832b756d002ccb839753e0d910ddfd55ac86297ede6faad9bad19d290b4af060",
+        "aliases": [],
+        "categories": [
+          {
+            "id": "age-class",
+            "level": "national",
+            "catalogValue": "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}",
+            "registrationTypeValues": [
+              "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}"
+            ],
+            "posterNumber": "01",
+            "fullLabelTh": "ลูกควายตามเกณฑ์อายุ เจ้าหน้าที่ตรวจฟันเพิ่มเติม",
+            "shortLabelTh": "รุ่น'ทดสอบชื่อชีตยาวสำหรับตรวจการชนกันของชื่อและการตัดข้อความ",
+            "groups": [
+              {
+                "color": "black",
+                "sex": "male"
+              }
+            ]
+          },
+          {
+            "id": "local-class",
+            "level": "province",
+            "catalogValue": "ลูกควายท้องถิ่น",
+            "registrationTypeValues": [
+              "ลูกควายท้องถิ่น"
+            ],
+            "posterNumber": "02",
+            "fullLabelTh": "ลูกควายท้องถิ่น",
+            "shortLabelTh": "รุ่น'ทดสอบชื่อชีตยาวสำหรับตรวจการชนกันของชื่อและการตัดข้อความ",
+            "groups": [
+              {
+                "color": "black",
+                "sex": "male"
+              }
+            ]
+          },
+          {
+            "id": "historical-class",
+            "level": "national",
+            "historical": true,
+            "registrationTypeValues": [
+              "รุ่นเดิมตามประวัติ"
+            ],
+            "posterNumber": "01",
+            "fullLabelTh": "รุ่นเดิมตามประวัติ",
+            "shortLabelTh": "รุ่น'ทดสอบชื่อชีตยาวสำหรับตรวจการชนกันของชื่อและการตัดข้อความ",
+            "groups": [
+              {
+                "color": "albino",
+                "sex": "female"
+              }
+            ]
+          }
+        ]
+      },
+      "packet": {
+        "event": {
+          "_id": "synthetic-contract-unknown-event-type",
+          "_rev": "synthetic-event-rev-1",
+          "title": "งานประกวดข้อมูลจำลองสำหรับทดสอบสัญญาส่งออก",
+          "description": "ข้อมูลจำลองทั้งหมด ไม่มีบุคคลจริง",
+          "location": "สถานที่ทดสอบจำลอง",
+          "startAt": "2026-10-31",
+          "endAt": "2026-11-01",
+          "registrationStartAt": "2026-10-01",
+          "registrationDeadline": "2026-10-30",
+          "buffaloAgeDeadline": "2026-10-31",
+          "competitionState": "published",
+          "isActive": true,
+          "registrationActive": true,
+          "registrationCount": 3,
+          "catalogs": {
+            "national": [
+              "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}"
+            ],
+            "province": [
+              "ลูกควายท้องถิ่น"
+            ]
+          },
+          "policy": {
+            "today": "2026-10-31",
+            "lifecycle": "ongoing",
+            "publicRegistration": "closed-date",
+            "publicVisible": true,
+            "onsiteAllowed": true,
+            "warnings": []
+          }
+        },
+        "registrations": [
+          {
+            "_rev": "synthetic-registration-rev-1",
+            "_type": "eventRegister",
+            "event": {
+              "_ref": "synthetic-contract-unknown-event-type"
+            },
+            "microchip": "000000000000001",
+            "ownerName": "เจ้าของข้อมูลจำลอง",
+            "ownerTel": "0000000000",
+            "fatherName": "พ่อควายจำลอง",
+            "motherName": "แม่ควายจำลอง",
+            "farmName": "ฟาร์มข้อมูลจำลอง",
+            "level": "national",
+            "color": "black",
+            "sex": "male",
+            "_id": "synthetic-contract-unknown-event-type-stored",
+            "type": "ลูกควายตามเกณฑ์อายุ",
+            "name": "ควายข้อมูลจำลองหนึ่ง",
+            "birthday": "2025-10-31",
+            "buffaloAge": 0,
+            "approval": {
+              "_id": "synthetic-contract-unknown-event-type-approval-accepted",
+              "_rev": "synthetic-approval-rev-1",
+              "approvementResult": true,
+              "comment": "",
+              "approvementDate": null,
+              "notificationState": "unknown",
+              "notificationUpdatedAt": null
+            },
+            "province": "",
+            "registrationPolicyVersion": 1,
+            "approvalRequirement": "unknown",
+            "registrationStatus": "needs_type_review",
+            "checkInVersion": 1,
+            "checkInStatus": "not_checked_in",
+            "checkedInAt": null,
+            "checkedInBy": null,
+            "checkInEligibility": {
+              "eligible": false,
+              "reason": "ต้องตรวจประเภทงานก่อนรายงานตัว"
+            },
+            "qrAvailable": false,
+            "checkInHistory": [],
+            "approvalStatus": "accepted",
+            "applicant": null,
+            "hasLineRecipient": false,
+            "deliveryEnabled": false,
+            "images": [],
+            "address": null,
+            "isAdminRegistration": false,
+            "registeredAt": null,
+            "rawType": "@jaothui/class:v1:{\"name\":\"ลูกควายตามเกณฑ์อายุ\",\"kind\":\"age\",\"minMonths\":0,\"maxMonths\":18,\"minInclusive\":true,\"group\":\"กลุ่มตามอายุ\",\"criteria\":\"เจ้าหน้าที่ตรวจฟันเพิ่มเติม\"}",
+            "exportAge": 0,
+            "ageSource": "stored",
+            "ageWarning": null
+          },
+          {
+            "_rev": "synthetic-registration-rev-1",
+            "_type": "eventRegister",
+            "event": {
+              "_ref": "synthetic-contract-unknown-event-type"
+            },
+            "microchip": "000000000000001",
+            "ownerName": "เจ้าของข้อมูลจำลอง",
+            "ownerTel": "0000000000",
+            "fatherName": "พ่อควายจำลอง",
+            "motherName": "แม่ควายจำลอง",
+            "farmName": "ฟาร์มข้อมูลจำลอง",
+            "level": "จังหวัด",
+            "color": "black",
+            "sex": "male",
+            "_id": "synthetic-contract-unknown-event-type-cutoff",
+            "type": "ลูกควายท้องถิ่น",
+            "name": "ควายข้อมูลจำลองสอง",
+            "birthday": "2025-10-30",
+            "approval": {
+              "_id": "synthetic-contract-unknown-event-type-approval-rejected",
+              "_rev": "synthetic-approval-rev-2",
+              "approvementResult": false,
+              "comment": "เหตุผลจำลองสำหรับการทดสอบ",
+              "approvementDate": null,
+              "notificationState": "unknown",
+              "notificationUpdatedAt": null
+            },
+            "province": "",
+            "buffaloAge": null,
+            "registrationPolicyVersion": 1,
+            "approvalRequirement": "unknown",
+            "registrationStatus": "needs_type_review",
+            "checkInVersion": 1,
+            "checkInStatus": "not_checked_in",
+            "checkedInAt": null,
+            "checkedInBy": null,
+            "checkInEligibility": {
+              "eligible": false,
+              "reason": "ต้องตรวจประเภทงานก่อนรายงานตัว"
+            },
+            "qrAvailable": false,
+            "checkInHistory": [],
+            "approvalStatus": "rejected",
+            "applicant": null,
+            "hasLineRecipient": false,
+            "deliveryEnabled": false,
+            "images": [],
+            "address": null,
+            "isAdminRegistration": false,
+            "registeredAt": null,
+            "rawType": "ลูกควายท้องถิ่น",
+            "exportAge": 13,
+            "ageSource": "cutoff",
+            "ageWarning": "calculated-from-cutoff"
+          },
+          {
+            "_rev": "synthetic-registration-rev-1",
+            "_type": "eventRegister",
+            "event": {
+              "_ref": "synthetic-contract-unknown-event-type"
+            },
+            "microchip": "000000000000002",
+            "ownerName": "เจ้าของข้อมูลจำลอง",
+            "ownerTel": "0000000000",
+            "fatherName": "พ่อควายจำลอง",
+            "motherName": "แม่ควายจำลอง",
+            "farmName": "ฟาร์มข้อมูลจำลอง",
+            "level": "ประเทศ",
+            "color": "albino",
+            "sex": "female",
+            "_id": "synthetic-contract-unknown-event-type-missing",
+            "type": "รุ่นเดิมตามประวัติ",
+            "name": "ควายข้อมูลจำลองสาม",
+            "birthday": "invalid",
+            "province": "",
+            "buffaloAge": null,
+            "approval": null,
+            "registrationPolicyVersion": 1,
+            "approvalRequirement": "unknown",
+            "registrationStatus": "needs_type_review",
+            "checkInVersion": 1,
+            "checkInStatus": "not_checked_in",
+            "checkedInAt": null,
+            "checkedInBy": null,
+            "checkInEligibility": {
+              "eligible": false,
+              "reason": "ต้องตรวจประเภทงานก่อนรายงานตัว"
+            },
+            "qrAvailable": false,
+            "checkInHistory": [],
+            "approvalStatus": "pending",
+            "applicant": null,
+            "hasLineRecipient": false,
+            "deliveryEnabled": false,
+            "images": [],
+            "address": null,
+            "isAdminRegistration": false,
+            "registeredAt": null,
+            "rawType": "รุ่นเดิมตามประวัติ",
+            "exportAge": null,
+            "ageSource": "missing",
+            "ageWarning": "missing-or-invalid-age"
+          }
+        ],
+        "rowCount": 3,
+        "registrationPolicyVersion": 1,
+        "exportPresentationVersion": 1,
+        "exportPlan": {
+          "version": 1,
+          "eventId": "synthetic-contract-unknown-event-type",
+          "eventRevision": "synthetic-event-rev-1",
+          "catalogFingerprint": "832b756d002ccb839753e0d910ddfd55ac86297ede6faad9bad19d290b4af060",
+          "layoutFingerprint": "a7d809a95668edd0620d14df95b9b23ec5877bea7ad2ec64c969968f4d412a57",
+          "diagnostics": [],
+          "groups": [
+            {
+              "key": "0df33068aa509c9fec3f004dafe1f56945c754d96f8720ca678ea3134cb2f23d",
+              "categoryId": "age-class",
+              "ordinal": 1,
+              "posterNumber": "01",
+              "sheetName": "ป01-รุ่น'ทดสอบชื่อชีตยาว-ดำ-ผู้",
+              "fullClassLabel": "ลูกควายตามเกณฑ์อายุ เจ้าหน้าที่ตรวจฟันเพิ่มเติม",
+              "levelLabel": "ระดับประเทศ",
+              "colorLabel": "ดำ",
+              "sexLabel": "ผู้",
+              "registrationIds": [
+                "synthetic-contract-unknown-event-type-stored"
+              ]
+            },
+            {
+              "key": "6b7e8ceeb6e595800bf920d887fe5fcdbba8eecaf4cf17bb9966d9fd11922eea",
+              "categoryId": "local-class",
+              "ordinal": 2,
+              "posterNumber": "02",
+              "sheetName": "ท02-รุ่น'ทดสอบชื่อชีตยาว-ดำ-ผู้",
+              "fullClassLabel": "ลูกควายท้องถิ่น",
+              "levelLabel": "ระดับจังหวัด / ท้องถิ่น",
+              "colorLabel": "ดำ",
+              "sexLabel": "ผู้",
+              "registrationIds": [
+                "synthetic-contract-unknown-event-type-cutoff"
+              ]
+            },
+            {
+              "key": "4eca464e5caa8e6e9208b542c5fd3c119fc1db29324c63c0649f797ff94bdf9c",
+              "categoryId": "historical-class",
+              "ordinal": 3,
+              "posterNumber": "01",
+              "sheetName": "ป01-รุ่น'ทดสอบชื่อชี-เผือก-เมีย",
+              "fullClassLabel": "รุ่นเดิมตามประวัติ",
+              "levelLabel": "ระดับประเทศ",
+              "colorLabel": "เผือก",
+              "sexLabel": "เมีย",
+              "registrationIds": [
+                "synthetic-contract-unknown-event-type-missing"
+              ]
+            }
+          ],
+          "state": "ready"
+        }
+      }
+    }
+  ]
+}

@@ -2,11 +2,13 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import EventExport from "~/pages/dashboard/event-export";
 import { toast } from "react-hot-toast";
 
+const mockLayout = jest.fn();
 const mockEvents = jest.fn();
 const mockExcel = jest.fn();
 const mockDocx = jest.fn();
 jest.mock("~/utils/api", () => ({
   api: {
+    competitions: { exportLayout: { useQuery: () => mockLayout() as unknown } },
     sanity: {
       getEventsForExport: { useQuery: () => mockEvents() as unknown },
       exportEventData: {
@@ -26,6 +28,13 @@ const mockRevokeUrl = jest.fn();
 let click: jest.SpyInstance;
 beforeEach(() => {
   jest.clearAllMocks();
+  mockLayout.mockReturnValue({
+    data: {
+      layout: { version: 1 },
+      plan: { state: "ready", diagnostics: [], groups: [] },
+    },
+    isFetching: false,
+  });
   mockEvents.mockReturnValue({
     data: {
       success: true,
@@ -126,4 +135,57 @@ it("surfaces legacy picker failure envelopes instead of silently displaying an e
   expect(
     screen.getByRole("button", { name: "Export to Excel" }),
   ).toBeDisabled();
+});
+
+it("blocks both legacy downloads until setup is ready and links to the selected event setup", async () => {
+  mockLayout.mockReturnValue({
+    data: {
+      layout: null,
+      plan: {
+        state: "missing-layout",
+        diagnostics: [
+          { code: "LAYOUT_MISSING", message: "ยังไม่ได้ตั้งค่ารูปแบบไฟล์" },
+        ],
+        groups: [],
+      },
+    },
+    isFetching: false,
+  });
+  render(<EventExport />);
+  fireEvent.change(screen.getByRole("combobox", { name: "Select Event" }), {
+    target: { value: "event.two" },
+  });
+  expect(
+    screen.getByRole("link", { name: "ตั้งค่ารูปแบบไฟล์ของงานนี้" }),
+  ).toHaveAttribute("href", "/dashboard/competitions/event.two/export");
+  expect(screen.getByText("ยังไม่ได้ตั้งค่ารูปแบบไฟล์")).toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "Export to Excel" }),
+  ).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Export to DOCX" })).toBeDisabled();
+  expect(mockExcel).not.toHaveBeenCalled();
+  expect(mockDocx).not.toHaveBeenCalled();
+});
+it("shows fresh structured source blockers through the legacy download channel", async () => {
+  mockExcel.mockResolvedValue({
+    success: false,
+    data: null,
+    error: "ข้อมูลล่าสุดยังไม่พร้อม",
+    diagnostics: [
+      {
+        code: "UNKNOWN_COLOR",
+        message: "กรุณาแปลสีที่เพิ่มใหม่",
+        value: "spotted",
+        registrationIds: ["r-new"],
+      },
+    ],
+  });
+  render(<EventExport />);
+  fireEvent.change(screen.getByRole("combobox", { name: "Select Event" }), {
+    target: { value: "event.one" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Export to Excel" }));
+  await screen.findByText(/กรุณาแปลสีที่เพิ่มใหม่/);
+  expect(mockCreateUrl).not.toHaveBeenCalled();
+  expect(toast.success).not.toHaveBeenCalled();
 });
