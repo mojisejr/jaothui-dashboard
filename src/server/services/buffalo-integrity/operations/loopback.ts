@@ -32,6 +32,20 @@ import {
   type Domain,
 } from "./types";
 
+export function verifiedMintToken(
+  event: Record<string, unknown>,
+  expected: { receiver: string; tokenUri: string },
+): bigint {
+  // This NFT contract emits the mint recipient in MintWithMetadata.operator.
+  if (
+    typeof event._tokenId !== "bigint" ||
+    event._tokenURI !== expected.tokenUri ||
+    String(event.operator).toLowerCase() !== expected.receiver.toLowerCase()
+  )
+    throw new IntegrityError("MINT_EVENT_BINDING_MISMATCH");
+  return event._tokenId;
+}
+
 export function assertLoopbackUrl(value: string): string {
   const url = new URL(value);
   if (
@@ -449,13 +463,7 @@ function configuredChainPorts(
             if (minted.length !== 1)
               throw new IntegrityError("MINT_EVENT_NOT_UNIQUE");
             const event = minted[0]!;
-            const token = event._tokenId;
-            if (
-              typeof token !== "bigint" ||
-              event._tokenURI !== effect.tokenUri ||
-              String(event.operator).toLowerCase() !== step.sender.toLowerCase()
-            )
-              throw new IntegrityError("MINT_EVENT_BINDING_MISMATCH");
+            const token = verifiedMintToken(event, effect);
             const transfers = rawReceipt.logs
               .filter(
                 (log) => log.address.toLowerCase() === effect.nft.toLowerCase(),
