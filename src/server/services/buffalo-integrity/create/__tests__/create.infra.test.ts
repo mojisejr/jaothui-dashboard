@@ -251,7 +251,7 @@ infra(
       chain = {
         domain,
         sender: signer.address,
-        receiver: signer.address,
+        receiver: "0xd0fbb6e65b81bafe6dd6ea112ca7154368683c7c",
         executionInstance: identity.instanceId,
         read: (contract, abi, functionName, args = [], blockNumber) =>
           read({
