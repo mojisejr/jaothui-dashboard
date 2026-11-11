@@ -54,6 +54,7 @@ infra(
       wallet: ReturnType<typeof createWalletClient>,
       image: Buffer;
     const createdIds = new Set<string>();
+    let delayedPublicKey = "";
     const chip = () =>
       `999${String(Math.floor(Math.random() * 1e12)).padStart(12, "0")}`;
     const input = (patch: Partial<DraftInput> = {}) =>
@@ -279,6 +280,10 @@ infra(
               key.includes("..")
             )
               throw Error();
+            if (key === delayedPublicKey) {
+              res.writeHead(503).end();
+              return;
+            }
             const data = await readFile(resolve(directory, key));
             res.writeHead(200, {
               "content-type": key.endsWith("jpg")
@@ -477,6 +482,55 @@ infra(
         (s) => s.kind === "uri",
       )!;
       expect(JSON.stringify(uriStep.proof)).toContain("nativeCreatedAt");
+    }, 120000);
+    test("after registration a delayed public file recovers on its own budget across tabs and restart, without signing again", async () => {
+      const owner = `phase3:${randomUUID()}`;
+      const c = runtime();
+      const op = await prepared(c.rt, owner);
+      const minted = await mint(c.rt, op.id, owner);
+      const key = `json/${minted.actualToken}.json`;
+      delayedPublicKey = key;
+      try {
+        const pending = await finish(c.rt, op.id, owner, () => true);
+        expect(pending).toMatchObject({
+          state: "RECOVERY_REQUIRED",
+          reason: "PUBLIC_ASSET_READBACK_PENDING",
+        });
+        const r = runtime();
+        const run = () =>
+          r.rt.engine.advance(op.id, owner, "resume", undefined, (current) =>
+            r.rt.workflow.recoveryDecision(current, "autoPublication"),
+          );
+        const view = () => r.rt.workflow.view(op.id, owner, r.rt.engine);
+        const first = await view();
+        expect(first.progress?.fileRetry).toMatchObject({
+          attempts: 0,
+          exhausted: false,
+        });
+        await run();
+        expect((await view()).progress?.fileRetry?.attempts).toBe(0);
+        delayedPublicKey = "";
+        await new Promise((resolve) =>
+          setTimeout(
+            resolve,
+            Math.max(
+              0,
+              Date.parse(first.progress!.fileRetry!.nextAt!) - Date.now(),
+            ) + 25,
+          ),
+        );
+        await Promise.all([run(), run()]);
+        const completed = await view();
+        expect(completed.state).toBe("COMPLETED");
+        expect(completed.progress?.currentPhase).toBeNull();
+        expect(r.signatures()).toBe(0);
+        const events = await db.$queryRaw<
+          { count: bigint }[]
+        >`SELECT COUNT(*) AS count FROM buffalo_integrity.event WHERE operation_id=${op.id}::uuid AND kind='CREATE_PUBLICATION_ATTEMPT'`;
+        expect(events[0]!.count).toBe(1n);
+      } finally {
+        delayedPublicKey = "";
+      }
     }, 120000);
     test("per-owner concurrent create requests retain one unfinished server operation", async () => {
       const c = runtime(),

@@ -25,7 +25,12 @@ export function createBuffaloCreateRouter(
         const runtime = runtimeFactory();
         return Promise.all(
           (await runtime.drafts.list(sharedAccount())).map((op) =>
-            runtime.workflow.view(op.id, sharedAccount(), runtime.engine),
+            runtime.workflow.view(
+              op.id,
+              sharedAccount(),
+              runtime.engine,
+              false,
+            ),
           ),
         );
       }),
@@ -85,7 +90,10 @@ export function createBuffaloCreateRouter(
     advance: protectProcedure
       .input(
         version
-          .extend({ action: z.enum(["mint", "metadata", "resume"]) })
+          .extend({
+            action: z.enum(["mint", "metadata", "resume"]),
+            mode: z.enum(["autoPublication", "autoReconcile"]).optional(),
+          })
           .strict(),
       )
       .mutation(({ input }) =>
@@ -96,6 +104,7 @@ export function createBuffaloCreateRouter(
             sharedAccount(),
             input.action,
             input.version,
+            (op) => runtime.workflow.recoveryDecision(op, input.mode),
           );
           return runtime.workflow.view(
             input.id,

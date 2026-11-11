@@ -93,9 +93,9 @@ test("server-backed pending operation resumes after reload with no local selecti
     ),
   );
   expect(
-    screen.queryByRole("button", { name: /Mint NFT/ }),
+    screen.queryByRole("button", { name: /^สร้าง NFT$/ }),
   ).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /Mint Metadata/ })).toBeEnabled();
+  expect(screen.getByRole("button", { name: /^บันทึกทะเบียน$/ })).toBeEnabled();
   first.unmount();
   localStorage.clear();
   render(<DurableCreate />);
@@ -108,7 +108,7 @@ test("create is disabled until durable pending inventory has loaded", () => {
   mockList = { isPending: true };
   render(<DurableCreate />);
   expect(
-    screen.getByRole("button", { name: "บันทึกข้อมูลและไปต่อ" }),
+    screen.getByRole("button", { name: "บันทึกร่างและเพิ่มรูป" }),
   ).toBeDisabled();
 });
 test("metadata is unavailable before a canonical mint and no automatic action skips it", async () => {
@@ -120,7 +120,7 @@ test("metadata is unavailable before a canonical mint and no automatic action sk
   await waitFor(() => expect(mockView).toHaveBeenCalledWith({ id: job.id }));
   expect(mockAdvance).not.toHaveBeenCalled();
   expect(
-    screen.queryByRole("button", { name: /Mint Metadata/ }),
+    screen.queryByRole("button", { name: /^บันทึกทะเบียน$/ }),
   ).not.toBeInTheDocument();
 });
 
@@ -128,9 +128,11 @@ test("slow double click uses one mutation and preserves durable operation identi
   mockAdvance.mockImplementationOnce(() => new Promise(() => undefined));
   render(<DurableCreate />);
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: /Mint Metadata/ })).toBeEnabled(),
+    expect(
+      screen.getByRole("button", { name: /^บันทึกทะเบียน$/ }),
+    ).toBeEnabled(),
   );
-  const button = screen.getByRole("button", { name: /Mint Metadata/ });
+  const button = screen.getByRole("button", { name: /^บันทึกทะเบียน$/ });
   fireEvent.click(button);
   fireEvent.click(button);
   expect(mockAdvance).toHaveBeenCalledTimes(1);
@@ -155,14 +157,12 @@ test("expired auth leaves a persistent live message and stops resume mutations",
     "เซสชันหมดอายุ",
   );
   expect(
-    screen.queryByRole("button", { name: /Mint Metadata/ }),
+    screen.queryByRole("button", { name: /^บันทึกทะเบียน$/ }),
   ).not.toBeInTheDocument();
   expect(
-    screen.queryByRole("button", { name: /Mint NFT/ }),
+    screen.queryByRole("button", { name: /^สร้าง NFT$/ }),
   ).not.toBeInTheDocument();
-  expect(
-    screen.getByRole("combobox", { name: "รายการที่บันทึกไว้" }),
-  ).toBeDisabled();
+  expect(screen.getByLabelText("รายการที่บันทึกไว้")).toBeDisabled();
   expect(mockAdvance).not.toHaveBeenCalled();
 });
 
@@ -195,7 +195,7 @@ test("failed status read pauses mint and allows exactly status query retry", asy
   render(<DurableCreate />);
   await waitFor(() =>
     expect(
-      screen.queryByRole("button", { name: /Mint Metadata/ }),
+      screen.queryByRole("button", { name: /^บันทึกทะเบียน$/ }),
     ).not.toBeInTheDocument(),
   );
   fireEvent.click(
@@ -230,9 +230,9 @@ test("paused create copies the operation, evidence and support reference togethe
   ];
   render(<DurableCreate />);
   fireEvent.click(
-    await screen.findByRole("button", { name: "คัดลอกรายงานให้ผู้ดูแล" }),
+    await screen.findByRole("button", { name: "คัดลอกข้อมูลส่งผู้ดูแล" }),
   );
-  await screen.findByText("คัดลอกรายงานแล้ว ส่งให้ผู้ดูแลได้เลย");
+  await screen.findByText("คัดลอกแล้ว ส่งข้อความนี้ให้ผู้ดูแลได้เลย");
   const report = writeText.mock.calls[0]?.[0];
   for (const value of [
     job.id,
@@ -250,4 +250,126 @@ test("paused create copies the operation, evidence and support reference togethe
     screen.queryByRole("button", { name: "คัดลอกรหัสอ้างอิง" }),
   ).not.toBeInTheDocument();
   expect(mockAdvance).not.toHaveBeenCalled();
+});
+
+test.each([
+  [false, "รูปควาย JPEG / PNG ขนาดน้อยกว่า 2 MB"],
+  [true, "ยืนยันข้อมูลและตรวจความพร้อม"],
+])(
+  "draft with imageReady=%s stays in form before registration",
+  async (imageReady, text) => {
+    mockList.data = [
+      {
+        ...job,
+        prepared: false,
+        canEdit: true,
+        actualToken: null,
+        state: "DRAFT",
+        imageReady,
+        steps: [],
+      },
+    ];
+    render(<DurableCreate />);
+    expect(await screen.findByText(String(text))).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("ความคืบหน้าการเพิ่มควาย"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "คัดลอกข้อมูลส่งผู้ดูแล" }),
+    ).not.toBeInTheDocument();
+  },
+);
+const fileJob = (checkedAt: string, exhausted = false) => ({
+  ...job,
+  state: "RECOVERY_REQUIRED",
+  reason: "PUBLIC_ASSET_READBACK_PENDING",
+  steps: [
+    ...job.steps,
+    { kind: "uri", state: "CONFIRMED", hash: "0xurihash" },
+    { kind: "metadata", state: "CONFIRMED", hash: "0xmetadata" },
+  ],
+  progress: {
+    checkedAt,
+    phases: [3000, 11000, 1000],
+    currentPhase: 2,
+    readback: { asset: "image", problem: "unavailable", source: "origin" },
+    fileRetry: {
+      attempts: exhausted ? 4 : 3,
+      exhausted,
+      nextAt: exhausted
+        ? null
+        : new Date(Date.parse(checkedAt) + 60000).toISOString(),
+      deadlineAt: new Date(Date.parse(checkedAt) + 300000).toISOString(),
+    },
+  },
+});
+test("only the active file phase ticks and the operator is not prompted to retry during a scheduled check", async () => {
+  jest.useFakeTimers();
+  try {
+    mockList.data = [fileJob(new Date().toISOString())];
+    render(<DurableCreate />);
+    expect(
+      await screen.findByRole("heading", { name: "กำลังตรวจไฟล์และทะเบียน" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/3 วิ\./)).toBeInTheDocument();
+    expect(screen.getByText(/11 วิ\./)).toBeInTheDocument();
+    await act(async () => jest.advanceTimersByTime(5000));
+    expect(screen.getByText(/3 วิ\./)).toBeInTheDocument();
+    expect(screen.getByText(/11 วิ\./)).toBeInTheDocument();
+    expect(screen.getByText(/6 วิ\./)).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(mockAdvance).not.toHaveBeenCalled();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+test("after the file budget ends explain the actual missing asset and offer only escalation", async () => {
+  mockList.data = [fileJob(new Date().toISOString(), true)];
+  render(<DurableCreate />);
+  expect(
+    await screen.findByText(/ยังอ่านรูปควายจากที่เก็บต้นฉบับไม่ได้/),
+  ).toBeInTheDocument();
+  expect(screen.getAllByRole("button")).toHaveLength(1);
+  expect(
+    screen.getByRole("button", { name: "คัดลอกข้อมูลส่งผู้ดูแล" }),
+  ).toBeEnabled();
+  expect(mockAdvance).not.toHaveBeenCalled();
+});
+test("a completed registration opens an empty draft without any support or mint action", async () => {
+  localStorage.setItem("buffalo-create-operation", job.id);
+  mockList.data = [{ ...job, state: "COMPLETED", progress: null }];
+  render(<DurableCreate />);
+  const fresh = await screen.findByRole("button", {
+    name: "เพิ่มควายตัวถัดไป",
+  });
+  expect(screen.getAllByRole("button")).toHaveLength(1);
+  fireEvent.click(fresh);
+  expect(screen.getByLabelText("ชื่อควาย")).toHaveValue("");
+  expect(
+    screen.queryByLabelText("ความคืบหน้าการเพิ่มควาย"),
+  ).not.toBeInTheDocument();
+  expect(mockAdvance).not.toHaveBeenCalled();
+});
+test("a reserved mint paused by the operator has no spinner and offers continuation from the same reservation", async () => {
+  mockList.data = [
+    {
+      ...job,
+      state: "READY",
+      reason: "INTEGRITY_WRITES_PAUSED",
+      actualToken: null,
+      canResume: true,
+      steps: [{ kind: "mint", state: "RESERVED", hash: null }],
+    },
+  ];
+  render(<DurableCreate />);
+  expect(
+    await screen.findByRole("heading", { name: "ระบบพักการบันทึก" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "ดำเนินการต่อรายการเดิม" }),
+  ).toBeEnabled();
+  expect(
+    screen.queryByRole("button", { name: "สร้าง NFT" }),
+  ).not.toBeInTheDocument();
+  expect(document.querySelector(".loading-spinner")).toBeNull();
 });
