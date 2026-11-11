@@ -68,12 +68,12 @@ it("authenticates, fetches by event ID and sends matching binary and identity he
     {
       method: "GET",
       headers: { authorization: "Bearer session" },
-      query: { id: "event-106", format: "xlsx" },
+      query: { id: "event-106", format: "xlsx", order: "automatic" },
     } as unknown as NextApiRequest,
     res as unknown as NextApiResponse,
   );
   expect(mockAuth).toHaveBeenCalledWith("session");
-  expect(mockExport).toHaveBeenCalledWith("event-106");
+  expect(mockExport).toHaveBeenCalledWith("event-106", "automatic");
   expect(mockWorkbook).toHaveBeenCalledWith("event-106", data);
   expect(res.setHeader).toHaveBeenCalledWith("X-Competition-Id", "event-106");
   expect(res.setHeader).toHaveBeenCalledWith("X-Record-Count", "3");
@@ -91,6 +91,6 @@ it("keeps legacy event IDs containing dots valid", async () => {
     } as unknown as NextApiRequest,
     res as unknown as NextApiResponse,
   );
-  expect(mockExport).toHaveBeenCalledWith("event.legacy-106");
+  expect(mockExport).toHaveBeenCalledWith("event.legacy-106", undefined);
   expect(res.status).toHaveBeenCalledWith(200);
 });

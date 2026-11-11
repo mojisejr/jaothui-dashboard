@@ -32,6 +32,12 @@ jest.mock("~/utils/api", () => ({
     },
   },
 }));
+function openLayoutEditor() {
+  fireEvent.click(screen.getByRole("button", { name: "ปรับรูปแบบไฟล์" }));
+  document.querySelectorAll("details").forEach((el) => {
+    el.open = true;
+  });
+}
 const detail = (): ExportLayoutDetail => detailFixture();
 beforeEach(() => {
   jest.clearAllMocks();
@@ -50,10 +56,11 @@ beforeEach(() => {
 });
 it("uses saved readiness, ordered Thai preview and both download formats", () => {
   render(<ExportLayoutEditor detail={detail()} download={mockDownload} />);
+  openLayoutEditor();
   expect(screen.getByText("01-ลูก-ดำ-ผู้")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "ดาวน์โหลด Excel" }));
   fireEvent.click(
-    screen.getByRole("button", { name: "ดาวน์โหลดใบสมัคร DOCX (ZIP)" }),
+    screen.getByRole("button", { name: "ดาวน์โหลดใบสมัคร Word (.zip)" }),
   );
   expect(mockDownload.mock.calls).toEqual([["xlsx"], ["docx"]]);
 });
@@ -65,13 +72,14 @@ it("requires missing setup review and keeps downloads blocked for a local draft"
     { code: "LAYOUT_MISSING", message: "ยังไม่มีรูปแบบไฟล์" },
   ];
   render(<ExportLayoutEditor detail={data} download={mockDownload} />);
+  openLayoutEditor();
   expect(
-    screen.getByText(/งานนี้ยังไม่มีรูปแบบไฟล์ที่บันทึกไว้/),
+    screen.getByRole("button", { name: "ตรวจรุ่นที่มีปัญหา" }),
   ).toBeVisible();
   expect(
     screen.getByRole("button", { name: "ดาวน์โหลด Excel" }),
   ).toBeDisabled();
-  expect(screen.getByText("ยังไม่มีรูปแบบไฟล์")).toBeVisible();
+  expect(screen.getAllByText("ยังไม่มีรูปแบบไฟล์")[0]).toBeVisible();
 });
 it("reorders categories and sex/color subgroups and saves only the reviewed preview with revision guards", async () => {
   const data = detail();
@@ -83,6 +91,7 @@ it("reorders categories and sex/color subgroups and saves only the reviewed prev
   };
   data.layout!.categories.push(second);
   render(<ExportLayoutEditor detail={data} download={mockDownload} />);
+  openLayoutEditor();
   fireEvent.change(screen.getAllByLabelText("ชื่อย่อภาษาไทยสำหรับชีต")[0]!, {
     target: { value: "ลูกน้อย" },
   });
@@ -120,6 +129,7 @@ it("reorders categories and sex/color subgroups and saves only the reviewed prev
 });
 it("invalidates a previous preview after edits and validates Thai names before requesting preview", async () => {
   render(<ExportLayoutEditor detail={detail()} download={mockDownload} />);
+  openLayoutEditor();
   fireEvent.click(screen.getByRole("button", { name: "ดูตัวอย่างลำดับชีต" }));
   await screen.findByText("ตรวจครบแล้ว บันทึกรูปแบบนี้ก่อนดาวน์โหลด");
   fireEvent.change(screen.getByLabelText("ชื่อรุ่นเต็มภาษาไทย"), {
@@ -148,6 +158,7 @@ it("shows source blockers rather than enabling a partial export", async () => {
     },
   });
   render(<ExportLayoutEditor detail={detail()} download={mockDownload} />);
+  openLayoutEditor();
   fireEvent.click(screen.getByRole("button", { name: "ดูตัวอย่างลำดับชีต" }));
   await screen.findByText(/ยังมีรุ่นที่ไม่ได้กำหนด/);
   expect(
@@ -160,6 +171,7 @@ it("retains draft through conflict, refreshes source revisions and safely retrie
   fresh.event._rev = "rev2";
   mockFetch.mockResolvedValue(fresh);
   render(<ExportLayoutEditor detail={detail()} download={mockDownload} />);
+  openLayoutEditor();
   fireEvent.change(screen.getByLabelText("ชื่อย่อภาษาไทยสำหรับชีต"), {
     target: { value: "ลูกน้อย" },
   });
@@ -184,6 +196,7 @@ it("retains draft through conflict, refreshes source revisions and safely retrie
 });
 it("supports zero-registration catalog categories and explicit custom controlled-value translations", () => {
   render(<ExportLayoutEditor detail={detail()} download={mockDownload} />);
+  openLayoutEditor();
   fireEvent.change(screen.getByLabelText(/เพิ่มหมวดจากรุ่นต้นทาง/), {
     target: {
       value: JSON.stringify({ level: "national", raw: "รุ่นควายรุ่น" }),
@@ -250,6 +263,7 @@ it("distinguishes encoded classes with identical names and binds the exact chose
     },
   ];
   render(<ExportLayoutEditor detail={data} download={mockDownload} />);
+  openLayoutEditor();
   const firstCheckbox = screen.getByRole("checkbox", {
     name: /ดำ • ตั้งแต่ 10 เดือน ถึง 18 เดือน/,
   });
@@ -282,6 +296,7 @@ it("shows actionable source diagnostics after save failure and retains the edita
     },
   });
   render(<ExportLayoutEditor detail={detail()} download={mockDownload} />);
+  openLayoutEditor();
   fireEvent.change(screen.getByLabelText("ชื่อย่อภาษาไทยสำหรับชีต"), {
     target: { value: "ลูกน้อย" },
   });
@@ -316,6 +331,7 @@ it("refreshes a changed catalog after preview without losing the draft, then exp
     plan: { ...fresh.plan, state: "ready", diagnostics: [] },
   });
   render(<ExportLayoutEditor detail={detail()} download={mockDownload} />);
+  openLayoutEditor();
   fireEvent.change(screen.getByLabelText("ชื่อย่อภาษาไทยสำหรับชีต"), {
     target: { value: "ลูกน้อย" },
   });
@@ -350,4 +366,22 @@ it("refreshes a changed catalog after preview without losing the draft, then exp
   expect(saved.expectedCatalogFingerprint).toBe("c".repeat(64));
   expect(saved.layout.reviewedCatalogFingerprint).toBe("c".repeat(64));
   expect(saved.layout.categories[0]!.shortLabelTh).toBe("ลูกน้อย");
+});
+
+it("downloads the automatic order on first visit without opening or saving settings", () => {
+  render(
+    <ExportLayoutEditor
+      detail={{ ...detail(), layout: null, layoutSource: "automatic" }}
+      download={mockDownload}
+    />,
+  );
+  expect(
+    screen.getByRole("button", { name: "ปรับรูปแบบไฟล์" }),
+  ).toHaveAttribute("aria-expanded", "false");
+  expect(
+    screen.queryByRole("button", { name: "ดูตัวอย่างลำดับชีต" }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "ดาวน์โหลด Excel" }));
+  expect(mockDownload).toHaveBeenCalledWith("xlsx");
+  expect(mockSave).not.toHaveBeenCalled();
 });

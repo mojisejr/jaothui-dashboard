@@ -14,6 +14,8 @@ import DashboardCard from "~/components/ui/DashboardCard";
 import CardGrid from "~/components/ui/CardGrid";
 import AmbientOrbs from "~/components/ui/AmbientOrbs";
 
+const showLegacyEventExport = false;
+
 const Dashboard = () => {
   return (
     <div className="relative min-h-screen bg-dark">
@@ -58,12 +60,12 @@ const Dashboard = () => {
               href="/dashboard/update-buffalo-dna"
               variant="orange"
             />
-            <DashboardCard
+            {showLegacyEventExport && <DashboardCard
               title="ส่งออกข้อมูลอีเวนต์"
               icon={<Export weight="duotone" />}
               href="/dashboard/event-export"
               variant="purple"
-            />
+            />}
             <DashboardCard
               title="By Pass ใบเพ็ด"
               icon={<FileLock weight="duotone" />}

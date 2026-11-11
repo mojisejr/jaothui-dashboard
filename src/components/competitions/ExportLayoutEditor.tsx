@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { FileXls, Files } from "@phosphor-icons/react";
+import { useRef, useState, type ReactNode } from "react";
 import { api } from "~/utils/api";
 import {
   classDisplayName,
@@ -47,18 +48,19 @@ export function ExportLayoutEditor({
   detail,
   download,
   downloading = false,
+  downloadStatus,
 }: {
   detail: ExportLayoutDetail;
   download: (format: "xlsx" | "docx") => Promise<void>;
   downloading?: boolean;
+  downloadStatus?: ReactNode;
 }) {
   const [snapshot, setSnapshot] = useState(detail);
   const [draft, setDraft] = useState<ExportLayout>(
     () => detail.layout ?? detail.proposedLayout,
   );
-  const [savedSignature, setSavedSignature] = useState<string | null>(() =>
-    detail.layout ? signature(detail.layout) : null,
-  );
+  const [expanded, setExpanded] = useState(false);
+  const savedSignature = signature(snapshot.layout ?? snapshot.proposedLayout);
   const [preview, setPreview] = useState<{
     signature: string;
     plan: ExportPlan;
@@ -187,7 +189,6 @@ export function ExportLayoutEditor({
       setSnapshot(next);
       const accepted = next.layout ?? next.proposedLayout;
       setDraft(accepted);
-      setSavedSignature(next.layout ? signature(accepted) : null);
       setPreview(null);
       setConflict(false);
       setMessage("บันทึกรูปแบบไฟล์แล้ว");
@@ -206,9 +207,9 @@ export function ExportLayoutEditor({
     try {
       const next = await utils.competitions.exportLayout.fetch({
         id: snapshot.event._id,
+        order: "automatic",
       });
       setSnapshot(next);
-      setSavedSignature(next.layout ? signature(next.layout) : null);
       setPreview(null);
       operation.current = undefined;
       setMessage(
@@ -260,35 +261,9 @@ export function ExportLayoutEditor({
       ],
     });
   };
-  const ready =
-    !!snapshot.layout && snapshot.plan.state === "ready" && !dirty && !busy;
-  return (
-    <section
-      className="glass-card min-w-0 space-y-6 rounded-3xl p-4 text-base md:p-6"
-      aria-label="รูปแบบไฟล์ของงานนี้"
-    >
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold">รูปแบบไฟล์ของงานนี้</h2>
-        <p>
-          จัดลำดับรุ่นและชื่อภาษาไทยในไฟล์ โดยไม่เปลี่ยนกติกา รุ่นที่สมัคร
-          หรือข้อมูลใบสมัคร
-        </p>
-        <p className="text-sm text-text-muted">
-          ใบสมัคร {snapshot.rowCount} รายการ • รวมทุกสถานะและทุกระดับ •
-          แยกชีตตามสีและเพศ
-        </p>
-      </div>
-      {!snapshot.layout ? (
-        <Alert>
-          งานนี้ยังไม่มีรูปแบบไฟล์ที่บันทึกไว้ ร่างด้านล่างเป็นข้อเสนอ
-          กรุณาตรวจลำดับตามป้ายของงานก่อนบันทึก
-        </Alert>
-      ) : null}
-      {dirty ? (
-        <Alert>
-          มีร่างที่ยังไม่บันทึก กรุณาดูตัวอย่างและบันทึกก่อนดาวน์โหลด
-        </Alert>
-      ) : null}
+  const ready = snapshot.plan.state === "ready" && !dirty && !busy;
+  const optionsPanel = expanded && (
+    <div id="export-layout-options" className="min-w-0 space-y-5">
       {snapshot.ageWarningCount ? (
         <Alert>
           มี {snapshot.ageWarningCount}{" "}
@@ -348,15 +323,16 @@ export function ExportLayoutEditor({
           หมวดรุ่นตามลำดับในไฟล์
         </legend>
         {draft.categories.map((category, index) => (
-          <section
+          <details
             key={category.id}
+            id={`export-category-${category.id}`}
             aria-label={`หมวดที่ ${index + 1}`}
             className="min-w-0 space-y-4 rounded-2xl border border-white/20 bg-black/20 p-4"
           >
+            <summary className="min-h-12 cursor-pointer break-words py-2 text-lg font-medium">
+              {index + 1}. {category.fullLabelTh || "ยังไม่ระบุชื่อ"}
+            </summary>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="break-words text-lg font-medium">
-                {index + 1}. {category.fullLabelTh || "ยังไม่ระบุชื่อ"}
-              </h3>
               <div className="flex flex-wrap gap-2">
                 <button
                   className={button}
@@ -695,7 +671,7 @@ export function ExportLayoutEditor({
                 เพิ่มกลุ่มสีและเพศ
               </button>
             </fieldset>
-          </section>
+          </details>
         ))}
         <div className="space-y-3 rounded-xl border border-white/20 p-4">
           <label className="block min-w-0 space-y-2 text-sm">
@@ -953,57 +929,134 @@ export function ExportLayoutEditor({
           disabled={busy}
           onClick={() => {
             setDraft(snapshot.layout ?? snapshot.proposedLayout);
-            setSavedSignature(
-              snapshot.layout ? signature(snapshot.layout) : null,
-            );
             setPreview(null);
             setError("");
             setMessage("ใช้รูปแบบล่าสุดแทนร่างแล้ว");
           }}
         >
-          ใช้รูปแบบที่บันทึกแทนร่าง
+          ละทิ้งการแก้ไข
         </button>
       </div>
       <ExportPlanPreview
+        automatic={snapshot.layoutSource === "automatic"}
         plan={
           preview?.signature === signature(draft) ? preview.plan : snapshot.plan
         }
         draft={!!preview && preview.signature === signature(draft)}
       />
+    </div>
+  );
+  return (
+    <>
       <section
-        className="space-y-4 border-t border-white/20 pt-5"
+        className="glass-card min-w-0 space-y-4 rounded-3xl p-4 md:p-6"
         aria-label="ดาวน์โหลดไฟล์"
       >
-        <h3 className="text-lg font-semibold">ดาวน์โหลดไฟล์</h3>
-        <p>
-          Excel มีสารบัญพร้อมลิงก์เปิดแต่ละชีตและกลับสารบัญ ส่วน ZIP มีใบสมัคร
-          DOCX รายตัว ระบบจะตรวจความครบถ้วนล่าสุดก่อนสร้างไฟล์ทุกครั้ง
+        <h2 className="text-xl font-semibold">ดาวน์โหลดไฟล์</h2>
+        <p className="text-text-muted">
+          {snapshot.layoutSource === "saved" || snapshot.layout
+            ? "ใช้ลำดับที่บันทึกไว้สำหรับงานนี้"
+            : "ใช้ลำดับมาตรฐานของงาน"}{" "}
+          • ใบสมัคร {snapshot.rowCount} รายการ รวมทุกสถานะ
         </p>
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            className={primary}
-            disabled={!ready}
-            onClick={() => void download("xlsx")}
-          >
-            ดาวน์โหลด Excel
-          </button>
-          <button
-            type="button"
-            className={button}
-            disabled={!ready}
-            onClick={() => void download("docx")}
-          >
-            ดาวน์โหลดใบสมัคร DOCX (ZIP)
-          </button>
+        {dirty && (
+          <Alert>
+            มีการปรับรูปแบบที่ยังไม่บันทึก
+            เปิดส่วนปรับรูปแบบเพื่อบันทึกหรือละทิ้งการแก้ไขก่อนดาวน์โหลด
+          </Alert>
+        )}
+        {snapshot.plan.state !== "ready" && (
+          <div className="space-y-2">
+            <ExportDiagnostics plan={snapshot.plan} />
+            <button
+              type="button"
+              className={button}
+              onClick={() => {
+                setExpanded(true);
+                requestAnimationFrame(() => {
+                  const issue = snapshot.plan.diagnostics.find(
+                    (item) => item.categoryId,
+                  );
+                  const category = document.getElementById(
+                    `export-category-${issue?.categoryId ?? ""}`,
+                  );
+                  if (category instanceof HTMLDetailsElement) {
+                    category.open = true;
+                    category.querySelector("summary")?.focus();
+                  } else
+                    document.getElementById("export-layout-toggle")?.focus();
+                });
+              }}
+            >
+              ตรวจรุ่นที่มีปัญหา
+            </button>
+          </div>
+        )}
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-3 rounded-2xl border border-white/20 bg-black/20 p-4">
+            <h3 className="flex items-center gap-2 text-lg font-semibold">
+              <FileXls
+                aria-hidden="true"
+                size={24}
+                className="text-primary-orange"
+              />
+              ตารางใบสมัคร
+            </h3>
+            <p className="grow text-text-muted">
+              แยกชีตตามรุ่น ระดับ สี และเพศ
+            </p>
+            <button
+              type="button"
+              className={primary}
+              disabled={!ready}
+              onClick={() => void download("xlsx")}
+            >
+              ดาวน์โหลด Excel
+            </button>
+          </div>
+          <div className="flex min-w-0 flex-col gap-3 rounded-2xl border border-white/20 bg-black/20 p-4">
+            <h3 className="flex items-center gap-2 text-lg font-semibold">
+              <Files
+                aria-hidden="true"
+                size={24}
+                className="text-primary-orange"
+              />
+              ใบสมัครรายตัว
+            </h3>
+            <p className="grow text-text-muted">
+              เอกสาร Word แยกตามใบสมัคร รวมในไฟล์ ZIP
+            </p>
+            <button
+              type="button"
+              className={button}
+              disabled={!ready}
+              onClick={() => void download("docx")}
+            >
+              ดาวน์โหลดใบสมัคร Word (.zip)
+            </button>
+          </div>
         </div>
-        {!ready ? (
-          <p className="text-sm text-text-muted">
-            ดาวน์โหลดได้หลังบันทึกการตั้งค่าที่ตรวจครบ
-            และไม่มีร่างที่ยังไม่บันทึก
-          </p>
-        ) : null}
+        {downloadStatus}
       </section>
-    </section>
+      <section
+        className="glass-card min-w-0 space-y-4 rounded-3xl p-4 md:p-6"
+        aria-label="รูปแบบไฟล์ของงานนี้"
+      >
+        <button
+          id="export-layout-toggle"
+          type="button"
+          aria-expanded={expanded}
+          aria-controls="export-layout-options"
+          className={button}
+          onClick={() => setExpanded(!expanded)}
+        >
+          ปรับรูปแบบไฟล์{" "}
+          <span aria-hidden="true" className="ml-2">
+            {expanded ? "▴" : "▾"}
+          </span>
+        </button>
+        {optionsPanel}
+      </section>
+    </>
   );
 }

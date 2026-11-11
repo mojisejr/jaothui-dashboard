@@ -206,13 +206,22 @@ export default function Competitions() {
                       รายการ — เปิดงานเพื่อดูรายละเอียด
                     </Alert>
                   ) : null}
-                  <Link
-                    className={button}
-                    href={`/dashboard/competitions/${encodeURIComponent(item._id)}`}
-                    aria-label={`จัดการ ${item.title}`}
-                  >
-                    จัดการงาน
-                  </Link>
+                  <div className="flex flex-wrap gap-3">
+                    <Link
+                      className={button}
+                      href={`/dashboard/competitions/${encodeURIComponent(item._id)}`}
+                      aria-label={`จัดการ ${item.title}`}
+                    >
+                      จัดการงาน
+                    </Link>
+                    <Link
+                      className={primary}
+                      href={`/dashboard/competitions/${encodeURIComponent(item._id)}/export`}
+                      aria-label={`ส่งออกข้อมูล ${item.title}`}
+                    >
+                      ส่งออกข้อมูล
+                    </Link>
+                  </div>
                 </article>
               ))}
             </div>

@@ -26,6 +26,10 @@ it("loads event-local configuration with server authentication and no cache", as
     "Bearer server-only",
   );
   expect(init.cache).toBe("no-store");
+  expect(url.searchParams.has("order")).toBe(false);
+  await competitionAdminApiClient.exportLayout("event.one", "automatic");
+  const [optedIn] = fetchMock.mock.calls[1] as [URL, RequestInit];
+  expect(optedIn.searchParams.get("order")).toBe("automatic");
 });
 it("previews without operation metadata and saves with revision/catalog guards", async () => {
   const detail = detailFixture();
