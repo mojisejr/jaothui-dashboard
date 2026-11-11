@@ -133,6 +133,10 @@ test("fresh polling snapshots cannot indefinitely postpone a READY edit", async 
     mockAdvance.mockImplementation(() => new Promise(() => undefined));
     const page = render(<DurableEdit />);
     for (let i = 0; i < 4; i++) {
+      expect(screen.getByRole("button", { name: "ค้นหา" })).toBeDisabled();
+      expect(
+        screen.getByRole("button", { name: "ดำเนินการต่อรายการเดิม" }),
+      ).toBeDisabled();
       await act(async () => {
         jest.advanceTimersByTime(1000);
       });

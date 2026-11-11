@@ -243,6 +243,9 @@ export default function DurableEdit({
     prepare = api.buffaloEdit.prepare.useMutation(),
     advance = api.buffaloEdit.advance.useMutation(),
     cancel = api.buffaloEdit.cancel.useMutation();
+  const autoContinuing =
+    !!job && running(job) && !authLost && !view.error && !list.error;
+  const searchDisabled = busy || authLost || autoContinuing;
   const active = job && !["COMPLETED", "CANCELLED"].includes(job.state);
   useEffect(() => {
     if (!field && job?.id) progress.current?.focus();
@@ -351,8 +354,7 @@ export default function DurableEdit({
     id: job?.id,
     state: job?.state,
     version: job?.version,
-    enabled:
-      !!job && running(job) && !busy && !authLost && !view.error && !list.error,
+    enabled: autoContinuing && !busy,
     delay: 1500,
     resume,
   });
@@ -493,6 +495,7 @@ export default function DurableEdit({
         className="grid gap-3 rounded-lg border border-primary p-4"
         onSubmit={(e) => {
           e.preventDefault();
+          if (searchDisabled) return;
           if (chip !== searchValue.trim()) {
             setJob(null);
             setError(null);
@@ -504,16 +507,14 @@ export default function DurableEdit({
       >
         <label htmlFor="edit-search">ค้นหาควายด้วย microchip</label>
         <input
+          disabled={searchDisabled}
           id="edit-search"
           className="input input-bordered input-primary min-h-12 w-full text-base"
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
           required
         />
-        <button
-          className="btn btn-primary min-h-12"
-          disabled={busy || authLost}
-        >
+        <button className="btn btn-primary min-h-12" disabled={searchDisabled}>
           ค้นหา
         </button>
       </form>
@@ -625,7 +626,7 @@ export default function DurableEdit({
           {job && (
             <EditProof
               job={job}
-              busy={busy || authLost || !!view.error || !!list.error}
+              busy={searchDisabled || !!view.error || !!list.error}
               onResume={() => void resume()}
               onCancel={() =>
                 void run(async () => {
