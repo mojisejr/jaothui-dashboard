@@ -81,10 +81,10 @@ it("preserves ID selection and native XLSX/DOCX downloads while displaying age w
     data: { ...data, filename: "event.one.zip" },
   });
   render(<EventExport />);
-  fireEvent.change(screen.getByRole("combobox", { name: "Select Event" }), {
+  fireEvent.change(screen.getByRole("combobox", { name: "เลือกงาน" }), {
     target: { value: "event.one" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Export to Excel" }));
+  fireEvent.click(screen.getByRole("button", { name: "ดาวน์โหลด Excel" }));
   await waitFor(() => expect(click).toHaveBeenCalledTimes(1));
   expect(mockExcel).toHaveBeenCalledWith({ eventId: "event.one" });
   const blob = (mockCreateUrl.mock.calls as unknown[][])[0]?.[0] as Blob;
@@ -94,13 +94,15 @@ it("preserves ID selection and native XLSX/DOCX downloads while displaying age w
   expect(blob.size).toBe(18);
   expect(screen.getByRole("status")).toHaveTextContent(warnings[0]!);
   expect(mockRevokeUrl).toHaveBeenCalledWith("blob:download");
-  fireEvent.click(screen.getByRole("button", { name: "Export to DOCX" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "ดาวน์โหลดใบสมัคร DOCX (ZIP)" }),
+  );
   await waitFor(() => expect(click).toHaveBeenCalledTimes(2));
   expect(mockDocx).toHaveBeenCalledWith({ eventId: "event.one" });
   expect(((mockCreateUrl.mock.calls as unknown[][])[1]?.[0] as Blob).type).toBe(
     "application/zip",
   );
-  fireEvent.change(screen.getByRole("combobox", { name: "Select Event" }), {
+  fireEvent.change(screen.getByRole("combobox", { name: "เลือกงาน" }), {
     target: { value: "event.two" },
   });
   expect(screen.queryByRole("status")).not.toBeInTheDocument();
@@ -112,10 +114,10 @@ it("shows source failure without downloading an empty success or showing success
     error: "ส่งออกข้อมูลไม่สำเร็จ",
   });
   render(<EventExport />);
-  fireEvent.change(screen.getByRole("combobox", { name: "Select Event" }), {
+  fireEvent.change(screen.getByRole("combobox", { name: "เลือกงาน" }), {
     target: { value: "event.two" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Export to Excel" }));
+  fireEvent.click(screen.getByRole("button", { name: "ดาวน์โหลด Excel" }));
   await waitFor(() =>
     expect(toast.error).toHaveBeenCalledWith("ส่งออกข้อมูลไม่สำเร็จ"),
   );
@@ -133,8 +135,8 @@ it("surfaces legacy picker failure envelopes instead of silently displaying an e
     screen.getByText("โหลดรายการงานไม่สำเร็จ กรุณารีเฟรชหน้าแล้วลองอีกครั้ง"),
   ).toBeVisible();
   expect(
-    screen.getByRole("button", { name: "Export to Excel" }),
-  ).toBeDisabled();
+    screen.queryByRole("button", { name: "ดาวน์โหลด Excel" }),
+  ).not.toBeInTheDocument();
 });
 
 it("blocks both legacy downloads until setup is ready and links to the selected event setup", async () => {
@@ -152,17 +154,19 @@ it("blocks both legacy downloads until setup is ready and links to the selected 
     isFetching: false,
   });
   render(<EventExport />);
-  fireEvent.change(screen.getByRole("combobox", { name: "Select Event" }), {
+  fireEvent.change(screen.getByRole("combobox", { name: "เลือกงาน" }), {
     target: { value: "event.two" },
   });
   expect(
-    screen.getByRole("link", { name: "ตั้งค่ารูปแบบไฟล์ของงานนี้" }),
+    screen.getByRole("link", { name: "ตั้งค่ารูปแบบไฟล์เพื่อดาวน์โหลด" }),
   ).toHaveAttribute("href", "/dashboard/competitions/event.two/export");
-  expect(screen.getByText("ยังไม่ได้ตั้งค่ารูปแบบไฟล์")).toBeVisible();
+  expect(screen.getByText("งานนี้ยังไม่ได้บันทึกรูปแบบไฟล์")).toBeVisible();
   expect(
-    screen.getByRole("button", { name: "Export to Excel" }),
-  ).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Export to DOCX" })).toBeDisabled();
+    screen.queryByRole("button", { name: "ดาวน์โหลด Excel" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "ดาวน์โหลดใบสมัคร DOCX (ZIP)" }),
+  ).not.toBeInTheDocument();
   expect(mockExcel).not.toHaveBeenCalled();
   expect(mockDocx).not.toHaveBeenCalled();
 });
@@ -181,10 +185,10 @@ it("shows fresh structured source blockers through the legacy download channel",
     ],
   });
   render(<EventExport />);
-  fireEvent.change(screen.getByRole("combobox", { name: "Select Event" }), {
+  fireEvent.change(screen.getByRole("combobox", { name: "เลือกงาน" }), {
     target: { value: "event.one" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Export to Excel" }));
+  fireEvent.click(screen.getByRole("button", { name: "ดาวน์โหลด Excel" }));
   await screen.findByText(/กรุณาแปลสีที่เพิ่มใหม่/);
   expect(mockCreateUrl).not.toHaveBeenCalled();
   expect(toast.success).not.toHaveBeenCalled();
