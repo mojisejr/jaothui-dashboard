@@ -92,8 +92,10 @@ test("server-backed pending operation resumes after reload with no local selecti
       "1364",
     ),
   );
-  expect(screen.getByRole("button", { name: "Mint NFT" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Mint Metadata" })).toBeEnabled();
+  expect(
+    screen.queryByRole("button", { name: /Mint NFT/ }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Mint Metadata/ })).toBeEnabled();
   first.unmount();
   localStorage.clear();
   render(<DurableCreate />);
@@ -117,16 +119,18 @@ test("metadata is unavailable before a canonical mint and no automatic action sk
   render(<DurableCreate />);
   await waitFor(() => expect(mockView).toHaveBeenCalledWith({ id: job.id }));
   expect(mockAdvance).not.toHaveBeenCalled();
-  expect(screen.getByRole("button", { name: "Mint Metadata" })).toBeDisabled();
+  expect(
+    screen.queryByRole("button", { name: /Mint Metadata/ }),
+  ).not.toBeInTheDocument();
 });
 
 test("slow double click uses one mutation and preserves durable operation identity", async () => {
   mockAdvance.mockImplementationOnce(() => new Promise(() => undefined));
   render(<DurableCreate />);
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Mint Metadata" })).toBeEnabled(),
+    expect(screen.getByRole("button", { name: /Mint Metadata/ })).toBeEnabled(),
   );
-  const button = screen.getByRole("button", { name: "Mint Metadata" });
+  const button = screen.getByRole("button", { name: /Mint Metadata/ });
   fireEvent.click(button);
   fireEvent.click(button);
   expect(mockAdvance).toHaveBeenCalledTimes(1);
@@ -150,8 +154,12 @@ test("expired auth leaves a persistent live message and stops resume mutations",
   expect(document.querySelector('[aria-live="polite"]')).toHaveTextContent(
     "เซสชันหมดอายุ",
   );
-  expect(screen.getByRole("button", { name: "Mint Metadata" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Mint NFT" })).toBeDisabled();
+  expect(
+    screen.queryByRole("button", { name: /Mint Metadata/ }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: /Mint NFT/ }),
+  ).not.toBeInTheDocument();
   expect(
     screen.getByRole("combobox", { name: "รายการที่บันทึกไว้" }),
   ).toBeDisabled();
@@ -187,13 +195,59 @@ test("failed status read pauses mint and allows exactly status query retry", asy
   render(<DurableCreate />);
   await waitFor(() =>
     expect(
-      screen.getByRole("button", { name: "Mint Metadata" }),
-    ).toBeDisabled(),
+      screen.queryByRole("button", { name: /Mint Metadata/ }),
+    ).not.toBeInTheDocument(),
   );
   fireEvent.click(
     screen.getByRole("button", { name: "โหลดสถานะรายการเดิมอีกครั้ง" }),
   );
   expect(mockViewRefetch).toHaveBeenCalledTimes(1);
   expect(mockListRefetch).not.toHaveBeenCalled();
+  expect(mockAdvance).not.toHaveBeenCalled();
+});
+
+test("paused create copies the operation, evidence and support reference together", async () => {
+  const writeText = jest.fn(async (_text: string) => undefined);
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText },
+  });
+  mockList.data = [
+    {
+      ...job,
+      state: "NEEDS_REVIEW",
+      reason: "MINT_EVENT_BINDING_MISMATCH",
+      updatedAt: "2026-11-11T01:20:00Z",
+      diagnostic: {
+        code: "MINT_EVENT_BINDING_MISMATCH",
+        requestId: "ref-42",
+        reason: "ต้องตรวจสอบ",
+        stage: "chain_read",
+        outcome: "unknown",
+        nextAction: "contact_support",
+      },
+    },
+  ];
+  render(<DurableCreate />);
+  fireEvent.click(
+    await screen.findByRole("button", { name: "คัดลอกรายงานให้ผู้ดูแล" }),
+  );
+  await screen.findByText("คัดลอกรายงานแล้ว ส่งให้ผู้ดูแลได้เลย");
+  const report = writeText.mock.calls[0]?.[0];
+  for (const value of [
+    job.id,
+    job.microchip,
+    job.input.name,
+    job.actualToken,
+    "NEEDS_REVIEW",
+    "ref-42",
+    "MINT_EVENT_BINDING_MISMATCH",
+    "0xknownhash",
+    "2026-11-11T01:20:00Z",
+  ])
+    expect(report).toContain(value);
+  expect(
+    screen.queryByRole("button", { name: "คัดลอกรหัสอ้างอิง" }),
+  ).not.toBeInTheDocument();
   expect(mockAdvance).not.toHaveBeenCalled();
 });

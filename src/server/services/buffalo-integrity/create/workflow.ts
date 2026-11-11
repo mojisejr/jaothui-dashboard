@@ -805,6 +805,7 @@ export class BuffaloCreateWorkflow {
       input: { ...intent },
       imageReady: !!(evidence && object(evidence).imageHash) || !!op.plan,
       prepared: !!op.plan,
+      updatedAt: op.updatedAt,
       revision: op.version,
       canEdit:
         ["DRAFT", "READY"].includes(op.state) &&

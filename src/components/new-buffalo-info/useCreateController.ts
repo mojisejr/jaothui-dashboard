@@ -91,6 +91,7 @@ export function useCreateController() {
     }
   }, [id, list.data]);
   function choose(next: string) {
+    setError(null);
     setId(next);
     setEditing(false);
     localStorage.setItem("buffalo-create-operation", next);

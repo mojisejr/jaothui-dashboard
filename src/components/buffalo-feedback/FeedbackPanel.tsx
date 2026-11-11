@@ -39,12 +39,14 @@ export function FeedbackPanel({
   onRetry,
   retryLabel = "โหลดข้อมูลอีกครั้ง",
   busy = false,
+  showCopy = true,
 }: {
   feedback: Feedback;
   title?: string;
   onRetry?: () => void;
   retryLabel?: string;
   busy?: boolean;
+  showCopy?: boolean;
 }) {
   const [copyState, setCopyState] = useState("");
   const reference = [
@@ -93,7 +95,7 @@ export function FeedbackPanel({
             {retryLabel}
           </button>
         )}
-        {(!!feedback.requestId || !!feedback.operationId) && (
+        {showCopy && (!!feedback.requestId || !!feedback.operationId) && (
           <button
             type="button"
             className="btn btn-outline min-h-12"

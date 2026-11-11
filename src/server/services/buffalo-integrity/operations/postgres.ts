@@ -33,6 +33,7 @@ type Tx = Prisma.TransactionClient;
 type OpRow = {
   id: string;
   owner: string;
+  updated_at: Date;
   intent_hash: string;
   intent: OperationIntent;
   domain: Domain;
@@ -64,6 +65,7 @@ type StepRow = {
 const operation = (row: OpRow): Operation => ({
   id: row.id,
   owner: row.owner,
+  updatedAt: row.updated_at?.toISOString(),
   intentHash: row.intent_hash,
   intent: row.intent,
   domain: row.domain,
