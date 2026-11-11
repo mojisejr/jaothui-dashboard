@@ -1,6 +1,7 @@
 const storageKey = "jaothui-competition-return";
 const identifier = "[A-Za-z0-9_-][A-Za-z0-9_.-]{0,199}";
 const qrPath = /^\/dashboard\/competitions\/check-in\/[A-Za-z0-9._-]{20,300}$/;
+const exportPath = new RegExp(`^/dashboard/competitions/${identifier}/export$`);
 const detailPath = new RegExp(
   `^/dashboard/competitions/${identifier}/applications/${identifier}$`,
 );
@@ -9,7 +10,9 @@ const detailPath = new RegExp(
 export function safeCompetitionReturnTarget(value: unknown): string | null {
   if (typeof value !== "string" || value.includes("..") || value.includes("%"))
     return null;
-  return qrPath.test(value) || detailPath.test(value) ? value : null;
+  return qrPath.test(value) || detailPath.test(value) || exportPath.test(value)
+    ? value
+    : null;
 }
 export function rememberCompetitionReturn(value: unknown) {
   const path = safeCompetitionReturnTarget(value);

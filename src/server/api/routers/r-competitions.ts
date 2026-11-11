@@ -44,8 +44,10 @@ export const competitionsRouter = createTRPCRouter({
     .input(exportReadinessInputSchema)
     .query(({ input }) => safe(() => client.exportReadiness(input))),
   exportLayout: protectProcedure
-    .input(z.object({ id }))
-    .query(({ input }) => safe(() => client.exportLayout(input.id))),
+    .input(z.object({ id, order: z.literal("automatic").optional() }))
+    .query(({ input }) =>
+      safe(() => client.exportLayout(input.id, input.order)),
+    ),
   previewExportLayout: protectProcedure
     .input(previewExportLayoutInputSchema.extend({ id }))
     .mutation(({ input: { id, ...body } }) =>

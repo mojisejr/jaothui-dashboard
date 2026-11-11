@@ -9,6 +9,7 @@ export const exportLayoutDetailSchema = z.object({
   exportPresentationVersion: z.literal(1),
   event: competitionSchema,
   layout: exportLayoutSchema.nullable(),
+  layoutSource: z.enum(["automatic", "saved"]).optional(),
   proposedLayout: exportLayoutSchema,
   plan: exportPlanSchema,
   rowCount: z.number().int().nonnegative(),

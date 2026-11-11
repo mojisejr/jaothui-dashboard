@@ -7,15 +7,16 @@ import {
 const qr =
   "/dashboard/competitions/check-in/v1.ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
 beforeEach(() => sessionStorage.clear());
-it.each([qr, "/dashboard/competitions/event.one/applications/entry-one"])(
-  "allows the concrete competition destination %s",
-  (path) => {
-    expect(safeCompetitionReturnTarget(path)).toBe(path);
-    rememberCompetitionReturn(path);
-    expect(consumeCompetitionReturn()).toBe(path);
-    expect(consumeCompetitionReturn()).toBe("/dashboard");
-  },
-);
+it.each([
+  qr,
+  "/dashboard/competitions/event.one/export",
+  "/dashboard/competitions/event.one/applications/entry-one",
+])("allows the concrete competition destination %s", (path) => {
+  expect(safeCompetitionReturnTarget(path)).toBe(path);
+  rememberCompetitionReturn(path);
+  expect(consumeCompetitionReturn()).toBe(path);
+  expect(consumeCompetitionReturn()).toBe("/dashboard");
+});
 it.each([
   "https://evil.example",
   "//evil.example",

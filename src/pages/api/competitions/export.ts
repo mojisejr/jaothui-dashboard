@@ -23,19 +23,26 @@ export default async function handler(
   }
   const authorization = req.headers.authorization;
   if (!authorization?.startsWith("Bearer ") || !isAuth(authorization.slice(7)))
-    return res.status(401).json({ message: "กรุณาเข้าสู่ระบบ" });
+    return res
+      .status(401)
+      .json({
+        code: "STAFF_LOGIN_REQUIRED",
+        message: "กรุณาเข้าสู่ระบบอีกครั้งเพื่อดาวน์โหลดไฟล์ของงานนี้",
+      });
   const id = req.query.id,
-    format = req.query.format;
+    format = req.query.format,
+    order = req.query.order;
   if (
     typeof id !== "string" ||
     !/^[a-zA-Z0-9_-][a-zA-Z0-9_.-]{0,199}$/.test(id) ||
-    (format !== "xlsx" && format !== "docx")
+    (format !== "xlsx" && format !== "docx") ||
+    (order !== undefined && order !== "automatic")
   )
     return res
       .status(400)
       .json({ message: "กรุณาระบุงานและรูปแบบไฟล์ที่ถูกต้อง" });
   try {
-    const data = await competitionAdminApiClient.exportData(id);
+    const data = await competitionAdminApiClient.exportData(id, order);
     const buffer =
       format === "xlsx"
         ? createCompetitionWorkbook(id, data)
