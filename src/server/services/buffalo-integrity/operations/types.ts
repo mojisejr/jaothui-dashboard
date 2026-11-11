@@ -88,6 +88,7 @@ export function isDatabaseRepairPlan(
   return "kind" in plan && plan.kind === "database_repair";
 }
 export interface Operation {
+  updatedAt?: string;
   id: string;
   owner: string;
   intentHash: string;
