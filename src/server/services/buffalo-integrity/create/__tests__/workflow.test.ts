@@ -318,13 +318,11 @@ test("creation publishes after versioned readback verifies stale alias bytes, us
   const c = setup(),
     op = await c.prepared(),
     bytes = Buffer.from("final-json");
-  jest
-    .spyOn(c.workflow, "verifyCurrent")
-    .mockResolvedValue({
-      key: "final.json",
-      bytes,
-      uri: "https://assets.example.test/final.json",
-    });
+  jest.spyOn(c.workflow, "verifyCurrent").mockResolvedValue({
+    key: "final.json",
+    bytes,
+    uri: "https://assets.example.test/final.json",
+  });
   const fetch = jest
     .spyOn(globalThis, "fetch")
     .mockImplementation(async (url) => {
@@ -339,9 +337,21 @@ test("creation publishes after versioned readback verifies stale alias bytes, us
   try {
     await c.workflow.project(op);
     expect(c.db.pedigree.create).toHaveBeenCalledTimes(1);
-    const saved = c.db.pedigree.create.mock.calls as [{ data: { tokenId: bigint } }][];
+    const saved = c.db.pedigree.create.mock.calls as [
+      { data: { tokenId: bigint } },
+    ][];
     expect(saved[0]![0].data.tokenId).toBe(98765n);
   } finally {
     fetch.mockRestore();
   }
+});
+
+test("a prepared request retains its intended NFT recipient if the current default changes", async () => {
+  const c = setup();
+  c.chain.receiver = "0x1111111111111111111111111111111111113c7c";
+  const op = await c.prepared();
+  const receiver = c.chain.receiver;
+  c.chain.receiver = c.chain.sender;
+  const mint = await c.workflow.nextStep(op, []);
+  expect(mint?.call.effects[0]).toMatchObject({ kind: "mint", receiver });
 });

@@ -1105,6 +1105,7 @@ export class BuffaloEditWorkflow {
       ORDER BY e.id`;
   }
   async recoveryDecision(op: Operation, requested?: RetryMode) {
+    if (op.intent.kind !== "edit") return "wait";
     const filePending =
       op.state === "RECOVERY_REQUIRED" &&
       op.reason === "PUBLIC_ASSET_READBACK_PENDING";

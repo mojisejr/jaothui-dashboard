@@ -86,10 +86,10 @@ export class DraftStore {
         { id: string; created_at: Date; result: Json }[]
       >`SELECT id,created_at,result FROM buffalo_integrity.operation WHERE id=${claim.id}::uuid AND owner=${claim.owner} AND version=${version} AND fence=${BigInt(claim.fence)} AND lease_owner=${claim.holder} AND lease_until>clock_timestamp() AND state IN ('DRAFT','READY') FOR UPDATE`;
       if (!previous[0]) throw new IntegrityError("STALE_DRAFT_REVISION");
-      const signed = await tx.$queryRaw<
+      const started = await tx.$queryRaw<
         { id: string }[]
-      >`SELECT id FROM buffalo_integrity.step WHERE operation_id=${claim.id}::uuid AND signed_bytes IS NOT NULL`;
-      if (signed.length) throw new IntegrityError("INTENT_FROZEN");
+      >`SELECT id FROM buffalo_integrity.step WHERE operation_id=${claim.id}::uuid`;
+      if (started.length) throw new IntegrityError("INTENT_FROZEN");
       await tx.$executeRaw`UPDATE buffalo_integrity.operation SET state='CANCELLED',version=version+1 WHERE id=${claim.id}::uuid`;
       await tx.$executeRaw`DELETE FROM buffalo_integrity.reservation WHERE operation_id=${claim.id}::uuid`;
       await tx.$executeRaw`INSERT INTO buffalo_integrity.operation(id,owner,idempotency_key,intent_hash,intent,domain,result) VALUES (${id}::uuid,${claim.owner},${key},${payloadHash({ intent, domain: canonical })},${JSON.stringify(intent)}::jsonb,${JSON.stringify(canonical)}::jsonb,${JSON.stringify({ originalCreatedAt: previous[0].result && typeof previous[0].result === "object" && !Array.isArray(previous[0].result) && typeof previous[0].result.originalCreatedAt === "string" ? previous[0].result.originalCreatedAt : previous[0].created_at.toISOString() })}::jsonb)`;
