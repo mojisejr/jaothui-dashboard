@@ -3,7 +3,7 @@ import Image from "next/image";
 import { useCreateController } from "./useCreateController";
 import { createStatus, stepLabel, stepStatus } from "./status";
 import { FeedbackPanel } from "../buffalo-feedback/FeedbackPanel";
-import { OperationProgress } from "../buffalo-feedback/OperationProgress";
+import { CreateProgress } from "./CreateProgress";
 import {
   feedbackFor,
   completedRefreshFeedback,
@@ -44,18 +44,21 @@ export default function DurableCreate() {
     active,
     authLost,
   } = useCreateController();
+  const listProblem =
+    list.error &&
+    (job?.state === "COMPLETED"
+      ? completedRefreshFeedback(list.error, job.id)
+      : feedbackFor(list.error, { outcome: "not_started" }));
+  const viewProblem =
+    view.error &&
+    (job?.state === "COMPLETED"
+      ? completedRefreshFeedback(view.error, job.id)
+      : feedbackFor(view.error, { operationId: id }));
   return (
     <main
       data-buffalo-create
       className="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6"
     >
-      <p role="status" aria-live="polite" className="text-base">
-        {authLost
-          ? "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่ รายการเดิมยังอยู่"
-          : job
-            ? createStatus(job.state)
-            : "เตรียมเพิ่มข้อมูลควาย"}
-      </p>
       {authLost && (
         <Link className="btn btn-primary" href="/">
           เข้าสู่ระบบอีกครั้ง
@@ -65,7 +68,20 @@ export default function DurableCreate() {
       <p className="text-base">
         บันทึกข้อมูล → รูปภาพ → ตรวจสอบ → Mint NFT และ Mint Metadata
       </p>
-      <OperationProgress job={job} busy={busy} kind="create" />
+      <CreateProgress
+        key={id}
+        job={job}
+        id={id}
+        form={form}
+        editing={editing}
+        busy={busy}
+        loading={list.isPending || (!!id && !job)}
+        authLost={authLost}
+        readFailed={!!viewProblem || !!listProblem}
+        problems={[error, viewProblem, listProblem, job?.diagnostic]}
+        action={action}
+        fresh={fresh}
+      />
       <ol
         aria-label="ขั้นตอน"
         className="grid grid-cols-2 gap-2 sm:grid-cols-4"
@@ -82,19 +98,16 @@ export default function DurableCreate() {
           ),
         )}
       </ol>
-      {error && <FeedbackPanel feedback={error} />}
+      {error && <FeedbackPanel showCopy={false} feedback={error} />}
       {list.isPending && (
         <p role="status">กำลังโหลดรายการเดิม ก่อนเริ่มรายการใหม่…</p>
       )}
       {id && view.isFetching && <p role="status">กำลังโหลดสถานะรายการเดิม…</p>}
       {list.error && (
         <FeedbackPanel
+          showCopy={false}
           title="โหลดรายการที่บันทึกไว้ไม่สำเร็จ"
-          feedback={
-            job?.state === "COMPLETED"
-              ? completedRefreshFeedback(list.error, job.id)
-              : feedbackFor(list.error, { outcome: "not_started" })
-          }
+          feedback={listProblem!}
           onRetry={() => {
             void list.refetch();
           }}
@@ -104,12 +117,9 @@ export default function DurableCreate() {
       )}
       {view.error && (
         <FeedbackPanel
+          showCopy={false}
           title="โหลดสถานะรายการไม่สำเร็จ"
-          feedback={
-            job?.state === "COMPLETED"
-              ? completedRefreshFeedback(view.error, job.id)
-              : feedbackFor(view.error, { operationId: id })
-          }
+          feedback={viewProblem!}
           onRetry={() => {
             void view.refetch();
           }}
@@ -138,7 +148,8 @@ export default function DurableCreate() {
             <option value="">เลือกรายการ</option>
             {list.data.map((item) => (
               <option key={item.id} value={item.id}>
-                {item.microchip} · {createStatus(item.state)}
+                {item.input.name} · {item.microchip} ·{" "}
+                {createStatus(item.state)}
               </option>
             ))}
           </select>
@@ -261,9 +272,12 @@ export default function DurableCreate() {
               สภาพแวดล้อมทดสอบ local fork · ธุรกรรมไม่ขึ้น mainnet
             </p>
           )}
-          {job.diagnostic && <FeedbackPanel feedback={job.diagnostic} />}
+          {job.diagnostic && (
+            <FeedbackPanel showCopy={false} feedback={job.diagnostic} />
+          )}
           {job.reason && !job.diagnostic && (
             <FeedbackPanel
+              showCopy={false}
               feedback={feedbackFor(new Error(job.reason), {
                 operationId: job.id,
               })}
@@ -323,41 +337,6 @@ export default function DurableCreate() {
           )}
           {step === 3 && (
             <>
-              <p>
-                1. Mint NFT เพื่อรับ Token จริง แล้วรอยืนยันธุรกรรม
-                <br />
-                2. กด Mint Metadata เพื่อบันทึกข้อมูลและตรวจความตรงกัน
-                ก่อนเผยแพร่ทะเบียน
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  data-mint-nft
-                  className="btn btn-primary"
-                  disabled={
-                    busy ||
-                    authLost ||
-                    !!view.error ||
-                    job.steps.some((step) => step.kind === "mint") ||
-                    job.state !== "READY"
-                  }
-                  onClick={() => void action("mint")}
-                >
-                  Mint NFT
-                </button>
-                <button
-                  data-mint-metadata
-                  className="btn btn-primary"
-                  disabled={
-                    busy ||
-                    authLost ||
-                    !!view.error ||
-                    job.state !== "AWAITING_METADATA_ACTION"
-                  }
-                  onClick={() => void action("metadata")}
-                >
-                  Mint Metadata
-                </button>
-              </div>
               <ul className="space-y-3">
                 {job.steps.map((step, index) => (
                   <li key={index} className="break-all text-sm">
@@ -384,22 +363,8 @@ export default function DurableCreate() {
                   </li>
                 ))}
               </ul>
-              {["RECOVERY_REQUIRED", "RETRYABLE", "BROADCAST_UNKNOWN"].includes(
-                job.state,
-              ) && (
-                <button
-                  className="btn btn-outline"
-                  disabled={busy || authLost || !!view.error}
-                  onClick={() => void action("resume")}
-                >
-                  ดำเนินการต่อรายการเดิม
-                </button>
-              )}
               {job.state === "COMPLETED" && (
-                <div role="status" className="space-y-3">
-                  <p className="text-success">
-                    เสร็จสมบูรณ์ ตรวจข้อมูลบล็อกเชน ฐานข้อมูล และไฟล์แล้ว
-                  </p>
+                <div>
                   <a
                     className="link link-primary"
                     href={job.publishedImageUrl ?? undefined}
@@ -408,14 +373,6 @@ export default function DurableCreate() {
                   >
                     ดูรูปที่เผยแพร่
                   </a>
-                  <br />
-                  <button
-                    className="btn btn-primary"
-                    disabled={busy || authLost || !!view.error}
-                    onClick={fresh}
-                  >
-                    เพิ่มควายตัวถัดไป
-                  </button>
                 </div>
               )}
             </>
@@ -441,7 +398,7 @@ export default function DurableCreate() {
             </div>
           )}
           <p className="break-all text-sm text-base-content/70">
-            เลขรายการ {job.id} · หากหลุด ให้กลับมาตรวจและดำเนินการต่อรายการเดิม
+            เลขรายการ {job.id}
           </p>
         </section>
       )}
