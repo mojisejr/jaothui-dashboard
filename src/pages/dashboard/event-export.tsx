@@ -29,13 +29,14 @@ export default function EventExport() {
   } = api.sanity.getEventsForExport.useQuery();
   const layoutQuery = api.competitions.exportLayout.useQuery(
     { id: selectedEvent },
-    { enabled: !!selectedEvent, refetchOnWindowFocus: false },
+    { enabled: !!selectedEvent, refetchOnWindowFocus: true },
   );
   const exportReady =
     !!selectedEvent &&
     layoutQuery.data?.plan.state === "ready" &&
     !!layoutQuery.data.layout &&
-    !layoutQuery.isFetching;
+    !layoutQuery.isFetching &&
+    !layoutQuery.error;
   const exportMutation = api.sanity.exportEventData.useMutation();
   const exportDocxMutation = api.sanity.exportEventDataToDocx.useMutation();
 
@@ -173,19 +174,15 @@ export default function EventExport() {
     }
   };
 
-  const selectedEventTitle =
-    eventsData?.data?.find((e: SanityEvent) => e._id === selectedEvent)
-      ?.title ?? "";
-
   return (
     <div className="min-h-screen bg-base-200 p-6">
       <div className="mx-auto max-w-4xl">
         <div className="mb-8">
           <h1 className="mb-2 text-3xl font-bold text-base-content">
-            Event Export
+            ส่งออกใบสมัครการแข่งขัน
           </h1>
           <p className="text-base-content/70">
-            Export event registration data to Excel or DOCX format
+            เลือกงานเพื่อดาวน์โหลดตาราง Excel หรือใบสมัคร DOCX
           </p>
         </div>
 
@@ -195,12 +192,12 @@ export default function EventExport() {
               <label className="label">
                 <span className="label-text flex items-center gap-2 font-medium">
                   <FiCalendar className="h-4 w-4" />
-                  Select Event
+                  เลือกงาน
                 </span>
               </label>
 
               <select
-                aria-label="Select Event"
+                aria-label="เลือกงาน"
                 className="select select-bordered w-full"
                 value={selectedEvent}
                 onChange={(e) => {
@@ -210,7 +207,7 @@ export default function EventExport() {
                 }}
                 disabled={eventsLoading || isExporting || isExportingDocx}
               >
-                <option value="">Choose an event...</option>
+                <option value="">เลือกงานการแข่งขัน</option>
                 {eventsData?.data?.map((event: SanityEvent) => (
                   <option key={event._id} value={event._id}>
                     {event.title}
@@ -222,7 +219,7 @@ export default function EventExport() {
                 <div className="mt-2 flex items-center gap-2">
                   <FiLoader className="h-4 w-4 animate-spin" />
                   <span className="text-sm text-base-content/70">
-                    Loading events...
+                    กำลังโหลดรายชื่องาน…
                   </span>
                 </div>
               )}
@@ -241,14 +238,7 @@ export default function EventExport() {
                 aria-label="ความพร้อมส่งออก"
                 className="mt-4 space-y-3 rounded-xl border border-white/20 p-4"
               >
-                <p>ใช้ลำดับและคำแปลเดียวกับหน้าส่งออกการแข่งขัน</p>
-                <Link
-                  className="inline-flex min-h-12 items-center rounded-xl border px-4 py-2 focus-visible:outline"
-                  href={`/dashboard/competitions/${encodeURIComponent(selectedEvent)}/export`}
-                >
-                  ตั้งค่ารูปแบบไฟล์ของงานนี้
-                </Link>
-                {layoutQuery.isPending ? (
+                {layoutQuery.isPending || layoutQuery.isFetching ? (
                   <p role="status">กำลังตรวจความพร้อมส่งออก…</p>
                 ) : layoutQuery.error ? (
                   <div role="alert">
@@ -263,12 +253,86 @@ export default function EventExport() {
                   </div>
                 ) : layoutQuery.data ? (
                   <>
-                    <p>
+                    <h2 className="font-semibold">
                       {exportReady
-                        ? "รูปแบบที่บันทึกพร้อมดาวน์โหลด"
-                        : "กรุณาแก้รายการที่ขาดก่อนดาวน์โหลด"}
-                    </p>
-                    <ExportDiagnostics plan={layoutQuery.data.plan} />
+                        ? "ดาวน์โหลดไฟล์ของงานนี้"
+                        : layoutQuery.data.layout
+                          ? "ตรวจรูปแบบไฟล์ก่อนส่งออก"
+                          : "งานนี้ยังไม่ได้บันทึกรูปแบบไฟล์"}
+                    </h2>
+                    {!exportReady && (
+                      <p>
+                        {layoutQuery.data.layout
+                          ? "เปิดการตั้งค่า แก้รายการที่ระบบระบุ แล้วกด “ดูตัวอย่างลำดับชีต” เมื่อผ่านแล้วให้บันทึกรูปแบบเพื่อดาวน์โหลด"
+                          : "เปิดการตั้งค่า ตรวจลำดับรุ่นตามป้ายงาน แล้วกด “ดูตัวอย่างลำดับชีต” เมื่อผ่านแล้วให้กด “บันทึกรูปแบบไฟล์” จากนั้นดาวน์โหลดได้ในหน้าเดียวกัน"}
+                      </p>
+                    )}
+                    <Link
+                      className={
+                        exportReady
+                          ? "link"
+                          : "btn btn-primary h-auto min-h-12 w-full sm:w-auto"
+                      }
+                      href={`/dashboard/competitions/${encodeURIComponent(selectedEvent)}/export`}
+                    >
+                      {exportReady
+                        ? "แก้ไขรูปแบบไฟล์"
+                        : "ตั้งค่ารูปแบบไฟล์เพื่อดาวน์โหลด"}
+                    </Link>
+                    {layoutQuery.data.layout && (
+                      <ExportDiagnostics plan={layoutQuery.data.plan} />
+                    )}
+                    {exportReady && (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <button
+                          className="btn btn-primary"
+                          onClick={handleExport}
+                          disabled={
+                            !exportReady ||
+                            isExporting ||
+                            exportMutation.isPending ||
+                            isExportingDocx ||
+                            exportDocxMutation.isPending
+                          }
+                        >
+                          {isExporting || exportMutation.isPending ? (
+                            <>
+                              <FiLoader className="h-4 w-4 animate-spin" />
+                              กำลังสร้างตาราง…
+                            </>
+                          ) : (
+                            <>
+                              <FiDownload className="h-4 w-4" />
+                              ดาวน์โหลด Excel
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          className="btn btn-secondary"
+                          onClick={handleExportDocx}
+                          disabled={
+                            !exportReady ||
+                            isExporting ||
+                            exportMutation.isPending ||
+                            isExportingDocx ||
+                            exportDocxMutation.isPending
+                          }
+                        >
+                          {isExportingDocx || exportDocxMutation.isPending ? (
+                            <>
+                              <FiLoader className="h-4 w-4 animate-spin" />
+                              กำลังสร้างใบสมัคร…
+                            </>
+                          ) : (
+                            <>
+                              <FiDownload className="h-4 w-4" />
+                              ดาวน์โหลดใบสมัคร DOCX (ZIP)
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
                     {exportDiagnostics.length ? (
                       <ExportDiagnostics
                         plan={{
@@ -293,180 +357,21 @@ export default function EventExport() {
                 </div>
               </div>
             )}
-
-            {selectedEvent && (
-              <div className="mt-6 space-y-4">
-                <div className="rounded-lg bg-base-200 p-4">
-                  <h3 className="mb-2 font-medium">Excel Export Preview</h3>
-                  <div className="space-y-1 text-sm text-base-content/70">
-                    <p>
-                      <strong>Event:</strong> {selectedEventTitle}
-                    </p>
-                    <p>
-                      <strong>Format:</strong> Multi-sheet Excel (.xlsx) with
-                      hierarchical headers or ZIP (.zip) for large files
-                    </p>
-                    <p>
-                      <strong>Structure:</strong> Summary sheet and separate
-                      sheets per Class-Level-Color-Sex combination
-                    </p>
-                    <p>
-                      <strong>Headers:</strong> Event identity → Class / Level /
-                      Color / Sex → Registration rows
-                    </p>
-                    <p>
-                      <strong>Compression:</strong> Auto-compressed when file
-                      size {">"} 10MB
-                    </p>
-                    <p>
-                      <strong>Columns:</strong> ลำดับ | เลขไมโครชิพ | ชื่อควาย |
-                      วัน/เดือน/ปีเกิด | อายุ (เดือน) | พ่อ | แม่ | ชื่อฟาร์ม |
-                      เบอร์โทรศัพท์
-                    </p>
-                  </div>
-                </div>
-
-                <div className="rounded-lg bg-base-200 p-4">
-                  <h3 className="mb-2 font-medium">DOCX Export Preview</h3>
-                  <div className="space-y-1 text-sm text-base-content/70">
-                    <p>
-                      <strong>Event:</strong> {selectedEventTitle}
-                    </p>
-                    <p>
-                      <strong>Format:</strong> Individual DOCX registration
-                      forms bundled in ZIP (.zip)
-                    </p>
-                    <p>
-                      <strong>Structure:</strong> One registration form per
-                      buffalo
-                    </p>
-                    <p>
-                      <strong>Layout:</strong> Professional table-based Thai
-                      registration form
-                    </p>
-                    <p>
-                      <strong>Sections:</strong> Competition Type | Buffalo Info
-                      | Pedigree | Owner Information
-                    </p>
-                    <p>
-                      <strong>Language:</strong> Thai field labels with
-                      automatic color/sex translation
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="card-actions mt-6 justify-end gap-3">
-              <button
-                className="btn btn-primary"
-                onClick={handleExport}
-                disabled={
-                  !exportReady ||
-                  isExporting ||
-                  exportMutation.isPending ||
-                  isExportingDocx ||
-                  exportDocxMutation.isPending
-                }
-              >
-                {isExporting || exportMutation.isPending ? (
-                  <>
-                    <FiLoader className="h-4 w-4 animate-spin" />
-                    Exporting...
-                  </>
-                ) : (
-                  <>
-                    <FiDownload className="h-4 w-4" />
-                    Export to Excel
-                  </>
-                )}
-              </button>
-
-              <button
-                className="btn btn-secondary"
-                onClick={handleExportDocx}
-                disabled={
-                  !exportReady ||
-                  isExporting ||
-                  exportMutation.isPending ||
-                  isExportingDocx ||
-                  exportDocxMutation.isPending
-                }
-              >
-                {isExportingDocx || exportDocxMutation.isPending ? (
-                  <>
-                    <FiLoader className="h-4 w-4 animate-spin" />
-                    Exporting DOCX...
-                  </>
-                ) : (
-                  <>
-                    <FiDownload className="h-4 w-4" />
-                    Export to DOCX
-                  </>
-                )}
-              </button>
-            </div>
           </div>
         </div>
 
-        <div className="mt-8">
-          <div className="alert alert-info">
-            <div className="flex items-start gap-2">
-              <div className="shrink-0">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  className="h-6 w-6 shrink-0 stroke-current"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  ></path>
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-bold">Export Information</h3>
-                <div className="text-sm">
-                  <ul className="mt-2 list-inside list-disc space-y-1">
-                    <li>
-                      ข้อมูลมาจากระบบการแข่งขันเดียวกับหน้าจัดการใบสมัคร
-                      รวมทุกสถานะใบสมัคร
-                    </li>
-                    <li>
-                      <strong>Excel Export:</strong> Multiple sheets organized
-                      by competition type, color, and sex with hierarchical
-                      headers
-                    </li>
-                    <li>
-                      <strong>DOCX Export:</strong> Individual registration
-                      forms (one per buffalo) bundled in a ZIP file
-                    </li>
-                    <li>
-                      ใช้อายุที่บันทึกไว้ก่อน รวม 0 เดือน; หากไม่มี
-                      ใช้วันเกิดกับวันตัดอายุของงานเท่านั้น พร้อมหมายเหตุในไฟล์
-                    </li>
-                    <li>
-                      DOCX forms include Thai field labels with automatic
-                      color/sex translation (black→ดำ, male→ผู้)
-                    </li>
-                    <li>
-                      Excel files larger than 10MB are automatically compressed
-                      to ZIP format
-                    </li>
-                    <li>
-                      Father and mother names come from user input during
-                      registration
-                    </li>
-                    <li>Files are downloaded directly to your computer</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <details className="mt-4 rounded-lg bg-base-100 p-4">
+          <summary className="cursor-pointer">ข้อมูลในไฟล์ดาวน์โหลด</summary>
+          <p className="mt-2">
+            Excel รวมใบสมัครทุกสถานะ แยกตามรุ่น ระดับ สี และเพศ ไฟล์ใหญ่กว่า 10
+            MB จะดาวน์โหลดเป็น ZIP
+          </p>
+          <p>DOCX แยกใบสมัครหนึ่งไฟล์ต่อควายหนึ่งตัว รวมใน ZIP เดียว</p>
+          <p>
+            ใช้อายุที่บันทึกไว้ก่อน รวมถึง 0 เดือน หากไม่มี
+            ระบบจะใช้วันเกิดกับวันตัดอายุของงาน พร้อมหมายเหตุในไฟล์
+          </p>
+        </details>
       </div>
     </div>
   );
