@@ -117,7 +117,6 @@ register(
     "AMBIGUOUS_DB_TOKEN",
     "CHAIN_DOMAIN_CONFLICT",
     "PARENT_IDENTITY_CONFLICT",
-    "MICROCHIP_ALREADY_BOUND",
     "DATABASE_TOKEN_ALREADY_BOUND",
   ],
   {
@@ -127,6 +126,13 @@ register(
     outcome: "not_started",
   },
 );
+register(["MICROCHIP_ALREADY_BOUND"], {
+  stage: "identity",
+  reason:
+    "เลขไมโครชิปที่ขอใช้ยังมีรายการผูกอยู่ กรุณาตรวจสอบเลขและแจ้งผู้ดูแลพร้อมรหัสอ้างอิง",
+  nextAction: "contact_support",
+  outcome: "not_started",
+});
 register(
   [
     "STALE_EDIT_RECORD",
