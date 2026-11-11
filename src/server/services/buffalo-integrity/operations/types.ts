@@ -252,6 +252,7 @@ export interface Repository {
     state: OperationState,
     reason?: string,
     result?: Json,
+    evidence?: Record<string, Json>,
   ) => Promise<void>;
   ready: (claim: Claim, plan: Plan) => Promise<void>;
   reserveStep: (

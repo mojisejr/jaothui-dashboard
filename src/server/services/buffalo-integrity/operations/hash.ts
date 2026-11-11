@@ -31,3 +31,37 @@ export class IntegrityError extends Error {
     this.name = "IntegrityError";
   }
 }
+
+/** Only public registry identifiers may be projected into operator feedback. */
+export class BoundMicrochipError extends IntegrityError {
+  constructor(
+    readonly chip: string,
+    readonly registryToken: bigint,
+  ) {
+    super("MICROCHIP_ALREADY_BOUND");
+  }
+}
+
+export class PublicationReadbackError extends IntegrityError {
+  readonly evidence: {
+    asset: "metadata" | "image" | "file";
+    problem: "content_differs" | "unavailable";
+    source: "public" | "origin";
+  };
+  constructor(
+    key: string,
+    problem: "content_differs" | "unavailable",
+    source: "public" | "origin",
+  ) {
+    super("PUBLIC_ASSET_READBACK_PENDING");
+    this.evidence = {
+      asset: key.endsWith(".json")
+        ? "metadata"
+        : key.endsWith(".jpg")
+          ? "image"
+          : "file",
+      problem,
+      source,
+    };
+  }
+}

@@ -12,7 +12,12 @@ import {
   type Hex,
   type TransactionSerialized,
 } from "viem";
-import { IntegrityError, payloadHash, asJson } from "./hash";
+import {
+  IntegrityError,
+  PublicationReadbackError,
+  payloadHash,
+  asJson,
+} from "./hash";
 import {
   type Repository,
   type ChainPorts,
@@ -201,6 +206,9 @@ export class OperationEngine {
     owner: string,
     action: "mint" | "metadata" | "resume",
     expectedVersion?: number,
+    recoveryDecision?: (
+      op: Operation,
+    ) => Promise<"autoPublication" | "autoReconcile" | "wait" | null>,
   ) {
     await this.withClaim(id, owner, async (claim, initial) => {
       if (expectedVersion !== undefined && initial.version !== expectedVersion)
@@ -212,6 +220,12 @@ export class OperationEngine {
       if (isDatabaseRepairPlan(initial.plan))
         throw new IntegrityError("REPAIR_DATABASE_EXECUTOR_REQUIRED");
       try {
+        const mode = recoveryDecision ? await recoveryDecision(initial) : null;
+        if (mode === "wait") return;
+        if (mode) {
+          await this.recoverEdit(claim, initial, mode);
+          return;
+        }
         await this.advanceClaim(
           claim,
           initial,
@@ -235,6 +249,10 @@ export class OperationEngine {
             claim,
             "RECOVERY_REQUIRED",
             error.code,
+            undefined,
+            error instanceof PublicationReadbackError
+              ? { readback: error.evidence }
+              : undefined,
           );
           return;
         }
@@ -318,6 +336,53 @@ export class OperationEngine {
         await this.repository.setState(claim, "CHAIN_STEPS");
     });
     return this.status(id, owner);
+  }
+  private async recoverEdit(
+    claim: Claim,
+    op: Operation,
+    mode: "autoReconcile" | "autoPublication",
+  ) {
+    if (op.intent.kind !== "edit" || !op.plan || isDatabaseRepairPlan(op.plan))
+      throw new IntegrityError("INVALID_OPERATION_STAGE");
+    const steps = await this.repository.steps(op.id);
+    const deadline = this.budget.now() + this.budget.milliseconds;
+    if (mode === "autoReconcile") {
+      if (!["CHAIN_PENDING", "BROADCAST_UNKNOWN"].includes(op.state)) return;
+      const current = steps.find((s) => s.state !== "CONFIRMED");
+      if (!current?.hash || !current.signedBytes)
+        throw new IntegrityError("MISSING_DURABLE_NONCE");
+      if (await this.reconcile(claim, op, current, deadline, false, true))
+        await this.repository.setState(claim, "CHAIN_STEPS");
+      return;
+    }
+    if (
+      op.state !== "RECOVERY_REQUIRED" ||
+      op.reason !== "PUBLIC_ASSET_READBACK_PENDING"
+    )
+      return;
+    if (
+      !steps.some((s) => s.kind === "uri") ||
+      steps.some((s) => s.state !== "CONFIRMED" || !s.receipt)
+    )
+      throw new IntegrityError("NO_CHAIN_PROOF");
+    for (const step of steps) {
+      if (!(await this.reconcile(claim, op, step, deadline, true)))
+        throw new IntegrityError("CONFIRMED_RECEIPT_CHANGED");
+    }
+    if (await this.io(deadline, () => this.chain.nextStep(op, steps)))
+      throw new IntegrityError("PUBLICATION_PROOF_MISMATCH");
+    // Keep the durable recovery state until completion so an interrupted call
+    // cannot fall back to signing or reset its journaled retry allowance.
+    const proof = await this.io(deadline, () =>
+      this.chain.project(op, steps, claim),
+    );
+    if (
+      !(await this.io(deadline, () =>
+        this.chain.verifyPublication(op, steps, proof),
+      ))
+    )
+      throw new IntegrityError("PUBLICATION_PROOF_MISMATCH");
+    await this.repository.complete(claim, proof);
   }
   private async advanceClaim(
     claim: Claim,
@@ -481,6 +546,7 @@ export class OperationEngine {
     current: Step,
     deadline: number,
     reviewOnly = false,
+    observeOnly = false,
   ): Promise<boolean> {
     const observation = await this.io(deadline, () =>
       this.chain.observe(current),
@@ -517,6 +583,7 @@ export class OperationEngine {
         );
         return false;
       }
+      if (observeOnly) return false;
       const wallet = await this.repository.wallet(claim, current);
       if (!wallet) {
         await this.repository.setState(

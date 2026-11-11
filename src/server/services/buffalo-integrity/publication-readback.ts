@@ -1,5 +1,5 @@
 import { diagnosticContext } from "~/server/diagnostics/reporter";
-import { IntegrityError, payloadHash } from "./operations/hash";
+import { PublicationReadbackError, payloadHash } from "./operations/hash";
 import { contentHash, type AssetStorage } from "./create/storage";
 
 export function versionedAssetUrl(url: string, version: string): string {
@@ -67,5 +67,9 @@ export async function verifyPublicAsset(
   } catch {
     /* Observability cannot change the durable outcome. */
   }
-  throw new IntegrityError("PUBLIC_ASSET_READBACK_PENDING");
+  throw new PublicationReadbackError(
+    key,
+    actualHash ? "content_differs" : "unavailable",
+    "public",
+  );
 }

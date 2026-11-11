@@ -456,10 +456,14 @@ export class PostgresOperationRepository implements Repository {
     state: OperationState,
     reason?: string,
     result?: Json,
+    evidence?: Record<string, Json>,
   ): Promise<void> {
     await this.locked(claim, async (tx) => {
       await tx.$executeRaw`UPDATE buffalo_integrity.operation SET state=${state},reason=${reason ?? null},result=COALESCE(${result === undefined ? null : JSON.stringify(result)}::jsonb,result),version=version+1,updated_at=clock_timestamp() WHERE id=${claim.id}::uuid`;
-      await this.event(tx, claim.id, state, reason ? { reason } : {});
+      await this.event(tx, claim.id, state, {
+        ...evidence,
+        ...(reason ? { reason } : {}),
+      });
     });
   }
   async ready(claim: Claim, plan: Plan): Promise<void> {
