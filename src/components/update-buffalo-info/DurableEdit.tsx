@@ -98,7 +98,12 @@ function pollStatus(job: Job | null) {
       mode === "autoPublication"
         ? job.progress?.fileRetry
         : job.progress?.unknownRetry;
-    return !!retry && !retry.exhausted;
+    // A list response omits progress. Poll the detailed view until it
+    // supplies the schedule, including across a transient read failure.
+    return (
+      (mode === "autoPublication" && !job.progress) ||
+      (!!retry && !retry.exhausted)
+    );
   }
   return running(job) || preparingElsewhere(job);
 }
@@ -747,7 +752,12 @@ export default function DurableEdit({
               job={job}
               busy={busy}
               autoContinuing={autoContinuing || preparing}
-              stalled={!!mode && !retry && !view.isFetching}
+              stalled={
+                !!mode &&
+                !retry &&
+                !view.isFetching &&
+                (mode !== "autoPublication" || !!job.progress)
+              }
               feedback={
                 job.state === "COMPLETED"
                   ? (readError ??

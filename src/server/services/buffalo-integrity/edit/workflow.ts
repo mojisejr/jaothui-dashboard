@@ -1091,7 +1091,7 @@ export class BuffaloEditWorkflow {
   private journal(id: string, owner: string) {
     return this.db.$queryRaw<
       JournalEvent[]
-    >`SELECT e.kind, e.created_at, e.step_id,
+    >`SELECT e.kind, e.created_at, e.step_id, s.kind AS step_kind,
       o.lease_until,
       (e.detail->>'fence' = o.fence::text AND o.lease_until > clock_timestamp()) AS live_attempt,
       CASE WHEN e.kind='EDIT_PREPARE_STOPPED' THEN e.detail->>'code' END as blocked_code,
@@ -1100,6 +1100,7 @@ export class BuffaloEditWorkflow {
       CASE WHEN e.kind='EDIT_PREPARE_STOPPED' THEN e.detail->>'token' END as conflict_token,
       CASE WHEN e.kind IN ('RECOVERY_REQUIRED','READY') THEN e.detail->>'reason' END as reason, CASE WHEN e.kind='RECOVERY_REQUIRED' THEN e.detail->'readback' END as readback
       FROM buffalo_integrity.event e JOIN buffalo_integrity.operation o ON o.id=e.operation_id
+      LEFT JOIN buffalo_integrity.step s ON s.id=e.step_id AND s.operation_id=o.id
       WHERE o.id=${id}::uuid AND o.owner=${owner} AND o.intent->>'kind'='edit'
       ORDER BY e.id`;
   }
@@ -1218,7 +1219,13 @@ export class BuffaloEditWorkflow {
     const op = await this.drafts.operations.get(id, owner),
       intent = edit(op),
       status = await engine.status(id, owner),
-      display = includeProgress ? await this.progress(op) : null;
+      display = includeProgress
+        ? await this.progress({
+            ...op,
+            state: status.state,
+            reason: status.reason,
+          })
+        : null;
     return {
       ...status,
       ...(display?.problem && status.state === "DRAFT"
