@@ -43,6 +43,21 @@ test("elapsed excludes draft idle time and the interval awaiting recovery; dupli
     editTiming([row("DRAFT_CREATED", 0), row("READY", 5000)], 9000).phases,
   ).toEqual([null, 4000, null]);
 });
+test("the first URI confirmation freezes chain time across later polls and repeated chain events", () => {
+  const events = [
+    row("EDIT_PREPARING", 1000),
+    row("READY", 4000),
+    row("STEP_CONFIRMED", 6000, { step_kind: "batch" }),
+    row("STEP_CONFIRMED", 9000, { step_kind: "uri" }),
+  ];
+  expect(editTiming(events, 10000).phases).toEqual([3000, 5000, 1000]);
+  events.push(
+    row("CHAIN_STEPS", 12000),
+    row("PROJECTING", 18000),
+    pending(20000),
+  );
+  expect(editTiming(events, 25000).phases).toEqual([3000, 5000, 11000]);
+});
 test("retry count and deadline survive refresh; unrelated recovery is not eligible", () => {
   const history = [
     pending(1000),

@@ -501,7 +501,7 @@ export function EditProof(props: Props) {
     const elapsed = p?.phases[i];
     if (elapsed === null || elapsed === undefined) return null;
     const delta =
-      working && p?.currentPhase === i && p.checkedAt
+      working && display.phase === i && p?.currentPhase === i && p.checkedAt
         ? Math.max(0, now - Date.parse(p.checkedAt))
         : 0;
     return elapsed + delta;

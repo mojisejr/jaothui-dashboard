@@ -548,6 +548,16 @@ const readbackJob = () => ({
   },
 });
 
+test("a pending file check from the list awaits its full progress without offering a manual reload", () => {
+  mockJobs = [{ ...readbackJob(), progress: null }];
+  render(<DurableEdit />);
+  expect(screen.getByText(/กำลังตรวจไฟล์และทะเบียน/)).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "โหลดสถานะรายการอีกครั้ง" }),
+  ).toBeNull();
+  expect(mockPoll).toHaveBeenLastCalledWith(3000);
+  expect(mockAdvance).not.toHaveBeenCalled();
+});
 test("confirmed file checks retry automatically only after the server delay, then stop at completion", async () => {
   jest.useFakeTimers();
   try {

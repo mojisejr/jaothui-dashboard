@@ -998,3 +998,31 @@ test("rehydrated draft reports the original safe failure and detects a live prep
     preparing: false,
   });
 });
+
+test("a file check starting between status reads includes its automatic schedule immediately", async () => {
+  const c = setupEdit(),
+    engine = new OperationEngine(c.drafts.operations, fakeChain());
+  const op = await c.workflow.create(owner, {
+    key: randomUUID(),
+    microchip: c.row.microchip,
+    tokenId: token.toString(),
+    expectedRevision: revisionOf(c.row),
+    patch: { height: "150" },
+  });
+  const status = await engine.status(op.id, owner);
+  const reason = "PUBLIC_ASSET_READBACK_PENDING";
+  jest.spyOn(engine, "status").mockResolvedValueOnce({
+    ...status,
+    state: "RECOVERY_REQUIRED",
+    reason,
+    version: status.version + 1,
+  });
+  c.db.$queryRaw.mockResolvedValue([
+    { kind: "RECOVERY_REQUIRED", reason, created_at: new Date() },
+  ]);
+  const dto = await c.workflow.view(op.id, owner, engine);
+  expect(dto.progress?.fileRetry).toMatchObject({
+    attempts: 0,
+    exhausted: false,
+  });
+});
