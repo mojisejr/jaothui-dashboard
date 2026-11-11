@@ -75,6 +75,7 @@ test("shared account and exact expectedVersion reach the same durable engine", a
     "shared:phase4-shared",
     "resume",
     7,
+    expect.any(Function),
   );
 });
 test("edit runtime remains hard-off in product with no live signer construction", async () => {

@@ -15,6 +15,7 @@ const mockCreate = jest.fn(),
 const mockRefetch = jest.fn(),
   mockListRefetch = jest.fn(),
   mockViewRefetch = jest.fn();
+const mockPoll = jest.fn();
 let mockListError: unknown, mockViewError: unknown;
 const detail = {
   tokenId: 901,
@@ -82,11 +83,17 @@ jest.mock("~/utils/api", () => ({
         }),
       },
       view: {
-        useQuery: () => ({
-          data: mockView,
-          error: mockViewError,
-          refetch: mockViewRefetch,
-        }),
+        useQuery: (
+          _input: unknown,
+          opts: { refetchInterval: number | false },
+        ) => (
+          mockPoll(opts.refetchInterval),
+          {
+            data: mockView,
+            error: mockViewError,
+            refetch: mockViewRefetch,
+          }
+        ),
       },
       create: { useMutation: () => ({ mutateAsync: mockCreate }) },
       prepare: { useMutation: () => ({ mutateAsync: mockPrepare }) },
@@ -114,7 +121,10 @@ beforeAll(() => {
 });
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   jest.clearAllMocks();
+  mockViewFetch.mockReset();
+  mockListRefetch.mockReset();
   mockDetail = detail;
   mockJobs = [];
   mockQueryError = undefined;
@@ -135,8 +145,8 @@ test("fresh polling snapshots cannot indefinitely postpone a READY edit", async 
     for (let i = 0; i < 4; i++) {
       expect(screen.getByRole("button", { name: "ค้นหา" })).toBeDisabled();
       expect(
-        screen.getByRole("button", { name: "ดำเนินการต่อรายการเดิม" }),
-      ).toBeDisabled();
+        screen.queryByRole("button", { name: "ดำเนินการต่อรายการเดิม" }),
+      ).not.toBeInTheDocument();
       await act(async () => {
         jest.advanceTimersByTime(1000);
       });
@@ -165,7 +175,7 @@ test("saved edit leaves the input dialog before slow preparation and shows waiti
   await waitFor(() =>
     expect(document.querySelector("[data-edit-progress]")).toHaveFocus(),
   );
-  expect(screen.getByText(/กรุณาอยู่หน้านี้จนขึ้น/)).toBeInTheDocument();
+  expect(screen.getByText("กำลังตรวจคำขอแก้ไข")).toBeInTheDocument();
   expect(mockAdvance).not.toHaveBeenCalled();
 });
 test("failed preparation can resume the saved draft after the dialog closes without creating another edit", async () => {
@@ -191,6 +201,11 @@ test("failed preparation can resume the saved draft after the dialog closes with
     target: { value: "keep name" },
   });
   fireEvent.click(screen.getByRole("button", { name: "ยืนยันการแก้ไข" }));
+  mockViewFetch.mockResolvedValue(draft);
+  const recover = await screen.findByRole("button", {
+    name: "โหลดสถานะรายการอีกครั้ง",
+  });
+  fireEvent.click(recover);
   const resume = await screen.findByRole("button", {
     name: "ดำเนินการต่อรายการเดิม",
   });
@@ -253,14 +268,12 @@ test("expired auth links to login and stops mutations while retaining operation"
   mockJobs = [baseJob];
   mockQueryError = { data: { code: "UNAUTHORIZED" }, message: "UNAUTHORIZED" };
   render(<DurableEdit />);
-  await waitFor(() =>
-    expect(
-      screen.getByRole("link", { name: "เข้าสู่ระบบอีกครั้ง" }),
-    ).toHaveAttribute("href", "/"),
-  );
   expect(
-    screen.getByRole("button", { name: "ดำเนินการต่อรายการเดิม" }),
-  ).toBeDisabled();
+    await screen.findByRole("button", { name: "เข้าสู่ระบบอีกครั้ง" }),
+  ).toBeEnabled();
+  expect(
+    screen.queryByRole("button", { name: "ดำเนินการต่อรายการเดิม" }),
+  ).not.toBeInTheDocument();
   expect(mockAdvance).not.toHaveBeenCalled();
 });
 test("name dialog preserves entered value on stale rejection and never calls advance", async () => {
@@ -406,8 +419,8 @@ test("view failure exposes stale operation and retries view without another muta
   expect(mockViewRefetch).toHaveBeenCalledTimes(1);
   expect(mockAdvance).not.toHaveBeenCalled();
   expect(
-    screen.getByRole("button", { name: "ดำเนินการต่อรายการเดิม" }),
-  ).toBeDisabled();
+    screen.queryByRole("button", { name: "ดำเนินการต่อรายการเดิม" }),
+  ).not.toBeInTheDocument();
 });
 test("repeated search of absent microchip gives explicit not-found and repeats the read", () => {
   mockDetail = null;
@@ -441,9 +454,7 @@ test("completed write remains completed when fresh details fail", async () => {
   mockFetchDetails.mockRejectedValue(Error("down"));
   render(<DurableEdit />);
   await screen.findByText(/บันทึกสำเร็จแล้ว แต่โหลดข้อมูลล่าสุดไม่สำเร็จ/);
-  expect(
-    screen.getByText("แก้ไขช่องที่ร้องขอและตรวจสอบสำเร็จแล้ว"),
-  ).toBeInTheDocument();
+  expect(screen.getByText("แก้ไขสีสำเร็จ")).toBeInTheDocument();
   expect(mockCreate).not.toHaveBeenCalled();
 });
 
@@ -522,23 +533,301 @@ test("ambiguous DB token from edit preflight offers the source-only diagnosis li
   expect(mockAdvance).not.toHaveBeenCalled();
 });
 
-test("confirmed edit receipts show the file recheck action when publication pauses", async () => {
-  mockJobs = [
-    {
-      ...baseJob,
-      reason: "PUBLIC_ASSET_READBACK_PENDING",
-      steps: [
-        ...baseJob.steps,
-        { kind: "uri", state: "CONFIRMED", hash: "0xuri" },
-      ],
+const readbackJob = () => ({
+  ...baseJob,
+  reason: "PUBLIC_ASSET_READBACK_PENDING",
+  steps: [...baseJob.steps, { kind: "uri", state: "CONFIRMED", hash: "0xuri" }],
+  progress: {
+    phases: [null, null, null],
+    before: { color: "Black" },
+    fileRetry: {
+      attempts: 1,
+      exhausted: false,
+      nextAt: new Date(Date.now() + 5000).toISOString(),
     },
-  ];
+  },
+});
+
+test("confirmed file checks retry automatically only after the server delay, then stop at completion", async () => {
+  jest.useFakeTimers();
+  try {
+    const paused = readbackJob();
+    mockJobs = [paused];
+    mockView = paused;
+    mockAdvance.mockResolvedValueOnce({
+      ...paused,
+      state: "COMPLETED",
+      version: 5,
+    });
+    render(<DurableEdit />);
+    expect(screen.getByRole("button", { name: "ค้นหา" })).toBeDisabled();
+    await act(async () => {
+      jest.advanceTimersByTime(4999);
+    });
+    expect(mockAdvance).not.toHaveBeenCalled();
+    await act(async () => {
+      jest.advanceTimersByTime(2);
+    });
+    expect(mockAdvance).toHaveBeenCalledWith({
+      id: paused.id,
+      version: 4,
+      mode: "autoPublication",
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+    expect(mockAdvance).toHaveBeenCalledTimes(1);
+    expect(mockPrepare).not.toHaveBeenCalled();
+    expect(mockCreate).not.toHaveBeenCalled();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test.each(["BROADCAST_UNKNOWN", "CHAIN_PENDING"])(
+  "%s uses a bounded read-only check when eligible",
+  async (state) => {
+    jest.useFakeTimers();
+    try {
+      const pending = {
+        ...baseJob,
+        state,
+        reason: "BROADCAST_RESULT_UNKNOWN",
+        progress: {
+          phases: [null, null, null],
+          before: {},
+          unknownRetry: {
+            attempts: 1,
+            exhausted: false,
+            nextAt: new Date(Date.now() + 2000).toISOString(),
+          },
+        },
+      };
+      mockJobs = [pending];
+      mockView = pending;
+      mockAdvance.mockResolvedValueOnce({
+        ...pending,
+        version: 5,
+        progress: {
+          ...pending.progress,
+          unknownRetry: { attempts: 4, exhausted: true, nextAt: null },
+        },
+      });
+      render(<DurableEdit />);
+      await act(async () => {
+        jest.advanceTimersByTime(2001);
+      });
+      expect(mockAdvance).toHaveBeenCalledWith({
+        id: pending.id,
+        version: 4,
+        mode: "autoReconcile",
+      });
+      await act(async () => {
+        jest.advanceTimersByTime(10000);
+      });
+      expect(mockAdvance).toHaveBeenCalledTimes(1);
+      expect(mockPrepare).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  },
+);
+
+test("exhausted publication budget survives reload and offers support rather than advance", async () => {
+  jest.useFakeTimers();
+  try {
+    const paused = readbackJob();
+    paused.progress.fileRetry.exhausted = true;
+    mockJobs = [paused];
+    mockView = paused;
+    const page = render(<DurableEdit />);
+    expect(
+      screen.getByRole("button", { name: "คัดลอกข้อมูลส่งผู้ดูแล" }),
+    ).toBeEnabled();
+    page.unmount();
+    render(<DurableEdit />);
+    await act(async () => {
+      jest.advanceTimersByTime(10000);
+    });
+    expect(mockAdvance).not.toHaveBeenCalled();
+    expect(mockPoll).toHaveBeenLastCalledWith(false);
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test.each(["CANCELLED", "SIGNING"])(
+  "opens the replacement editor only after durable cancellation (%s)",
+  async (state) => {
+    const draft = {
+      ...baseJob,
+      state: "DRAFT",
+      actualToken: "901",
+      canCancel: true,
+      canResume: false,
+      steps: [],
+    };
+    mockJobs = [draft];
+    mockView = draft;
+    mockCancel.mockResolvedValueOnce({ ...draft, state, version: 6 });
+    mockViewFetch.mockResolvedValueOnce({
+      ...draft,
+      state: "SIGNING",
+      version: 6,
+      canCancel: false,
+    });
+    mockListRefetch.mockResolvedValueOnce({ data: [] });
+    render(<DurableEdit />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "ยกเลิกรายการเดิม แล้วแก้ใหม่" }),
+    );
+    expect(mockCancel).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "ยืนยันยกเลิกแล้วแก้ใหม่" }),
+    );
+    await waitFor(() =>
+      expect(mockCancel).toHaveBeenCalledWith({ id: draft.id }),
+    );
+    if (state === "CANCELLED") {
+      await waitFor(() =>
+        expect(document.querySelector("[data-edit-dialog]")).toHaveAttribute(
+          "open",
+        ),
+      );
+      expect(
+        screen.getByLabelText("สี", { selector: "#edit-value" }),
+      ).toHaveValue("White");
+    } else {
+      await waitFor(() =>
+        expect(mockViewFetch).toHaveBeenCalledWith({ id: draft.id }),
+      );
+      expect(document.querySelector("[data-edit-dialog]")).not.toHaveAttribute(
+        "open",
+      );
+    }
+    expect(mockCreate).not.toHaveBeenCalled();
+  },
+);
+
+test("preserves the newly typed change when a concurrent unsigned draft must be replaced", async () => {
+  const draft = { ...baseJob, state: "DRAFT", canCancel: true, steps: [] };
+  mockCreate.mockImplementationOnce(async () => {
+    mockJobs = [draft];
+    throw {
+      data: {
+        diagnostic: {
+          code: "COW_ALREADY_RESERVED",
+          requestId: "existing",
+          stage: "operation",
+          outcome: "not_started",
+          nextAction: "contact_support",
+          reason: "มีรายการค้าง",
+        },
+      },
+    };
+  });
+  mockCancel.mockResolvedValueOnce({
+    ...draft,
+    state: "CANCELLED",
+    version: 5,
+  });
+  mockListRefetch.mockResolvedValueOnce({ data: [] });
   render(<DurableEdit />);
-  expect(
-    await screen.findByText("บล็อกเชนยืนยันแล้ว ยังตรวจไฟล์ไม่สำเร็จ"),
-  ).toBeInTheDocument();
-  expect(
-    screen.getByRole("button", { name: "ลองตรวจไฟล์อีกครั้ง" }),
-  ).toBeEnabled();
+  fireEvent.click(screen.getByRole("button", { name: "แก้ไขชื่อ" }));
+  fireEvent.change(document.querySelector("#edit-value")!, {
+    target: { value: "ชื่อที่เพิ่งกรอก" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "ยืนยันการแก้ไข" }));
+  const replace = await screen.findByRole("button", {
+    name: "ยกเลิกรายการเดิม แล้วแก้ใหม่",
+  });
+  fireEvent.click(replace);
+  fireEvent.click(
+    screen.getByRole("button", { name: "ยืนยันยกเลิกแล้วแก้ใหม่" }),
+  );
+  await waitFor(() =>
+    expect(document.querySelector("#edit-value")).toHaveValue(
+      "ชื่อที่เพิ่งกรอก",
+    ),
+  );
+  expect(mockCreate).toHaveBeenCalledTimes(1);
+  expect(mockAdvance).not.toHaveBeenCalled();
+});
+
+test("can reattach an edit by its original chip after publication removed that lookup", async () => {
+  const completed = {
+    ...baseJob,
+    state: "COMPLETED",
+    publishedMicrochip: "999000000004002",
+    canResume: false,
+  };
+  mockDetail = null;
+  mockView = completed;
+  mockFetchDetails.mockResolvedValue({
+    ...detail,
+    microchip: completed.publishedMicrochip,
+  });
+  localStorage.setItem("buffalo-edit-search", detail.microchip);
+  sessionStorage.setItem(
+    "buffalo-edit-active-operation",
+    detail.microchip + "/" + completed.id,
+  );
+  render(<DurableEdit />);
+  await waitFor(() =>
+    expect(mockFetchDetails).toHaveBeenCalledWith(completed.publishedMicrochip),
+  );
+  expect(screen.getByText("แก้ไขสีสำเร็จ")).toBeInTheDocument();
+  expect(mockAdvance).not.toHaveBeenCalled();
+});
+
+test("shows a draft being prepared in another tab without starting or replacing it", async () => {
+  jest.useFakeTimers();
+  try {
+    const draft = {
+      ...baseJob,
+      state: "DRAFT",
+      canCancel: true,
+      steps: [],
+      progress: {
+        preparing: true,
+        phases: [0, null, null],
+        before: {},
+        currentPhase: 0,
+      },
+    };
+    mockJobs = [draft];
+    mockView = draft;
+    render(<DurableEdit />);
+    expect(screen.getByRole("button", { name: "แก้ไขชื่อ" })).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "ดำเนินการต่อรายการเดิม" }),
+    ).not.toBeInTheDocument();
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+    expect(mockPrepare).not.toHaveBeenCalled();
+    expect(mockAdvance).not.toHaveBeenCalled();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test("dismissing a completed edit stays dismissed after a stale query snapshot", async () => {
+  const complete = {
+    ...baseJob,
+    state: "COMPLETED",
+    version: 7,
+    canResume: false,
+  };
+  mockView = complete;
+  mockJobs = [{ ...baseJob, state: "CHAIN_PENDING", version: 6 }];
+  const page = render(<DurableEdit />);
+  fireEvent.click(
+    await screen.findByRole("button", { name: "แก้ไขข้อมูลอื่น" }),
+  );
+  mockView = { ...complete };
+  page.rerender(<DurableEdit />);
+  expect(screen.queryByText("แก้ไขสีสำเร็จ")).not.toBeInTheDocument();
+  expect(screen.queryByText("กำลังรอบล็อกเชนยืนยัน")).not.toBeInTheDocument();
   expect(mockAdvance).not.toHaveBeenCalled();
 });

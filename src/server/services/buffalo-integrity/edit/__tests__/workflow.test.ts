@@ -6,9 +6,11 @@ import { decodeFunctionData, type Hex } from "viem";
 import { abi as managerAbi } from "~/server/blockchain/metadata-maneger/abi";
 import { abi as nftAbi } from "~/server/blockchain/nft/abi";
 import { type RawMetadata } from "~/interfaces/i-metadata";
+import { OperationEngine } from "../../operations/engine";
 import { BuffaloEditWorkflow } from "../workflow";
 import { revisionOf, type EditPatch } from "../contract";
 import {
+  fakeChain,
   memoryRepository,
   account,
   domain,
@@ -888,4 +890,111 @@ test("durable receipt-bound native evidence permits aged recovery when receipt-s
   await expect(c.workflow.guard(op, [step])).rejects.toThrow(
     "EXTERNAL_CHAIN_BASELINE_CHANGED",
   );
+});
+
+test("server recovery admission keeps the same schedule across reload and refuses unrelated stages", async () => {
+  const c = setupEdit();
+  const op = await c.start({ name: "new" });
+  const clock = jest.spyOn(Date, "now").mockReturnValue(7000);
+  c.db.$queryRaw.mockResolvedValue([
+    {
+      kind: "RECOVERY_REQUIRED",
+      reason: "PUBLIC_ASSET_READBACK_PENDING",
+      step_id: null,
+      created_at: new Date(1000),
+    },
+  ]);
+  Object.assign(op, {
+    state: "RECOVERY_REQUIRED",
+    reason: "PUBLIC_ASSET_READBACK_PENDING",
+  });
+  try {
+    expect(await c.workflow.recoveryDecision(op)).toBe("autoPublication");
+    expect(jest.spyOn(c.drafts, "observed")).toHaveBeenCalledWith(
+      op,
+      "EDIT_PUBLICATION_ATTEMPT",
+      { fence: op.fence },
+    );
+    c.db.$queryRaw.mockResolvedValue([
+      {
+        kind: "RECOVERY_REQUIRED",
+        reason: "PUBLIC_ASSET_READBACK_PENDING",
+        step_id: null,
+        created_at: new Date(1000),
+      },
+      {
+        kind: "EDIT_PUBLICATION_ATTEMPT",
+        step_id: null,
+        created_at: new Date(7000),
+      },
+    ]);
+    expect(await c.workflow.recoveryDecision(op, "autoPublication")).toBe(
+      "wait",
+    );
+    clock.mockReturnValue(301000);
+    expect(await c.workflow.recoveryDecision(op)).toBe("wait");
+    op.reason = "REORG_UNCERTAINTY";
+    expect(await c.workflow.recoveryDecision(op, "autoPublication")).toBe(
+      "wait",
+    );
+    expect(await c.workflow.recoveryDecision(op)).toBeNull();
+  } finally {
+    clock.mockRestore();
+  }
+});
+test("rehydrated draft reports the original safe failure and detects a live prepare lease", async () => {
+  const c = setupEdit(),
+    engine = new OperationEngine(c.drafts.operations, fakeChain());
+  const op = await c.workflow.create(owner, {
+    key: randomUUID(),
+    microchip: c.row.microchip,
+    tokenId: token.toString(),
+    expectedRevision: revisionOf(c.row),
+    patch: { name: "new" },
+  });
+  const requestId = randomUUID(),
+    chip = "999000000004099";
+  c.db.$queryRaw.mockResolvedValue([
+    {
+      kind: "EDIT_PREPARE_STOPPED",
+      created_at: new Date(),
+      blocked_code: "MICROCHIP_ALREADY_BOUND",
+      request_id: requestId,
+      conflict_chip: chip,
+      conflict_token: "999",
+    },
+  ]);
+  let dto = await c.workflow.view(op.id, owner, engine);
+  expect(dto.diagnostic).toMatchObject({
+    requestId,
+    code: "MICROCHIP_ALREADY_BOUND",
+  });
+  expect(dto.diagnostic?.reason).toContain(chip);
+  expect(dto.progress).toMatchObject({
+    name: c.row.name,
+    before: { name: c.row.name },
+    preparing: false,
+  });
+  c.db.$queryRaw.mockResolvedValue([
+    {
+      kind: "EDIT_PREPARING",
+      created_at: new Date(),
+      lease_until: new Date(Date.now() + 60000),
+    },
+  ]);
+  dto = await c.workflow.view(op.id, owner, engine);
+  expect(dto.progress?.preparing).toBe(true);
+  c.db.$queryRaw.mockResolvedValue([
+    {
+      kind: "EDIT_PREPARING",
+      created_at: new Date(Date.now() - 5000),
+      lease_until: new Date(Date.now() - 1000),
+    },
+  ]);
+  c.setRow({ name: "unverified newer version" });
+  dto = await c.workflow.view(op.id, owner, engine);
+  expect(dto.progress).toMatchObject({
+    before: { name: null },
+    preparing: false,
+  });
 });

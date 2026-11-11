@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { useOperationContinuation } from "../buffalo-feedback/useOperationContinuation";
-import { OperationProgress } from "../buffalo-feedback/OperationProgress";
+import { EditProof } from "./EditStatus";
+export { EditProof } from "./EditStatus";
 import Link from "next/link";
 import { IdentityDiagnosisLink } from "../buffalo-repair/IdentityDiagnosisLink";
 import React, { useEffect, useRef, useState } from "react";
@@ -38,6 +39,7 @@ const labels: Record<EditField, string> = {
   motherId: "microchip แม่",
   parents: "ข้อมูลพ่อแม่",
 };
+const EDIT_SESSION_KEY = "buffalo-edit-active-operation";
 const options: Partial<Record<EditField, string[]>> = {
   sex: ["Male", "Female"],
   rarity: ["Normal", "Rare", "Super Rare", "Super Special Rare"],
@@ -65,131 +67,40 @@ const running = (job: Job) =>
     "RECOVERY_REQUIRED",
     "RETRYABLE",
   ].includes(job.state);
-const stateText: Record<string, string> = {
-  DRAFT: "เก็บคำขอแก้ไขแล้ว — ยังไม่ได้ส่งธุรกรรม",
-  READY: "พร้อมดำเนินการแก้ไข",
-  CHAIN_PENDING: "รอยืนยันธุรกรรมบน blockchain",
-  BROADCAST_UNKNOWN: "กำลังตรวจสอบธุรกรรมเดิม",
-  CHAIN_STEPS: "กำลังตรวจสอบขั้นตอนที่ยืนยันแล้ว",
-  PROJECTING: "กำลังเผยแพร่ข้อมูลที่ตรวจสอบแล้ว",
-  VERIFYING: "กำลังตรวจสอบข้อมูลหลังเผยแพร่",
-  RECOVERY_REQUIRED: "ยังไม่สำเร็จ — ดำเนินการต่อรายการเดิม",
-  RETRYABLE: "ยังไม่สำเร็จ — ดำเนินการต่อรายการเดิม",
-  NEEDS_REVIEW: "รายการนี้ต้องตรวจสอบก่อนดำเนินการต่อ",
-  COMPLETED: "แก้ไขช่องที่ร้องขอและตรวจสอบสำเร็จแล้ว",
-  CANCELLED: "ยกเลิกคำขอที่ยังไม่ได้ส่งแล้ว",
-};
-export function EditProof({
-  job,
-  busy,
-  onResume,
-  onCancel,
-}: {
-  job: Job;
-  busy: boolean;
-  onResume: () => void;
-  onCancel?: () => void;
-}) {
-  const fileCheckPaused =
+type RetryMode = "autoPublication" | "autoReconcile";
+
+function retryMode(job: Job): RetryMode | undefined {
+  if (
+    job.state === "BROADCAST_UNKNOWN" ||
+    (job.state === "CHAIN_PENDING" && job.progress?.unknownRetry)
+  )
+    return "autoReconcile";
+  if (
     job.state === "RECOVERY_REQUIRED" &&
-    job.reason === "PUBLIC_ASSET_READBACK_PENDING";
-  const chainConfirmed =
-    job.steps.some((step) => step.kind === "uri") &&
-    job.steps.every((step) => step.state === "CONFIRMED");
-  const checkingFiles =
-    chainConfirmed &&
-    ["CHAIN_STEPS", "PROJECTING", "VERIFYING"].includes(job.state);
+    job.reason === "PUBLIC_ASSET_READBACK_PENDING"
+  )
+    return "autoPublication";
+}
+
+function preparingElsewhere(job: Job | null) {
   return (
-    <section
-      data-edit-operation={job.id}
-      className="my-4 min-w-0 rounded-lg border border-primary p-4 text-base"
-      aria-live="polite"
-    >
-      <p role="status">
-        {fileCheckPaused && chainConfirmed
-          ? "บล็อกเชนยืนยันแล้ว ยังตรวจไฟล์ไม่สำเร็จ"
-          : checkingFiles
-            ? "บล็อกเชนยืนยันแล้ว กำลังตรวจไฟล์และทะเบียน"
-            : (stateText[job.state] ?? job.state)}
-      </p>
-      <p className="break-all text-sm">
-        รายการ {job.id} · NFT #{job.actualToken} · {job.microchip}
-      </p>
-      <p>
-        ช่องที่แก้ไข:{" "}
-        {job.fields.map((f) => labels[f as EditField] ?? f).join(", ")}
-      </p>
-      {job.environment === "local-fork" && (
-        <p className="text-sm">หลักฐานจาก local/fork</p>
-      )}
-      {job.restorationPending && (
-        <p>กำลังกู้คืน DNA เดิมหลังแก้ไข — ข้อมูลสาธารณะยังเป็นฉบับก่อนหน้า</p>
-      )}
-      {!!job.legacyDifferences &&
-        Array.isArray(job.legacyDifferences) &&
-        job.legacyDifferences.length > 0 && (
-          <p className="text-sm">
-            มีความต่างเดิมระหว่าง DB กับ blockchain ในช่องอื่น
-            ระบบเก็บค่าเดิมไว้ การสำเร็จครอบคลุมช่องที่ร้องขอเท่านั้น
-          </p>
-        )}
-      {job.diagnostic && <FeedbackPanel feedback={job.diagnostic} />}
-      {job.reason && !job.diagnostic && (
-        <FeedbackPanel
-          feedback={feedbackFor(new Error(job.reason), { operationId: job.id })}
-        />
-      )}
-      <IdentityDiagnosisLink
-        microchip={job.microchip}
-        code={job.diagnostic?.code ?? job.reason ?? undefined}
-      />
-      <details>
-        <summary className="min-h-12 cursor-pointer py-3">
-          หลักฐานธุรกรรม ({job.steps.length})
-        </summary>
-        {job.steps.map((s, i) => (
-          <div key={i} className="mb-2 break-all text-sm">
-            <span>
-              {s.kind} · {s.state}
-            </span>
-            {s.hash &&
-              (s.explorerUrl ? (
-                <a
-                  className="link block"
-                  href={s.explorerUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {s.hash}
-                </a>
-              ) : (
-                <code className="block">{s.hash}</code>
-              ))}
-          </div>
-        ))}
-      </details>
-      {(job.canResume || job.state === "DRAFT") && (
-        <button
-          type="button"
-          className="btn btn-primary min-h-12"
-          disabled={busy}
-          onClick={onResume}
-        >
-          {fileCheckPaused ? "ลองตรวจไฟล์อีกครั้ง" : "ดำเนินการต่อรายการเดิม"}
-        </button>
-      )}
-      {job.canCancel && onCancel && (
-        <button
-          type="button"
-          className="btn btn-outline min-h-12"
-          disabled={busy}
-          onClick={onCancel}
-        >
-          ยกเลิกคำขอที่ยังไม่ส่ง
-        </button>
-      )}
-    </section>
+    job?.state === "DRAFT" &&
+    job.progress != null &&
+    "preparing" in job.progress &&
+    job.progress.preparing === true
   );
+}
+function pollStatus(job: Job | null) {
+  if (!job) return false;
+  const mode = retryMode(job);
+  if (mode) {
+    const retry =
+      mode === "autoPublication"
+        ? job.progress?.fileRetry
+        : job.progress?.unknownRetry;
+    return !!retry && !retry.exhausted;
+  }
+  return running(job) || preparingElsewhere(job);
 }
 function initial(detail: IMetadata, field: EditField) {
   return field === "parents"
@@ -211,15 +122,32 @@ export default function DurableEdit({
     [mother, setMother] = useState("");
   const [file, setFile] = useState<File | null>(null),
     [job, setJob] = useState<Job | null>(null),
+    [restoreId, setRestoreId] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState<Feedback | null>(null),
+    [replacement, setReplacement] = useState<{
+      id: string;
+      field: EditField;
+    } | null>(null),
     [authLost, setAuthLost] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null),
     progress = useRef<HTMLDivElement>(null),
+    replaceDialog = useRef<HTMLDialogElement>(null),
+    editorSection = useRef<HTMLElement>(null),
+    pendingInput = useRef<{
+      field: EditField;
+      value: string;
+      father: string;
+      mother: string;
+      file: File | null;
+      id: string;
+    } | null>(null),
     lock = useRef(false),
     key = useRef(""),
     frozen = useRef<Detail | null>(null),
-    completed = useRef("");
+    completed = useRef(""),
+    dismissed = useRef(new Set<string>()),
+    navigation = useRef(0);
   const details = api.buffaloEdit.details.useQuery(chip, {
     enabled: !!chip && !authLost,
     retry: false,
@@ -232,20 +160,43 @@ export default function DurableEdit({
     refetchOnWindowFocus: true,
   });
   const view = api.buffaloEdit.view.useQuery(
-    { id: job?.id ?? "" },
+    { id: job?.id ?? restoreId },
     {
-      enabled: !!job && !authLost,
+      enabled: !!(job ?? restoreId) && !authLost,
       retry: false,
-      refetchInterval: job && job.state !== "COMPLETED" ? 3000 : false,
+      refetchOnWindowFocus: true,
+      refetchInterval: (pollStatus(job) || busy) && !authLost ? 3000 : false,
     },
   );
   const create = api.buffaloEdit.create.useMutation(),
     prepare = api.buffaloEdit.prepare.useMutation(),
     advance = api.buffaloEdit.advance.useMutation(),
     cancel = api.buffaloEdit.cancel.useMutation();
+  const mode = job && retryMode(job);
+  const retry =
+    mode === "autoReconcile"
+      ? job?.progress?.unknownRetry
+      : mode === "autoPublication"
+        ? job?.progress?.fileRetry
+        : undefined;
+  const retryDue = retry?.nextAt ?? null;
+  // Re-rendering a poll snapshot must not restart a backoff interval.
+  const autoDelay = React.useMemo(
+    () => (retryDue ? Math.max(250, Date.parse(retryDue) - Date.now()) : 1500),
+    [retryDue],
+  );
+  const preparing = preparingElsewhere(job);
   const autoContinuing =
-    !!job && running(job) && !authLost && !view.error && !list.error;
-  const searchDisabled = busy || authLost || autoContinuing;
+    !!job &&
+    !field &&
+    !replacement &&
+    !authLost &&
+    !view.error &&
+    !list.error &&
+    !details.error &&
+    !error &&
+    (mode ? !!retry && !retry.exhausted : running(job));
+  const searchDisabled = busy || authLost || autoContinuing || preparing;
   const active = job && !["COMPLETED", "CANCELLED"].includes(job.state);
   useEffect(() => {
     if (!field && job?.id) progress.current?.focus();
@@ -257,24 +208,56 @@ export default function DurableEdit({
     if (saved) {
       setChip(saved);
       setSearchValue(saved);
+      const [source, id] = (
+        sessionStorage.getItem(EDIT_SESSION_KEY) ?? ""
+      ).split("/");
+      if (source === saved && id && /^[0-9a-f-]{36}$/i.test(id))
+        setRestoreId(id);
     }
   }, []);
   useEffect(() => {
+    if (!job || dismissed.current.has(job.id)) return;
+    if (["COMPLETED", "CANCELLED"].includes(job.state)) {
+      sessionStorage.removeItem(EDIT_SESSION_KEY);
+      setRestoreId("");
+    } else {
+      sessionStorage.setItem(EDIT_SESSION_KEY, job.microchip + "/" + job.id);
+    }
+  }, [job]);
+  useEffect(() => {
     if (view.data)
-      setJob((previous) =>
-        previous?.id === view.data.id && previous.version > view.data.version
-          ? previous
-          : view.data,
-      );
-  }, [view.data]);
+      setJob((previous) => {
+        // A stale query for a different cow/operation must never take over.
+        if (
+          previous &&
+          (previous.id !== view.data.id || previous.version > view.data.version)
+        )
+          return previous;
+        if (dismissed.current.has(view.data.id)) return previous;
+        const matchesSaved =
+          restoreId === view.data.id && view.data.microchip === chip;
+        return previous !== null ||
+          matchesSaved ||
+          view.data.actualToken === token
+          ? view.data
+          : null;
+      });
+  }, [view.data, token, restoreId, chip]);
+  useEffect(() => {
+    if (replacement) replaceDialog.current?.showModal();
+    else replaceDialog.current?.close();
+  }, [replacement]);
   useEffect(() => {
     if (list.data && !job) {
       const pending = list.data.find(
-        (j) => !["COMPLETED", "CANCELLED"].includes(j.state),
+        (j) =>
+          j.actualToken === token &&
+          !dismissed.current.has(j.id) &&
+          !["COMPLETED", "CANCELLED"].includes(j.state),
       );
-      if (pending) setJob(pending);
+      if (pending) setJob((previous) => previous ?? pending);
     }
-  }, [list.data, job]);
+  }, [list.data, job, token]);
   useEffect(() => {
     if (
       details.error?.data?.code === "UNAUTHORIZED" ||
@@ -284,10 +267,17 @@ export default function DurableEdit({
       setAuthLost(true);
   }, [details.error, view.error, list.error]);
   async function refreshPublished(current: Job) {
+    const visit = navigation.current;
     const result = await utils.buffaloEdit.details.fetch(
       current.publishedMicrochip,
     );
-    if (!result) throw Error("DETAIL_REFETCH_FAILED");
+    if (
+      !result ||
+      String(result.tokenId) !== current.actualToken ||
+      result.microchip !== current.publishedMicrochip
+    )
+      throw Error("DETAIL_REFETCH_FAILED");
+    if (visit !== navigation.current) return;
     utils.buffaloEdit.details.setData(current.publishedMicrochip, result);
     setChip(current.publishedMicrochip);
     setSearchValue(current.publishedMicrochip);
@@ -299,9 +289,11 @@ export default function DurableEdit({
   const completedRef = useRef<() => Promise<void>>();
   completedRef.current = async () => {
     if (job?.state !== "COMPLETED" || completed.current === job.id) return;
+    const visit = navigation.current;
     try {
       await refreshPublished(job);
     } catch (cause) {
+      if (visit !== navigation.current) return;
       setError(completedRefreshFeedback(cause, job.id));
     }
   };
@@ -325,10 +317,37 @@ export default function DurableEdit({
       if (token) {
         try {
           const operations = await utils.buffaloEdit.list.fetch(token);
-          const durable = operations.find(
-            (j) => !["COMPLETED", "CANCELLED"].includes(j.state),
-          );
-          if (durable) setJob(durable);
+          const durable = job
+            ? operations.find((j) => j.id === job.id)
+            : operations.find(
+                (j) => !["COMPLETED", "CANCELLED"].includes(j.state),
+              );
+
+          if (durable) {
+            setJob((prev) =>
+              prev?.id === durable.id && prev.version >= durable.version
+                ? prev
+                : durable,
+            );
+            if (
+              field &&
+              feedbackFor(e).code === "COW_ALREADY_RESERVED" &&
+              durable.actualToken === token
+            ) {
+              pendingInput.current = {
+                field,
+                value,
+                father,
+                mother,
+                file,
+                id: durable.id,
+              };
+              dialog.current?.close();
+              setField(null);
+              // Show the actual saved request and its safe next action.
+              setError(null);
+            }
+          }
         } catch {
           /* Saved request key and input remain available after re-auth. */
         }
@@ -338,15 +357,32 @@ export default function DurableEdit({
       setBusy(false);
     }
   }
-  async function resume() {
-    if (!job) return;
+  async function resume(automatic = false) {
+    if (
+      !job ||
+      preparing ||
+      (mode && (!automatic || !retry || retry.exhausted))
+    )
+      return;
     await run(async () => {
       const latest =
         job.state === "DRAFT"
           ? await prepare.mutateAsync({ id: job.id, version: job.version })
           : job;
+      if (
+        latest.state === "DRAFT" ||
+        latest.state === "CANCELLED" ||
+        latest.state === "COMPLETED"
+      ) {
+        setJob(latest);
+        return;
+      }
       setJob(
-        await advance.mutateAsync({ id: latest.id, version: latest.version }),
+        await advance.mutateAsync({
+          id: latest.id,
+          version: latest.version,
+          ...(mode ? { mode } : {}),
+        }),
       );
     });
   }
@@ -355,13 +391,13 @@ export default function DurableEdit({
     state: job?.state,
     version: job?.version,
     enabled: autoContinuing && !busy,
-    delay: 1500,
-    resume,
+    delay: autoDelay,
+    resume: () => resume(true),
   });
   function open(next: EditField) {
     if (
       !details.data ||
-      !!active ||
+      (!!active && !job?.canCancel) ||
       authLost ||
       !!details.error ||
       !!list.error ||
@@ -370,15 +406,93 @@ export default function DurableEdit({
       details.data.sync.status === "unavailable"
     )
       return;
-    frozen.current = details.data;
+    if (active && job) {
+      setReplacement({ id: job.id, field: next });
+      return;
+    }
+    if (job) setJob(null);
+    beginEditing(next, details.data);
+  }
+  function beginEditing(next: EditField, baseline: Detail) {
+    frozen.current = baseline;
     key.current = crypto.randomUUID();
     setField(next);
-    setValue(initial(details.data, next));
-    setFather(details.data.fatherId === "N/A" ? "" : details.data.fatherId);
-    setMother(details.data.motherId === "N/A" ? "" : details.data.motherId);
+    setValue(initial(baseline, next));
+    setFather(baseline.fatherId === "N/A" ? "" : baseline.fatherId);
+    setMother(baseline.motherId === "N/A" ? "" : baseline.motherId);
     setFile(null);
     setError(null);
     dialog.current?.showModal();
+  }
+  async function replaceDraft() {
+    const request = replacement;
+    if (
+      !request ||
+      !job ||
+      !job.canCancel ||
+      preparing ||
+      authLost ||
+      !!view.error ||
+      !!list.error ||
+      request.id !== job.id
+    )
+      return;
+    setReplacement(null);
+    await run(async () => {
+      const cancelled = await cancel.mutateAsync({ id: job.id });
+      if (cancelled.id !== job.id || cancelled.state !== "CANCELLED") {
+        setJob(await apiView(job.id));
+        return;
+      }
+      dismissed.current.add(job.id);
+      setJob({
+        ...job,
+        state: "CANCELLED",
+        version: cancelled.version,
+        canCancel: false,
+        canResume: false,
+      });
+      const baseline = await utils.buffaloEdit.details.fetch(job.microchip);
+      if (
+        !baseline ||
+        String(baseline.tokenId) !== job.actualToken ||
+        ["identity_conflict", "unavailable"].includes(baseline.sync.status) ||
+        baseline.writeAvailability?.available === false
+      )
+        throw localFeedback("STALE_EDIT_RECORD", job.id);
+      const refreshed = await list.refetch();
+      if (refreshed?.error) throw refreshed.error;
+      const pending = refreshed?.data?.find(
+        (op) => !["CANCELLED", "COMPLETED"].includes(op.state),
+      );
+      if (pending) {
+        setJob(pending);
+        return;
+      }
+      setJob(null);
+      utils.buffaloEdit.details.setData(baseline.microchip, baseline);
+      beginEditing(request.field, baseline);
+      const saved = pendingInput.current;
+      if (saved?.id === job.id && saved.field === request.field) {
+        setValue(saved.value);
+        setFather(saved.father);
+        setMother(saved.mother);
+        setFile(saved.file);
+        pendingInput.current = null;
+        return;
+      }
+      if (
+        job.fields.includes(request.field) &&
+        !["image", "dna"].includes(request.field)
+      ) {
+        const previous = job.patch[request.field as keyof EditPatch];
+        if (typeof previous === "string") setValue(previous);
+      }
+      if (request.field === "parents") {
+        if (job.patch.fatherId !== undefined) setFather(job.patch.fatherId);
+        if (job.patch.motherId !== undefined) setMother(job.patch.motherId);
+      }
+    });
   }
   async function refreshBaseline() {
     if (!frozen.current) return;
@@ -468,21 +582,53 @@ export default function DurableEdit({
       setField(null);
       next = await prepare.mutateAsync({ id: next.id, version: next.version });
       setJob(next);
-      setJob(await advance.mutateAsync({ id: next.id, version: next.version }));
+      if (next.state === "READY")
+        setJob(
+          await advance.mutateAsync({ id: next.id, version: next.version }),
+        );
     });
   }
   const utils = api.useUtils();
   async function apiView(id: string) {
     return utils.buffaloEdit.view.fetch({ id });
   }
+  const queryError = view.error ?? list.error ?? details.error;
+  const readError = authLost
+    ? localFeedback("UNAUTHORIZED", job?.id)
+    : queryError && job
+      ? job.state === "COMPLETED"
+        ? completedRefreshFeedback(queryError, job.id)
+        : feedbackFor(queryError, {
+            operationId: job.id,
+            outcome: "not_started",
+          })
+      : null;
+  function readStatus() {
+    void run(async () => {
+      if (view.error) {
+        await view.refetch();
+        return;
+      }
+      if (list.error) {
+        await list.refetch();
+        return;
+      }
+      if (details.error) {
+        await details.refetch();
+        return;
+      }
+      if (job) setJob(await apiView(job.id));
+    });
+  }
   const blocked =
     busy ||
     list.isPending ||
     !!list.error ||
+    !!view.error ||
     !!details.error ||
     details.isFetching ||
     details.data?.writeAvailability?.available === false ||
-    !!active ||
+    (!!active && (!job?.canCancel || autoContinuing || preparing)) ||
     authLost ||
     !details.data ||
     ["identity_conflict", "unavailable"].includes(details.data.sync.status);
@@ -497,6 +643,9 @@ export default function DurableEdit({
           e.preventDefault();
           if (searchDisabled) return;
           if (chip !== searchValue.trim()) {
+            navigation.current++;
+            sessionStorage.removeItem(EDIT_SESSION_KEY);
+            setRestoreId("");
             setJob(null);
             setError(null);
           }
@@ -528,61 +677,47 @@ export default function DurableEdit({
           กำลังค้นหาข้อมูลทะเบียน…
         </p>
       )}
-      {chip && details.isSuccess && details.data === null && (
-        <p role="status" className="my-4">
-          ไม่พบควายสำหรับ microchip {chip} กรุณาตรวจเลขแล้วค้นหาอีกครั้ง
-        </p>
-      )}
-      {error && !field && <FeedbackPanel feedback={error} />}
-      {error && !field && details.data && !details.error && (
+      {chip &&
+        !job &&
+        !restoreId &&
+        details.isSuccess &&
+        details.data === null && (
+          <p role="status" className="my-4">
+            ไม่พบควายสำหรับ microchip {chip} กรุณาตรวจเลขแล้วค้นหาอีกครั้ง
+          </p>
+        )}
+      {error && !field && !job && <FeedbackPanel feedback={error} />}
+      {error && !field && !job && details.data && !details.error && (
         <IdentityDiagnosisLink
           microchip={details.data.microchip}
           code={error.code}
         />
       )}
-      {details.error && (
+      {queryError && !job && (
         <FeedbackPanel
-          title="โหลดรายละเอียดไม่สำเร็จ"
-          feedback={
-            job?.state === "COMPLETED"
-              ? completedRefreshFeedback(details.error, job.id)
-              : feedbackFor(details.error, { outcome: "not_started" })
+          title={
+            view.error
+              ? "โหลดสถานะรายการไม่สำเร็จ"
+              : list.error
+                ? "โหลดรายการแก้ไขเดิมไม่สำเร็จ"
+                : "โหลดรายละเอียดไม่สำเร็จ"
           }
-          onRetry={() => {
-            void details.refetch();
-          }}
-          retryLabel="โหลดรายละเอียดอีกครั้ง"
-          busy={busy || authLost || details.isFetching}
-        />
-      )}
-      {list.error && (
-        <FeedbackPanel
-          title="โหลดรายการแก้ไขเดิมไม่สำเร็จ"
-          feedback={
-            job?.state === "COMPLETED"
-              ? completedRefreshFeedback(list.error, job.id)
-              : feedbackFor(list.error, { outcome: "not_started" })
+          feedback={feedbackFor(queryError, { outcome: "not_started" })}
+          onRetry={readStatus}
+          retryLabel={
+            view.error
+              ? "โหลดสถานะรายการอีกครั้ง"
+              : list.error
+                ? "โหลดรายการแก้ไขเดิมอีกครั้ง"
+                : "โหลดรายละเอียดอีกครั้ง"
           }
-          onRetry={() => {
-            void list.refetch();
-          }}
-          retryLabel="โหลดรายการแก้ไขเดิมอีกครั้ง"
-          busy={busy || authLost || list.isFetching}
-        />
-      )}
-      {view.error && (
-        <FeedbackPanel
-          title="โหลดสถานะรายการไม่สำเร็จ"
-          feedback={
-            job?.state === "COMPLETED"
-              ? completedRefreshFeedback(view.error, job.id)
-              : feedbackFor(view.error, { operationId: job?.id })
+          busy={
+            busy ||
+            authLost ||
+            view.isFetching ||
+            list.isFetching ||
+            details.isFetching
           }
-          onRetry={() => {
-            void view.refetch();
-          }}
-          retryLabel="โหลดสถานะรายการอีกครั้ง"
-          busy={busy || authLost || view.isFetching}
         />
       )}
       {details.data && details.error && (
@@ -591,28 +726,13 @@ export default function DurableEdit({
           จึงพักการแก้ไข
         </p>
       )}
-      {job && view.error && (
-        <p role="status">
-          สถานะด้านล่างเป็นข้อมูลที่เคยโหลดได้ กรุณาตรวจสถานะก่อนดำเนินการต่อ
-        </p>
-      )}
       {token && list.isPending && (
         <p role="status">กำลังตรวจรายการแก้ไขเดิม ก่อนเปิดการแก้ไข…</p>
       )}
-      {authLost && (
+      {authLost && !job && (
         <Link href="/" className="btn btn-primary min-h-12">
           เข้าสู่ระบบอีกครั้ง
         </Link>
-      )}
-      {job?.state === "COMPLETED" && (
-        <button
-          type="button"
-          className="btn btn-outline my-3 min-h-12"
-          disabled={busy || authLost}
-          onClick={() => void run(() => refreshPublished(job))}
-        >
-          โหลดรายละเอียดอีกครั้ง
-        </button>
       )}
       {!field && (!!job || busy) && (
         <div
@@ -622,25 +742,113 @@ export default function DurableEdit({
           aria-label="ความคืบหน้าการแก้ไข"
           className="outline-none"
         >
-          <OperationProgress job={job} busy={busy} kind="edit" />
-          {job && (
+          {job ? (
             <EditProof
               job={job}
-              busy={searchDisabled || !!view.error || !!list.error}
+              busy={busy}
+              autoContinuing={autoContinuing || preparing}
+              stalled={!!mode && !retry && !view.isFetching}
+              feedback={
+                job.state === "COMPLETED"
+                  ? (readError ??
+                    (error?.code === "COMPLETED_REFRESH_FAILED" ? error : null))
+                  : (readError ?? error)
+              }
+              onRetryRead={readStatus}
+              onLogin={() => {
+                window.location.assign("/");
+              }}
               onResume={() => void resume()}
-              onCancel={() =>
-                void run(async () => {
-                  await cancel.mutateAsync({ id: job.id });
-                  setJob(null);
-                  await list.refetch();
-                })
+              onRefresh={() => void run(() => refreshPublished(job))}
+              onDone={() => {
+                navigation.current++;
+                dismissed.current.add(job.id);
+                setJob(null);
+                setError(null);
+                editorSection.current?.focus();
+              }}
+              onCancel={
+                job.canCancel &&
+                !preparing &&
+                !authLost &&
+                !view.error &&
+                !list.error
+                  ? () => {
+                      const first =
+                        pendingInput.current?.id === job.id
+                          ? pendingInput.current.field
+                          : (job.fields[0] as EditField | undefined);
+                      if (!first) return;
+                      setReplacement({
+                        id: job.id,
+                        field:
+                          first === "fatherId" || first === "motherId"
+                            ? "parents"
+                            : first,
+                      });
+                    }
+                  : undefined
               }
             />
+          ) : (
+            <p role="status">กำลังบันทึกคำขอ…</p>
           )}
         </div>
       )}
+      <dialog
+        ref={replaceDialog}
+        className="modal"
+        aria-labelledby="replace-edit-title"
+        onCancel={() => setReplacement(null)}
+      >
+        <div className="modal-box max-w-md">
+          <h2 id="replace-edit-title" className="text-lg font-semibold">
+            ยกเลิกคำขอเดิมแล้วแก้ใหม่?
+          </h2>
+          {replacement && job && (
+            <p className="my-3 break-words">
+              คำขอเดิมของ {details.data?.name} #{job.actualToken} แก้
+              {job.fields.map((f) => labels[f as EditField]).join(" และ ")}
+              {job.fields
+                .filter((f) => f !== "image" && f !== "dna")
+                .map((f) => job.patch[f as keyof EditPatch])
+                .filter(Boolean)
+                .map((v, i) => (
+                  <span key={i}> เป็น {v}</span>
+                ))}{" "}
+              เมื่อยกเลิกแล้วจะเปิดให้แก้{labels[replacement.field]}{" "}
+              และตรวจค่าก่อนบันทึกอีกครั้ง
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="btn btn-outline"
+              autoFocus
+              type="button"
+              onClick={() => setReplacement(null)}
+            >
+              เก็บคำขอเดิมไว้
+            </button>
+            <button
+              className="btn btn-primary"
+              type="button"
+              disabled={
+                busy || !replacement || !job?.canCancel || preparing || authLost
+              }
+              onClick={() => void replaceDraft()}
+            >
+              ยืนยันยกเลิกแล้วแก้ใหม่
+            </button>
+          </div>
+        </div>
+      </dialog>
       {details.data && (
-        <section data-edit-details className="mt-6 min-w-0">
+        <section
+          data-edit-details
+          ref={editorSection}
+          tabIndex={-1}
+          className="mt-6 min-w-0"
+        >
           <p>
             NFT #{details.data.tokenId} ·{" "}
             <span className="break-all">{details.data.microchip}</span>
@@ -759,9 +967,7 @@ export default function DurableEdit({
             NFT #{frozen.current?.tokenId} · {frozen.current?.microchip}
           </p>
           <form onSubmit={submit}>
-            {field && busy && (
-              <OperationProgress job={job} busy={busy} kind="edit" />
-            )}
+            {field && busy && <p role="status">กำลังบันทึกคำขอแก้ไข…</p>}
             <fieldset disabled={busy || authLost} className="grid gap-3">
               {field === "parents" ? (
                 <>
