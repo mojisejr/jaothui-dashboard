@@ -31,7 +31,7 @@ export function createBuffaloEditRouter(
           const r = factory();
           return Promise.all(
             (await r.workflow.list(sharedAccount(), input)).map((op) =>
-              r.workflow.view(op.id, sharedAccount(), r.engine),
+              r.workflow.view(op.id, sharedAccount(), r.engine, false),
             ),
           );
         }),
@@ -60,7 +60,14 @@ export function createBuffaloEditRouter(
         }),
       ),
     advance: protectProcedure
-      .input(id.extend({ version: z.number().int().nonnegative() }).strict())
+      .input(
+        id
+          .extend({
+            version: z.number().int().nonnegative(),
+            mode: z.enum(["autoPublication", "autoReconcile"]).optional(),
+          })
+          .strict(),
+      )
       .mutation(({ input }) =>
         safe(async () => {
           const r = factory();
@@ -69,6 +76,7 @@ export function createBuffaloEditRouter(
             sharedAccount(),
             "resume",
             input.version,
+            (op) => r.workflow.recoveryDecision(op, input.mode),
           );
           return r.workflow.view(input.id, sharedAccount(), r.engine);
         }),

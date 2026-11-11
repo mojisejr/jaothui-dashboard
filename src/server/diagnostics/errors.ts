@@ -574,6 +574,50 @@ register(["PUBLIC_ASSET_READBACK_PENDING"], {
   nextAction: "resume_existing",
   outcome: "pending",
 });
+register(["FORBIDDEN"], {
+  stage: "authentication",
+  reason: "บัญชีนี้ไม่มีสิทธิ์ดำเนินการ กรุณาให้ผู้ดูแลตรวจสิทธิ์ของบัญชี",
+  nextAction: "contact_support",
+});
+register(["SELF_PARENT_FORBIDDEN"], {
+  stage: "validation",
+  reason:
+    "เลขพ่อหรือแม่ตรงกับไมโครชิปของควายตัวที่กำลังแก้ กรุณาตรวจเลขพ่อและแม่",
+  nextAction: "correct_input",
+});
+register(["MICROCHIP_HAS_CHILD_REFERENCES_REVIEW_REQUIRED"], {
+  stage: "identity",
+  reason:
+    "พบทะเบียนลูกที่อ้างถึงเลขเดิมหรือเลขใหม่เป็นพ่อหรือแม่ ต้องให้ผู้ดูแลตรวจความสัมพันธ์ก่อนเปลี่ยนเลข",
+  nextAction: "contact_support",
+});
+register(["COW_ALREADY_RESERVED"], {
+  stage: "operation",
+  reason:
+    "มีคำขอเดิมจองทะเบียนหรือเลขไมโครชิปนี้อยู่ กรุณาตรวจรายการค้างก่อนเริ่มแก้ใหม่",
+  nextAction: "refresh_record",
+});
+register(["CANNOT_CANCEL_SIGNED_OPERATION"], {
+  stage: "operation",
+  reason:
+    "ระบบลงนามธุรกรรมของคำขอนี้แล้ว จึงยกเลิกไม่ได้ ให้ติดตามผลของรายการเดิม",
+  nextAction: "refresh_record",
+});
+register(
+  ["MANAGER_ADMIN_PERMISSION_REQUIRED", "NFT_OWNER_PERMISSION_REQUIRED"],
+  {
+    stage: "configuration",
+    reason:
+      "กระเป๋าที่ระบบใช้บันทึกไม่มีสิทธิ์แก้ข้อมูลส่วนนี้ กรุณาส่งข้อมูลให้ผู้ดูแลตรวจสิทธิ์กระเป๋า",
+    nextAction: "contact_support",
+  },
+);
+register(["NONCE_CONSUMED_BY_UNKNOWN_TRANSACTION"], {
+  stage: "chain_transaction",
+  reason:
+    "เครือข่ายใช้เลขลำดับของธุรกรรมนี้ไปแล้ว แต่ยังยืนยันไม่ได้ว่าเป็นธุรกรรมของคำขอนี้ ต้องให้ผู้ดูแลตรวจหลักฐาน",
+  nextAction: "contact_support",
+});
 export function errorPolicy(code: string): ErrorPolicy | undefined {
   return Object.hasOwn(registry, code) ? registry[code] : undefined;
 }

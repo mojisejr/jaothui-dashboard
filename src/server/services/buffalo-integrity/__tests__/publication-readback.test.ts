@@ -34,7 +34,14 @@ test.each(["wrong", "missing", "network"])(
       );
     await expect(
       verifyPublicAsset(storage, "json/1.json", hash),
-    ).rejects.toMatchObject({ code: "PUBLIC_ASSET_READBACK_PENDING" });
+    ).rejects.toMatchObject({
+      code: "PUBLIC_ASSET_READBACK_PENDING",
+      evidence: {
+        asset: "metadata",
+        source: "public",
+        problem: variant === "wrong" ? "content_differs" : "unavailable",
+      },
+    });
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(JSON.stringify(warn.mock.calls)).not.toContain(
       "secret-provider-token",

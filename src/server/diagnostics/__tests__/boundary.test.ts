@@ -10,6 +10,7 @@ jest.mock("~/server/db", () => ({ db: {} }));
 jest.mock("~/server/services/auth.service", () => ({
   isAuth: (t: string) => t === "valid",
 }));
+import { BoundMicrochipError } from "../../services/buffalo-integrity/operations/hash";
 import { z } from "zod";
 import { type PrismaClient } from "@prisma/client";
 import { createTRPCRouter, protectProcedure } from "~/server/api/trpc";
@@ -196,3 +197,14 @@ test("HTTP semantics distinguish unauthorized, input, lookup, conflict, unavaila
   }
 });
 import { diagnosticTRPCError } from "../transport";
+
+test("duplicate edit feedback names only validated registry IDs", () => {
+  const registered = diagnosticFor(
+    new BoundMicrochipError("900115003414580", 974n),
+  );
+  expect(registered.reason).toContain("900115003414580");
+  expect(registered.reason).toContain("#974");
+  expect(
+    diagnosticFor(new BoundMicrochipError(sentinel, 974n)).reason,
+  ).not.toContain(sentinel);
+});

@@ -1,3 +1,5 @@
+import { diagnosticFor } from "~/server/diagnostics/reporter";
+import { DiagnosticError, errorPolicy } from "~/server/diagnostics/errors";
 import { nativeReceiptEvidence } from "../operations/receipt-evidence";
 import { displayedImageUrl, verifyPublicAsset } from "../publication-readback";
 import {
@@ -24,7 +26,13 @@ import {
   absent,
 } from "../field-policy";
 import { calendarToDate } from "../calendar";
-import { asJson, IntegrityError, payloadHash } from "../operations/hash";
+import {
+  asJson,
+  BoundMicrochipError,
+  IntegrityError,
+  PublicationReadbackError,
+  payloadHash,
+} from "../operations/hash";
 import { serializedValue } from "../operations/loopback";
 import {
   type Operation,
@@ -52,6 +60,14 @@ import {
   type EditInput,
   type EditPatch,
 } from "./contract";
+
+import {
+  editTiming,
+  editRetry,
+  retryEvent,
+  type JournalEvent,
+  type RetryMode,
+} from "./progress";
 
 type Invariants = {
   owner: Json;
@@ -277,8 +293,10 @@ export class BuffaloEditWorkflow {
   }
   private async available(chip: string, row: Pedigree, block?: bigint) {
     if (chip === row.microchip) return;
-    if (await this.db.pedigree.findUnique({ where: { microchip: chip } }))
-      throw new IntegrityError("MICROCHIP_ALREADY_BOUND");
+    const registered = await this.db.pedigree.findUnique({
+      where: { microchip: chip },
+    });
+    if (registered) throw new BoundMicrochipError(chip, registered.tokenId);
     const mapped = await this.read("microchipToTokenId", [chip], false, block);
     if (mapped !== 0n) {
       if (typeof mapped !== "bigint" || mapped === row.tokenId)
@@ -399,6 +417,25 @@ export class BuffaloEditWorkflow {
     return Buffer.from(JSON.stringify(json));
   }
   async prepare(op: Operation): Promise<Plan> {
+    await this.drafts.observed(op, "EDIT_PREPARING", {});
+    try {
+      return await this.prepareEdit(op);
+    } catch (error) {
+      const diagnosed = diagnosticFor(error, {
+        operationId: op.id,
+        outcome: "not_started",
+      });
+      await this.drafts.observed(op, "EDIT_PREPARE_STOPPED", {
+        code: diagnosed.code,
+        requestId: diagnosed.requestId,
+        ...(error instanceof BoundMicrochipError
+          ? { chip: error.chip, token: error.registryToken.toString() }
+          : {}),
+      });
+      throw error;
+    }
+  }
+  private async prepareEdit(op: Operation): Promise<Plan> {
     const intent = edit(op),
       patch = editPatchSchema.parse(intent.patch),
       row = await this.row(intent.microchip);
@@ -923,7 +960,11 @@ export class BuffaloEditWorkflow {
       if (checkOrigin) {
         const origin = await this.storage.get(key);
         if (!origin || contentHash(origin) !== hash)
-          throw new IntegrityError("PUBLIC_ASSET_READBACK_PENDING");
+          throw new PublicationReadbackError(
+            key,
+            origin ? "content_differs" : "unavailable",
+            "origin",
+          );
       }
       await verifyPublicAsset(this.storage, key, hash);
     };
@@ -1047,12 +1088,143 @@ export class BuffaloEditWorkflow {
       rows.map((row) => this.drafts.operations.get(row.id, owner)),
     );
   }
-  async view(id: string, owner: string, engine: OperationEngine) {
+  private journal(id: string, owner: string) {
+    return this.db.$queryRaw<
+      JournalEvent[]
+    >`SELECT e.kind, e.created_at, e.step_id,
+      o.lease_until,
+      (e.detail->>'fence' = o.fence::text AND o.lease_until > clock_timestamp()) AS live_attempt,
+      CASE WHEN e.kind='EDIT_PREPARE_STOPPED' THEN e.detail->>'code' END as blocked_code,
+      CASE WHEN e.kind='EDIT_PREPARE_STOPPED' THEN e.detail->>'requestId' END as request_id,
+      CASE WHEN e.kind='EDIT_PREPARE_STOPPED' THEN e.detail->>'chip' END as conflict_chip,
+      CASE WHEN e.kind='EDIT_PREPARE_STOPPED' THEN e.detail->>'token' END as conflict_token,
+      CASE WHEN e.kind IN ('RECOVERY_REQUIRED','READY') THEN e.detail->>'reason' END as reason, CASE WHEN e.kind='RECOVERY_REQUIRED' THEN e.detail->'readback' END as readback
+      FROM buffalo_integrity.event e JOIN buffalo_integrity.operation o ON o.id=e.operation_id
+      WHERE o.id=${id}::uuid AND o.owner=${owner} AND o.intent->>'kind'='edit'
+      ORDER BY e.id`;
+  }
+  async recoveryDecision(op: Operation, requested?: RetryMode) {
+    const filePending =
+      op.state === "RECOVERY_REQUIRED" &&
+      op.reason === "PUBLIC_ASSET_READBACK_PENDING";
+    const unknown = op.state === "BROADCAST_UNKNOWN";
+    if (!filePending && !unknown && op.state !== "CHAIN_PENDING")
+      return requested ? "wait" : null;
+    const mode = filePending ? "autoPublication" : "autoReconcile";
+    if (requested && mode !== requested) return "wait";
+    const rows = await this.journal(op.id, op.owner);
+    const now = Date.now();
+    const retry = editRetry(rows, mode, now);
+    if (!retry && !filePending && !unknown && !requested) return null;
+    if (!retry?.nextAt || Date.parse(retry.nextAt) > now) return "wait";
+    // Engine holds the fenced operation lease until observation/publication completes.
+    await this.drafts.observed(op, retryEvent(mode), { fence: op.fence });
+    return mode;
+  }
+  private async progress(op: Operation) {
+    const intent = edit(op);
+    const rows = await this.journal(op.id, op.owner);
+    const now = Date.now();
+    let baseline = op.plan ? context(op).database : null;
+    if (!baseline && op.state === "DRAFT") {
+      const row = await this.db.pedigree.findUnique({
+        where: { microchip: intent.microchip },
+      });
+      if (
+        row &&
+        row.tokenId.toString() === intent.tokenId &&
+        revisionOf(row) === intent.expectedRevision
+      )
+        baseline = databaseSnapshot(row);
+    }
+    const before: Record<string, string | null> = {};
+    for (const field of Object.keys(intent.patch) as BusinessField[])
+      before[field] =
+        baseline?.[field] ?? (field === "microchip" ? intent.microchip : null);
+    const lastDraft =
+      op.state === "DRAFT"
+        ? rows
+            .filter((e) =>
+              ["EDIT_PREPARING", "EDIT_PREPARE_STOPPED"].includes(e.kind),
+            )
+            .at(-1)
+        : null;
+    let problem;
+    if (
+      lastDraft?.kind === "EDIT_PREPARE_STOPPED" &&
+      lastDraft.blocked_code &&
+      errorPolicy(lastDraft.blocked_code)
+    ) {
+      const chip = lastDraft.conflict_chip,
+        token = lastDraft.conflict_token;
+      const err =
+        lastDraft.blocked_code === "MICROCHIP_ALREADY_BOUND" &&
+        chip &&
+        /^\d{15}$/.test(chip) &&
+        token &&
+        /^[1-9]\d*$/.test(token)
+          ? new BoundMicrochipError(chip, BigInt(token))
+          : new DiagnosticError(lastDraft.blocked_code);
+      problem = diagnosticFor(err, {
+        operationId: op.id,
+        outcome: "not_started",
+      });
+      if (lastDraft.request_id && /^[a-f0-9-]{36}$/i.test(lastDraft.request_id))
+        problem.requestId = lastDraft.request_id;
+    }
+    const preparing =
+      lastDraft?.kind === "EDIT_PREPARING" &&
+      !!lastDraft.lease_until &&
+      +lastDraft.lease_until > now;
+    const timing = editTiming(
+      rows,
+      op.state === "DRAFT" && lastDraft?.kind === "EDIT_PREPARING" && !preparing
+        ? Math.min(
+            now,
+            lastDraft.lease_until?.getTime() ?? lastDraft.created_at.getTime(),
+          )
+        : now,
+    );
+    return {
+      problem,
+      progress: {
+        ...timing,
+        checkedAt: new Date(now).toISOString(),
+        preparing,
+        name: baseline?.name ?? null,
+        before,
+        fileRetry:
+          op.state === "RECOVERY_REQUIRED" &&
+          op.reason === "PUBLIC_ASSET_READBACK_PENDING"
+            ? editRetry(rows, "autoPublication", now)
+            : null,
+        readback:
+          op.reason === "PUBLIC_ASSET_READBACK_PENDING"
+            ? (rows.filter((e) => e.kind === "RECOVERY_REQUIRED").at(-1)
+                ?.readback ?? null)
+            : null,
+        unknownRetry: ["BROADCAST_UNKNOWN", "CHAIN_PENDING"].includes(op.state)
+          ? editRetry(rows, "autoReconcile", now)
+          : null,
+      },
+    };
+  }
+  async view(
+    id: string,
+    owner: string,
+    engine: OperationEngine,
+    includeProgress = true,
+  ) {
     const op = await this.drafts.operations.get(id, owner),
       intent = edit(op),
-      status = await engine.status(id, owner);
+      status = await engine.status(id, owner),
+      display = includeProgress ? await this.progress(op) : null;
     return {
       ...status,
+      ...(display?.problem && status.state === "DRAFT"
+        ? { reason: display.problem.code, diagnostic: display.problem }
+        : {}),
+      progress: display?.progress ?? null,
       actualToken: intent.tokenId,
       patch: intent.patch,
       fields: Object.keys(intent.patch),

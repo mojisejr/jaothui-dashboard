@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
+import { BoundMicrochipError } from "../services/buffalo-integrity/operations/hash";
 import { ZodError } from "zod";
 import {
   type DiagnosticEnvelope,
@@ -83,6 +84,21 @@ export function diagnosticFor(
         : (policy.outcome ?? fallback)),
     nextAction: overrides.nextAction ?? policy.nextAction,
   };
+  const conflict =
+    error instanceof BoundMicrochipError
+      ? error
+      : object(error) && error.cause instanceof BoundMicrochipError
+        ? error.cause
+        : null;
+  if (
+    code === "MICROCHIP_ALREADY_BOUND" &&
+    conflict &&
+    /^[0-9]{15}$/.test(conflict.chip) &&
+    conflict.registryToken > 0n
+  ) {
+    envelope.reason = `เลข ${conflict.chip} เป็นเลขปัจจุบันในทะเบียนของ NFT #${conflict.registryToken} กรุณาตรวจเลขที่ต้องการใช้`;
+    envelope.nextAction = "correct_input";
+  }
   if (ctx?.transportId) envelope.transportId = ctx.transportId;
   const operationId = overrides.operationId ?? ctx?.operationId;
   if (operationId && uuid.test(operationId)) envelope.operationId = operationId;
