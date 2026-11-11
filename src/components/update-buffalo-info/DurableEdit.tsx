@@ -90,13 +90,28 @@ export function EditProof({
   onResume: () => void;
   onCancel?: () => void;
 }) {
+  const fileCheckPaused =
+    job.state === "RECOVERY_REQUIRED" &&
+    job.reason === "PUBLIC_ASSET_READBACK_PENDING";
+  const chainConfirmed =
+    job.steps.some((step) => step.kind === "uri") &&
+    job.steps.every((step) => step.state === "CONFIRMED");
+  const checkingFiles =
+    chainConfirmed &&
+    ["CHAIN_STEPS", "PROJECTING", "VERIFYING"].includes(job.state);
   return (
     <section
       data-edit-operation={job.id}
       className="my-4 min-w-0 rounded-lg border border-primary p-4 text-base"
       aria-live="polite"
     >
-      <p role="status">{stateText[job.state] ?? job.state}</p>
+      <p role="status">
+        {fileCheckPaused && chainConfirmed
+          ? "บล็อกเชนยืนยันแล้ว ยังตรวจไฟล์ไม่สำเร็จ"
+          : checkingFiles
+            ? "บล็อกเชนยืนยันแล้ว กำลังตรวจไฟล์และทะเบียน"
+            : (stateText[job.state] ?? job.state)}
+      </p>
       <p className="break-all text-sm">
         รายการ {job.id} · NFT #{job.actualToken} · {job.microchip}
       </p>
@@ -160,7 +175,7 @@ export function EditProof({
           disabled={busy}
           onClick={onResume}
         >
-          ดำเนินการต่อรายการเดิม
+          {fileCheckPaused ? "ลองตรวจไฟล์อีกครั้ง" : "ดำเนินการต่อรายการเดิม"}
         </button>
       )}
       {job.canCancel && onCancel && (
