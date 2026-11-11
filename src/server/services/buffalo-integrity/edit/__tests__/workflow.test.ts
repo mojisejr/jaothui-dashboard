@@ -553,7 +553,33 @@ test("ordinary stale consumer and externally overwritten alias leave DB unpublis
     await expect(c.workflow.project(op, steps)).rejects.toThrow(
       "PUBLIC_ASSET_READBACK_PENDING",
     );
+    expect(fetch).toHaveBeenCalledTimes(4);
     expect(c.row.name).toBe("Synthetic");
+  } finally {
+    fetch.mockRestore();
+  }
+});
+test("publishes the new chip when the file becomes readable on the delayed retry", async () => {
+  const c = setupEdit(),
+    chip = "999000000004003";
+  const op = await c.start({ microchip: chip }),
+    steps = await c.finish(op);
+  let staleReads = 0;
+  const fetch = jest
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async (url) => {
+      if (String(url).includes("/json/901.json") && staleReads < 2) {
+        staleReads++;
+        expect(c.row.microchip).toBe(intent.buffalo.microchip);
+        return new Response("stale");
+      }
+      return c.fetcher(url);
+    });
+  try {
+    const proof = await c.workflow.project(op, steps);
+    expect(staleReads).toBe(2);
+    expect(c.row.microchip).toBe(chip);
+    expect(await c.workflow.verifyPublication(op, steps, proof)).toBe(true);
   } finally {
     fetch.mockRestore();
   }

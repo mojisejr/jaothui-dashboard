@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 type Progress = {
   id: string;
   state: string;
+  reason?: string | null;
   steps: { kind: string; state: string; hash: string | null }[];
 };
 /** Waiting guidance shared by every edit field, DNA and buffalo creation. */
@@ -113,7 +114,11 @@ export function OperationProgress({
             {kind === "edit"
               ? "และค้นหาไมโครชิปเดิม"
               : "แล้วเลือกรายการเดิม"}{" "}
-            ตรวจสถานะก่อน และกด “ดำเนินการต่อรายการเดิม” เมื่อระบบเปิดให้กด
+            ตรวจสถานะก่อน และกด “
+            {kind === "edit" && job?.reason === "PUBLIC_ASSET_READBACK_PENDING"
+              ? "ลองตรวจไฟล์อีกครั้ง"
+              : "ดำเนินการต่อรายการเดิม"}
+            ” เมื่อระบบเปิดให้กด
           </p>
         </>
       )}

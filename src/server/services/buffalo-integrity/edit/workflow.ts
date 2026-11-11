@@ -892,6 +892,31 @@ export class BuffaloEditWorkflow {
       payloadHash(databaseManifest(row)) === payloadHash(this.rawProjection(op))
     );
   }
+  private async verifyPublishedFile(
+    key: string,
+    hash: string,
+    checkOrigin = false,
+  ) {
+    const read = async () => {
+      if (checkOrigin) {
+        const origin = await this.storage.get(key);
+        if (!origin || contentHash(origin) !== hash)
+          throw new IntegrityError("PUBLIC_ASSET_READBACK_PENDING");
+      }
+      await verifyPublicAsset(this.storage, key, hash);
+    };
+    try {
+      await read();
+    } catch (error) {
+      if (
+        !(error instanceof IntegrityError) ||
+        error.code !== "PUBLIC_ASSET_READBACK_PENDING"
+      )
+        throw error;
+      await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+      await read();
+    }
+  }
   async project(op: Operation, steps: Step[]): Promise<PublicationProof> {
     await this.guard(op, steps);
     const c = context(op),
@@ -915,10 +940,7 @@ export class BuffaloEditWorkflow {
       [`json/${token}.json`, json, c.aliasJsonHash, "application/json"],
     ] as const) {
       await this.storage.replaceAlias(key, bytes, mime, previous);
-      const origin = await this.storage.get(key);
-      if (!origin || contentHash(origin) !== contentHash(bytes))
-        throw new IntegrityError("PUBLIC_ASSET_READBACK_PENDING");
-      await verifyPublicAsset(this.storage, key, contentHash(bytes));
+      await this.verifyPublishedFile(key, contentHash(bytes), true);
     }
     const patch = edit(op).patch;
     const { birthday, height, ...strings } = patch;
@@ -986,7 +1008,7 @@ export class BuffaloEditWorkflow {
       [`json/${edit(op).tokenId}.json`, c.jsonHash],
       [`${c.prefix}/final.json`, c.jsonHash],
     ] as const) {
-      await verifyPublicAsset(this.storage, key, hash);
+      await this.verifyPublishedFile(key, hash);
     }
     return (
       this.isProjection(row, op) &&
