@@ -158,7 +158,9 @@ test("saved edit leaves the input dialog before slow preparation and shows waiti
   fireEvent.click(screen.getByRole("button", { name: "ยืนยันการแก้ไข" }));
   await waitFor(() => expect(mockPrepare).toHaveBeenCalled());
   expect(document.querySelector("dialog")).not.toHaveAttribute("open");
-  expect(document.querySelector("[data-edit-progress]")).toHaveFocus();
+  await waitFor(() =>
+    expect(document.querySelector("[data-edit-progress]")).toHaveFocus(),
+  );
   expect(screen.getByText(/กรุณาอยู่หน้านี้จนขึ้น/)).toBeInTheDocument();
   expect(mockAdvance).not.toHaveBeenCalled();
 });
@@ -513,5 +515,26 @@ test("ambiguous DB token from edit preflight offers the source-only diagnosis li
   expect(document.getElementById("edit-value")).toHaveValue(
     "preserved proposed name",
   );
+  expect(mockAdvance).not.toHaveBeenCalled();
+});
+
+test("confirmed edit receipts show the file recheck action when publication pauses", async () => {
+  mockJobs = [
+    {
+      ...baseJob,
+      reason: "PUBLIC_ASSET_READBACK_PENDING",
+      steps: [
+        ...baseJob.steps,
+        { kind: "uri", state: "CONFIRMED", hash: "0xuri" },
+      ],
+    },
+  ];
+  render(<DurableEdit />);
+  expect(
+    await screen.findByText("บล็อกเชนยืนยันแล้ว ยังตรวจไฟล์ไม่สำเร็จ"),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "ลองตรวจไฟล์อีกครั้ง" }),
+  ).toBeEnabled();
   expect(mockAdvance).not.toHaveBeenCalled();
 });
