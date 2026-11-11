@@ -184,12 +184,12 @@ export const competitionAdminApiClient = {
       false,
       true,
     ),
-  exportLayout: (id: string) =>
+  exportLayout: (id: string, order?: "automatic") =>
     request(
       `/${encodeURIComponent(id)}/export-layout`,
       exportLayoutDetailSchema,
       {},
-      undefined,
+      { order },
       false,
       false,
       true,
@@ -384,12 +384,12 @@ export const competitionAdminApiClient = {
       recountResultSchema,
       json("POST", body),
     ),
-  exportData: (id: string) =>
+  exportData: (id: string, order?: "automatic") =>
     request(
       `/${encodeURIComponent(id)}/export`,
       exportDataSchema,
       { headers: { "x-export-presentation-version": "1" } },
-      undefined,
+      { order },
       true,
       false,
       "packet",

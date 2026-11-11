@@ -64,7 +64,9 @@ it("preserves exact event bindings and narrow revision-checked save input", asyn
   };
   await c.saveExportLayout({ id: "event.one", ...body });
   await c.exportReadiness({ page: 2, pageSize: 50 });
-  expect(mockGet).toHaveBeenCalledWith("event.one");
+  expect(mockGet).toHaveBeenCalledWith("event.one", undefined);
+  await c.exportLayout({ id: "event.one", order: "automatic" });
+  expect(mockGet).toHaveBeenCalledWith("event.one", "automatic");
   expect(mockPreview).toHaveBeenCalledWith("event.one", {
     layout: layoutFixture(),
   });

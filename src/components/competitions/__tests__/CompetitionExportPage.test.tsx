@@ -65,6 +65,7 @@ it("keeps unconfigured events repairable without requiring a successful strict e
   expect(
     screen.getByRole("region", { name: "รูปแบบไฟล์ของงานนี้" }),
   ).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "ปรับรูปแบบไฟล์" }));
   expect(
     screen.getByRole("button", { name: "ดูตัวอย่างลำดับชีต" }),
   ).toBeEnabled();
@@ -93,8 +94,11 @@ it("shows fresh source blockers from the download instead of treating a previous
   await screen.findByText("ข้อมูลล่าสุดยังไม่พร้อม");
   expect(screen.getByText(/กรุณาแปลสีที่เพิ่มใหม่/)).toBeVisible();
   expect(mockFetch).toHaveBeenCalledWith(
-    "/api/competitions/export?id=event.one&format=xlsx",
-    { headers: { Authorization: "Bearer staff-session" } },
+    "/api/competitions/export?id=event.one&format=xlsx&order=automatic",
+    {
+      headers: { Authorization: "Bearer staff-session" },
+      signal: expect.any(AbortSignal) as AbortSignal,
+    },
   );
   expect(screen.queryByText(/สร้างไฟล์ Excel แล้ว/)).not.toBeInTheDocument();
 });
@@ -112,7 +116,7 @@ it("downloads the matching binary and confirms its source row count", async () =
               : null,
     },
     blob: async () =>
-      new Blob(["PK bytes"], {
+      new Blob([new Uint8Array([80, 75, 3, 4, 1])], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       }),
   });
@@ -129,10 +133,50 @@ it("downloads the matching binary and confirms its source row count", async () =
     .mockImplementation(() => undefined);
   try {
     render(<CompetitionExportPage />);
-    fireEvent.click(screen.getByRole("button", { name: "ดาวน์โหลด Excel" }));
+    const download = screen.getByRole("button", { name: "ดาวน์โหลด Excel" });
+    fireEvent.click(download);
+    fireEvent.click(download);
     await waitFor(() => expect(click).toHaveBeenCalledTimes(1));
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("link", { name: "บันทึกไฟล์อีกครั้ง" }),
+    ).toHaveAttribute("download", "event.one.xlsx");
     expect(screen.getByText(/สร้างไฟล์ Excel แล้ว 1 รายการ/)).toBeVisible();
   } finally {
     click.mockRestore();
   }
+});
+
+it("offers sign-in for an expired staff session", async () => {
+  mockFetch.mockResolvedValue({
+    ok: false,
+    status: 401,
+    json: async () => ({
+      code: "STAFF_LOGIN_REQUIRED",
+      message: "กรุณาเข้าสู่ระบบอีกครั้ง",
+    }),
+  });
+  render(<CompetitionExportPage />);
+  fireEvent.click(screen.getByRole("button", { name: "ดาวน์โหลด Excel" }));
+  expect(
+    await screen.findByRole("button", { name: "เข้าสู่ระบบอีกครั้ง" }),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole("link", { name: "บันทึกไฟล์อีกครั้ง" }),
+  ).not.toBeInTheDocument();
+});
+it("rejects a non-ZIP response even when the server claims the correct MIME", async () => {
+  mockFetch.mockResolvedValue({
+    ok: true,
+    headers: { get: () => "event.one" },
+    blob: async () => new Blob(["error page"], { type: "application/zip" }),
+  });
+  render(<CompetitionExportPage />);
+  fireEvent.click(
+    screen.getByRole("button", { name: "ดาวน์โหลดใบสมัคร Word (.zip)" }),
+  );
+  expect(await screen.findByText(/ข้อมูลไฟล์ตอบกลับไม่ถูกต้อง/)).toBeVisible();
+  expect(
+    screen.queryByRole("link", { name: "บันทึกไฟล์อีกครั้ง" }),
+  ).not.toBeInTheDocument();
 });

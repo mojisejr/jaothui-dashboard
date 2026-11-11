@@ -28,30 +28,26 @@ export function ExportDiagnostics({ plan }: { plan: ExportPlan }) {
 export function ExportPlanPreview({
   plan,
   draft = false,
+  automatic = false,
 }: {
   plan: ExportPlan;
   draft?: boolean;
+  automatic?: boolean;
 }) {
+  const heading = draft
+    ? "ตัวอย่างจากร่างที่ยังไม่บันทึก"
+    : automatic
+      ? "ลำดับชีตมาตรฐานของงาน"
+      : "ลำดับชีตจากการตั้งค่าที่บันทึก";
   return (
-    <section
-      className="min-w-0 space-y-4"
-      aria-label={
-        draft
-          ? "ตัวอย่างจากร่างที่ยังไม่บันทึก"
-          : "ลำดับชีตจากการตั้งค่าที่บันทึก"
-      }
-    >
-      <h3 className="text-lg font-semibold">
-        {draft
-          ? "ตัวอย่างจากร่างที่ยังไม่บันทึก"
-          : "ลำดับชีตจากการตั้งค่าที่บันทึก"}
-      </h3>
+    <section className="min-w-0 space-y-4" aria-label={heading}>
+      <h3 className="text-lg font-semibold">{heading}</h3>
       <ExportDiagnostics plan={plan} />
       {plan.state === "ready" ? (
         <Alert>
           {draft
             ? "ตรวจครบแล้ว บันทึกรูปแบบนี้ก่อนดาวน์โหลด"
-            : "รูปแบบที่บันทึกพร้อมดาวน์โหลด ระบบจะตรวจข้อมูลล่าสุดอีกครั้งเมื่อดาวน์โหลด"}
+            : "พร้อมดาวน์โหลด ระบบจะตรวจข้อมูลล่าสุดอีกครั้งเมื่อดาวน์โหลด"}
         </Alert>
       ) : null}
       <div
