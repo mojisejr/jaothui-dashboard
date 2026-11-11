@@ -223,7 +223,7 @@ export class OperationEngine {
         const mode = recoveryDecision ? await recoveryDecision(initial) : null;
         if (mode === "wait") return;
         if (mode) {
-          await this.recoverEdit(claim, initial, mode);
+          await this.recoverConfirmedWork(claim, initial, mode);
           return;
         }
         await this.advanceClaim(
@@ -337,12 +337,16 @@ export class OperationEngine {
     });
     return this.status(id, owner);
   }
-  private async recoverEdit(
+  private async recoverConfirmedWork(
     claim: Claim,
     op: Operation,
     mode: "autoReconcile" | "autoPublication",
   ) {
-    if (op.intent.kind !== "edit" || !op.plan || isDatabaseRepairPlan(op.plan))
+    if (
+      op.intent.kind === "identity_repair" ||
+      !op.plan ||
+      isDatabaseRepairPlan(op.plan)
+    )
       throw new IntegrityError("INVALID_OPERATION_STAGE");
     const steps = await this.repository.steps(op.id);
     const deadline = this.budget.now() + this.budget.milliseconds;
@@ -352,7 +356,10 @@ export class OperationEngine {
       if (!current?.hash || !current.signedBytes)
         throw new IntegrityError("MISSING_DURABLE_NONCE");
       if (await this.reconcile(claim, op, current, deadline, false, true))
-        await this.repository.setState(claim, "CHAIN_STEPS");
+        await this.repository.setState(
+          claim,
+          current.kind === "mint" ? "AWAITING_METADATA_ACTION" : "CHAIN_STEPS",
+        );
       return;
     }
     if (
@@ -361,6 +368,8 @@ export class OperationEngine {
     )
       return;
     if (
+      (op.intent.kind === "create" &&
+        (!op.actualToken || !steps.some((s) => s.kind === "mint"))) ||
       !steps.some((s) => s.kind === "uri") ||
       steps.some((s) => s.state !== "CONFIRMED" || !s.receipt)
     )

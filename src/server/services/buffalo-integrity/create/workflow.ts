@@ -2,6 +2,13 @@ import {
   receiptEvidence,
   nativeReceiptEvidence,
 } from "../operations/receipt-evidence";
+import { createTiming } from "./progress";
+import {
+  journalRetry,
+  retryEvent,
+  type JournalEvent,
+  type RetryMode,
+} from "../operations/retry";
 import { verifyPublicAsset } from "../publication-readback";
 import {
   executionEnvironment,
@@ -57,6 +64,12 @@ function object(value: Json): Record<string, Json> {
   if (!value || Array.isArray(value) || typeof value !== "object")
     throw new IntegrityError("MISSING_SERVER_MANIFEST");
   return value;
+}
+function plannedReceiver(operation: Operation): string {
+  const receiver = operation.plan && object(operation.plan.context).receiver;
+  if (typeof receiver !== "string" || !/^0x[a-fA-F0-9]{40}$/.test(receiver))
+    throw new IntegrityError("MINT_EVENT_BINDING_MISMATCH");
+  return receiver;
 }
 function thaiDay(date: Date) {
   const parts = new Intl.DateTimeFormat("en", {
@@ -409,7 +422,8 @@ export class BuffaloCreateWorkflow {
       read(this.chain.domain.manager, managerAbi as Abi, "ADMIN"),
     ]);
     if (
-      String(owner).toLowerCase() !== this.chain.receiver.toLowerCase() ||
+      String(owner).toLowerCase() !==
+        plannedReceiver(operation).toLowerCase() ||
       String(approved) !== "0x0000000000000000000000000000000000000000" ||
       String(contractOwner).toLowerCase() !== this.chain.sender.toLowerCase() ||
       !(await read(this.chain.domain.manager, managerAbi as Abi, "hasRole", [
@@ -517,7 +531,7 @@ export class BuffaloCreateWorkflow {
             abi: nftAbi,
             functionName: "mintWithMetadata",
             args: [
-              this.chain.receiver,
+              plannedReceiver(operation),
               intent.image,
               String(context.provisionalUri),
             ],
@@ -527,7 +541,7 @@ export class BuffaloCreateWorkflow {
             {
               kind: "mint",
               nft: this.chain.domain.nft,
-              receiver: this.chain.receiver,
+              receiver: plannedReceiver(operation),
               imageUri: intent.image,
               tokenUri: String(context.provisionalUri),
             },
@@ -678,7 +692,8 @@ export class BuffaloCreateWorkflow {
     ]);
     if (
       mapped !== token ||
-      String(owner).toLowerCase() !== this.chain.receiver.toLowerCase() ||
+      String(owner).toLowerCase() !==
+        plannedReceiver(operation).toLowerCase() ||
       uri !== final.uri ||
       !Array.isArray(record) ||
       record[0] !== intent.image ||
@@ -791,13 +806,75 @@ export class BuffaloCreateWorkflow {
       payloadHash(this.expected(operation, true)) === proof.manifest
     );
   }
-  async view(id: string, owner: string, engine: OperationEngine) {
+  private journal(op: Operation) {
+    return this.db.$queryRaw<
+      JournalEvent[]
+    >`SELECT e.kind, e.created_at, e.step_id, s.kind AS step_kind,
+      o.lease_until, (e.detail->>'fence' = o.fence::text AND o.lease_until > clock_timestamp()) AS live_attempt,
+      e.detail->>'reason' AS reason, e.detail->'readback' AS readback
+      FROM buffalo_integrity.event e JOIN buffalo_integrity.operation o ON o.id=e.operation_id
+      LEFT JOIN buffalo_integrity.step s ON s.id=e.step_id AND s.operation_id=o.id
+      WHERE o.id=${op.id}::uuid AND o.owner=${op.owner} AND o.intent->>'kind'='create' ORDER BY e.id`;
+  }
+  async recoveryDecision(op: Operation, requested?: RetryMode) {
+    if (op.intent.kind !== "create") return "wait";
+    const file =
+      op.state === "RECOVERY_REQUIRED" &&
+      op.reason === "PUBLIC_ASSET_READBACK_PENDING";
+    if (!file && !["BROADCAST_UNKNOWN", "CHAIN_PENDING"].includes(op.state))
+      return requested ? "wait" : null;
+    const mode = file ? "autoPublication" : "autoReconcile";
+    if (requested && requested !== mode) return "wait";
+    const now = Date.now();
+    const retry = journalRetry(await this.journal(op), mode, now, "CREATE");
+    // Ordinary confirmations before the bounded diagnostic window only observe
+    // the recorded hash. They never broadcast, sign, or start the next step.
+    if (!retry && op.state === "CHAIN_PENDING") return "autoReconcile";
+    if (!retry?.nextAt || Date.parse(retry.nextAt) > now) return "wait";
+    await this.drafts.observed(op, retryEvent(mode, "CREATE"), {
+      fence: op.fence,
+    });
+    return mode;
+  }
+  private async progress(op: Operation) {
+    const rows = await this.journal(op);
+    const now = Date.now();
+    const file =
+      op.state === "RECOVERY_REQUIRED" &&
+      op.reason === "PUBLIC_ASSET_READBACK_PENDING";
+    return {
+      ...createTiming(rows, now),
+      fileRetry: file
+        ? journalRetry(rows, "autoPublication", now, "CREATE")
+        : null,
+      unknownRetry: ["BROADCAST_UNKNOWN", "CHAIN_PENDING"].includes(op.state)
+        ? journalRetry(rows, "autoReconcile", now, "CREATE")
+        : null,
+      readback: file
+        ? (rows.filter((row) => row.kind === "RECOVERY_REQUIRED").at(-1)
+            ?.readback ?? null)
+        : null,
+    };
+  }
+  async view(
+    id: string,
+    owner: string,
+    engine: OperationEngine,
+    includeProgress = true,
+  ) {
     const op = await this.drafts.operations.get(id, owner);
     const status = await engine.status(id, owner);
     const intent = buffalo(op);
     const evidence = op.state === "DRAFT" ? op.result : null;
     return {
       ...status,
+      progress: includeProgress
+        ? await this.progress({
+            ...op,
+            state: status.state,
+            reason: status.reason,
+          })
+        : null,
       steps: status.steps.map((step) => ({
         ...step,
         explorerUrl: transactionLink(this.chain.executionInstance, step.hash),
@@ -808,8 +885,7 @@ export class BuffaloCreateWorkflow {
       updatedAt: op.updatedAt,
       revision: op.version,
       canEdit:
-        ["DRAFT", "READY"].includes(op.state) &&
-        !(await this.drafts.operations.steps(id)).some((step) => step.hash),
+        ["DRAFT", "READY"].includes(op.state) && status.steps.length === 0,
       imageUrl: intent.image,
       publishedImageUrl: op.actualToken
         ? this.storage.publicUrl(`buffalo/${op.actualToken}.jpg`)

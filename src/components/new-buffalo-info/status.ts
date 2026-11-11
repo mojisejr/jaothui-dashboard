@@ -1,16 +1,16 @@
 const statuses: Record<string, string> = {
-  DRAFT: "ร่างข้อมูล ยังไม่ Mint",
-  READY: "ตรวจสอบแล้ว พร้อม Mint NFT",
+  DRAFT: "ร่างข้อมูล",
+  READY: "ตรวจข้อมูลแล้ว",
   SIGNING: "กำลังบันทึกธุรกรรม",
   CHAIN_PENDING: "รอการยืนยันบนบล็อกเชน",
   BROADCAST_UNKNOWN: "กำลังตรวจสอบธุรกรรมเดิม",
-  AWAITING_METADATA_ACTION: "Mint NFT ยืนยันแล้ว กรุณากด Mint Metadata",
+  AWAITING_METADATA_ACTION: "สร้าง NFT แล้ว รอยืนยันบันทึกทะเบียน",
   CHAIN_STEPS: "กำลังบันทึกข้อมูลบนบล็อกเชน",
   PROJECTING: "กำลังเผยแพร่ข้อมูลทะเบียน",
   VERIFYING: "กำลังตรวจสอบข้อมูลทุกส่วน",
   COMPLETED: "เสร็จสมบูรณ์",
-  RECOVERY_REQUIRED: "ต้องดำเนินการต่อรายการเดิม",
-  RETRYABLE: "ลองดำเนินการต่อรายการเดิม",
+  RECOVERY_REQUIRED: "ยังยืนยันรายการไม่ครบ",
+  RETRYABLE: "รายการหยุดชั่วคราว",
   NEEDS_REVIEW: "พบข้อมูลขัดแย้ง ต้องให้ผู้ดูแลตรวจสอบ",
   CANCELLED: "ยกเลิกร่างเดิมแล้ว",
 };
@@ -56,9 +56,9 @@ export function createError(code: string) {
 }
 export const stepLabel = (kind: string) =>
   ({
-    mint: "Mint NFT",
+    mint: "สร้าง NFT",
     uri: "ยืนยันไฟล์ NFT",
-    metadata: "Mint Metadata",
+    metadata: "บันทึกข้อมูลทะเบียน",
     parents: "บันทึกพ่อแม่",
   })[kind as "mint"] ?? "ตรวจสอบธุรกรรม";
 export const stepStatus = (state: string) =>
