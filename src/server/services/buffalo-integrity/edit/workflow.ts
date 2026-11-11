@@ -275,18 +275,39 @@ export class BuffaloEditWorkflow {
     if (!(await this.read("hasRole", [role, this.chain.sender], false, block)))
       throw new IntegrityError("MANAGER_ADMIN_PERMISSION_REQUIRED");
   }
-  private async available(chip: string, row: Pedigree) {
+  private async available(chip: string, row: Pedigree, block?: bigint) {
     if (chip === row.microchip) return;
-    if (
-      (await this.db.pedigree.findUnique({ where: { microchip: chip } })) !==
-        null ||
-      (await this.read("microchipToTokenId", [chip])) !== 0n
-    )
+    if (await this.db.pedigree.findUnique({ where: { microchip: chip } }))
       throw new IntegrityError("MICROCHIP_ALREADY_BOUND");
+    const mapped = await this.read("microchipToTokenId", [chip], false, block);
+    if (mapped !== 0n) {
+      if (typeof mapped !== "bigint" || mapped === row.tokenId)
+        throw new IntegrityError("MICROCHIP_ALREADY_BOUND");
+      // The manager retains reverse lookups after a chip edit. Require the
+      // previous NFT and its registry entry to agree on a different chip.
+      const metadata = (await this.read(
+        "getMetadata",
+        [mapped],
+        false,
+        block,
+      )) as RawMetadata;
+      const currentChip = metadata.certify.microchip;
+      if (currentChip === chip)
+        throw new IntegrityError("MICROCHIP_ALREADY_BOUND");
+      const previous = await this.db.pedigree.findUnique({
+        where: { microchip: currentChip },
+      });
+      if (!previous || previous.tokenId !== mapped)
+        throw new IntegrityError("IDENTITY_CONFLICT");
+      await this.identity(previous, block);
+    }
     if (
       await this.db.pedigree.count({
         where: {
-          OR: [{ fatherId: row.microchip }, { motherId: row.microchip }],
+          OR: [
+            { fatherId: { in: [row.microchip, chip] } },
+            { motherId: { in: [row.microchip, chip] } },
+          ],
         },
       })
     )
@@ -394,9 +415,10 @@ export class BuffaloEditWorkflow {
       raw = await this.identity(row, block.number),
       baseline = chainSnapshot(raw),
       invariants = await this.invariants(row.tokenId, raw, block.number);
+    if (patch.microchip)
+      await this.available(patch.microchip, row, block.number);
     if ((await this.chain.block(block.number)).hash !== block.hash)
       throw new IntegrityError("BASELINE_READ_REORG");
-    if (patch.microchip) await this.available(patch.microchip, row);
     for (const field of ["fatherId", "motherId"] as const)
       if (patch[field] !== undefined) await this.parent(patch[field], row);
     const key = (await this.drafts.key(op.id, op.owner)).idempotency_key,
@@ -714,7 +736,7 @@ export class BuffaloEditWorkflow {
     if (!steps.length) {
       const original = await this.row(intent.microchip);
       if (intent.patch.microchip)
-        await this.available(intent.patch.microchip, original);
+        await this.available(intent.patch.microchip, original, block);
       for (const field of ["fatherId", "motherId"] as const)
         if (intent.patch[field] !== undefined)
           await this.parent(intent.patch[field], original);
