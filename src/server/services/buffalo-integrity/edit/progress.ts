@@ -6,6 +6,7 @@ export type JournalEvent = {
   reason: string | null;
   created_at: Date;
   step_id: string | null;
+  step_kind?: string | null;
   live_attempt?: boolean | null;
   lease_until?: Date | null;
   blocked_code?: string | null;
@@ -31,6 +32,7 @@ export function editTiming(rows: JournalEvent[], now: number) {
     null,
   ];
   let phase: 0 | 1 | 2 | null = null;
+  let chainFinished = false;
   let previous = now;
   let lastProgressAt: string | null = null;
   const seen = new Set<string>();
@@ -53,7 +55,12 @@ export function editTiming(rows: JournalEvent[], now: number) {
       event.reason === "INTEGRITY_WRITES_PAUSED"
     )
       phase = null;
-    else if (event.kind === "EDIT_PREPARING") phase = 0;
+    else if (event.kind === "STEP_CONFIRMED" && event.step_kind === "uri") {
+      // URI is the edit's final chain step. Subsequent CHAIN_STEPS events
+      // acknowledge the same confirmation while publication is pending.
+      if (!chainFinished) phase = 2;
+      chainFinished = true;
+    } else if (event.kind === "EDIT_PREPARING") phase = 0;
     else if (
       [
         "READY",
@@ -65,7 +72,7 @@ export function editTiming(rows: JournalEvent[], now: number) {
         "EDIT_RECONCILE_ATTEMPT",
       ].includes(event.kind)
     )
-      phase = 1;
+      phase = chainFinished ? 2 : 1;
     else if (
       ["PROJECTING", "VERIFYING", "EDIT_PUBLICATION_ATTEMPT"].includes(
         event.kind,
