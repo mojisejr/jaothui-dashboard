@@ -502,6 +502,39 @@ test("permission and wrong identity are blocked before any step; stale record be
   c.aliases.set(c.row.microchip, 999n);
   await expect(c.start({ name: "new" })).rejects.toThrow("IDENTITY_CONFLICT");
 });
+test("reassigns a retired alias while preserving the previous token's current chip", async () => {
+  const c = setupEdit();
+  const target = "999000000004002";
+  c.aliases.set(target, 11n);
+  const op = await c.start({ microchip: target });
+  const steps = await c.finish(op);
+  const fetch = jest.spyOn(globalThis, "fetch").mockImplementation(c.fetcher);
+  try {
+    const proof = await c.workflow.project(op, steps);
+    expect(await c.workflow.verifyPublication(op, steps, proof)).toBe(true);
+    expect(c.row.microchip).toBe(target);
+    expect(c.aliases.get(target)).toBe(token);
+    expect(
+      await c.read("", [], "microchipToTokenId", [
+        c.raw.relation.fatherTokenId,
+      ]),
+    ).toBe(11n);
+  } finally {
+    fetch.mockRestore();
+  }
+});
+
+test("rechecks the former token's identity before signing", async () => {
+  const c = setupEdit();
+  const target = "999000000004002";
+  c.aliases.set(target, 11n);
+  const op = await c.start({ microchip: target });
+  c.aliases.set(c.raw.relation.fatherTokenId, 99n);
+  await expect(c.workflow.nextStep(op, [])).rejects.toThrow(
+    "IDENTITY_CONFLICT",
+  );
+});
+
 test("duplicate chip, contract old alias and child references are not silently reused", async () => {
   const c = setupEdit();
   c.aliases.set("999000000004002", token);
