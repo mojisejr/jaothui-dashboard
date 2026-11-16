@@ -1,3 +1,4 @@
+import { retryInventory, inventoryRetryDelay } from "./inventoryRecovery";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { api, type RouterOutputs } from "~/utils/api";
 import { useOperationContinuation } from "../buffalo-feedback/useOperationContinuation";
@@ -76,12 +77,14 @@ export function useCreateController() {
   const [observed, setObserved] = useState<Job | null>(null);
   const [authLost, setAuthLost] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [inventoryChecking, setInventoryChecking] = useState(false);
   const lock = useRef(false);
   const key = useRef<string>("");
   const list = api.buffaloCreate.list.useQuery(undefined, {
     enabled: !authLost,
-    refetchOnWindowFocus: true,
-    retry: false,
+    refetchOnWindowFocus: false,
+    retry: retryInventory,
+    retryDelay: inventoryRetryDelay,
   });
   const view = api.buffaloCreate.view.useQuery(
     { id },
@@ -274,6 +277,8 @@ export function useCreateController() {
     event.preventDefault();
     if (
       list.isPending ||
+      list.isFetching ||
+      inventoryChecking ||
       !!list.error ||
       !!view.error ||
       (id && (!editing || !job?.canEdit)) ||
@@ -341,7 +346,21 @@ export function useCreateController() {
       return next;
     });
   }
+  async function retryInventoryRead() {
+    setInventoryChecking(true);
+    try {
+      return await list.refetch({ cancelRefetch: false });
+    } finally {
+      setInventoryChecking(false);
+    }
+  }
   function fresh() {
+    if (active) {
+      choose(active.id);
+      return;
+    }
+    // A fresh form is not permission to create: a new read must settle first.
+    void retryInventoryRead();
     setId("");
     setObserved(null);
     setError(null);
@@ -363,6 +382,8 @@ export function useCreateController() {
     automationStopped,
     busy,
     list,
+    retryInventoryRead,
+    inventoryChecking,
     view,
     prepare,
     job,

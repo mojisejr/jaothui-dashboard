@@ -46,6 +46,8 @@ export default function DurableCreate() {
     error,
     busy,
     list,
+    retryInventoryRead,
+    inventoryChecking,
     view,
     prepare,
     job,
@@ -77,7 +79,14 @@ export default function DurableCreate() {
       : feedbackFor(view.error, { operationId: id }));
   const beforeProblem = error ?? job?.diagnostic;
   const supportBeforeMint = beforeProblem?.nextAction === "contact_support";
-  const cannotChangeDraft = busy || authLost || !!list.error || !!view.error;
+  const cannotChangeDraft =
+    busy ||
+    authLost ||
+    list.isFetching ||
+    inventoryChecking ||
+    list.isPending ||
+    !!list.error ||
+    !!view.error;
   return (
     <main
       data-buffalo-create
@@ -123,23 +132,45 @@ export default function DurableCreate() {
               )}
             </section>
           )}
-          {list.isPending && (
-            <p role="status">กำลังโหลดรายการเดิม ก่อนเริ่มรายการใหม่…</p>
+          {(list.isPending || list.isFetching || inventoryChecking) && (
+            <p role="status">
+              {list.failureCount > 0
+                ? "กำลังลองโหลดรายการเดิมอีกครั้ง…"
+                : "กำลังโหลดรายการเดิม ก่อนเริ่มรายการใหม่…"}
+            </p>
           )}
           {id && !job && view.isFetching && (
             <p role="status">กำลังโหลดสถานะรายการเดิม…</p>
           )}
           {list.error && (
-            <FeedbackPanel
-              showCopy={false}
-              title="โหลดรายการที่บันทึกไว้ไม่สำเร็จ"
-              feedback={listProblem!}
-              onRetry={() => {
-                void list.refetch();
-              }}
-              retryLabel="โหลดรายการที่บันทึกไว้อีกครั้ง"
-              busy={busy || authLost || list.isFetching}
-            />
+            <section
+              className="space-y-3 rounded-xl border border-warning/50 p-4 text-base"
+              aria-label="การตรวจรายการเดิม"
+              role="alert"
+            >
+              <h2 className="font-semibold">ยังโหลดรายการเดิมไม่ได้</h2>
+              <p>
+                ระบบยังตรวจไม่ได้ว่ามีรายการค้างหรือไม่
+                จึงยังเพิ่มตัวถัดไปไม่ได้ คำขอนี้ยังไม่ได้เริ่มสร้าง NFT ตัวใหม่
+              </p>
+              <p>ลองโหลดอีกครั้ง หากยังไม่สำเร็จ ส่งข้อมูลให้ผู้ดูแลตรวจสอบ</p>
+              <button
+                type="button"
+                className="btn btn-outline min-h-12"
+                disabled={
+                  busy || authLost || list.isFetching || inventoryChecking
+                }
+                onClick={() => void retryInventoryRead()}
+              >
+                โหลดรายการอีกครั้ง
+              </button>
+              <CreateSupportCopy
+                job={job}
+                identity={job?.input ?? form}
+                problems={[listProblem]}
+                description="ยังโหลดรายการเดิมไม่ได้ · ยังไม่ได้เริ่มสร้าง NFT ตัวใหม่"
+              />
+            </section>
           )}
           {view.error && (
             <FeedbackPanel
@@ -236,6 +267,8 @@ export default function DurableCreate() {
                 authLost ||
                 !!view.error ||
                 list.isPending ||
+                list.isFetching ||
+                inventoryChecking ||
                 !!list.error ||
                 (!editing && !!active)
               }

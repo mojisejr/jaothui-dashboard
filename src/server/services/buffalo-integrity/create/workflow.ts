@@ -1,3 +1,5 @@
+import { createView } from "./view";
+import { operationStatus } from "../operations/status";
 import {
   receiptEvidence,
   nativeReceiptEvidence,
@@ -10,10 +12,6 @@ import {
   type RetryMode,
 } from "../operations/retry";
 import { verifyPublicAsset } from "../publication-readback";
-import {
-  executionEnvironment,
-  transactionLink,
-} from "../operations/environment";
 import { randomUUID } from "crypto";
 import { normalizeBuffaloImage } from "../image-preflight";
 import { type PrismaClient } from "@prisma/client";
@@ -836,7 +834,7 @@ export class BuffaloCreateWorkflow {
     });
     return mode;
   }
-  private async progress(op: Operation) {
+  async readProgress(op: Operation) {
     const rows = await this.journal(op);
     const now = Date.now();
     const file =
@@ -856,6 +854,18 @@ export class BuffaloCreateWorkflow {
         : null,
     };
   }
+  async inventory(owner: string) {
+    return (await this.drafts.operations.listCreateSnapshots(owner)).map(
+      ({ operation, steps }) =>
+        createView(
+          operation,
+          operationStatus(operation, steps),
+          (key) => this.storage.publicUrl(key),
+          this.chain.executionInstance,
+          null,
+        ),
+    );
+  }
   async view(
     id: string,
     owner: string,
@@ -864,33 +874,18 @@ export class BuffaloCreateWorkflow {
   ) {
     const op = await this.drafts.operations.get(id, owner);
     const status = await engine.status(id, owner);
-    const intent = buffalo(op);
-    const evidence = op.state === "DRAFT" ? op.result : null;
-    return {
-      ...status,
-      progress: includeProgress
-        ? await this.progress({
+    return createView(
+      op,
+      status,
+      (key) => this.storage.publicUrl(key),
+      this.chain.executionInstance,
+      includeProgress
+        ? await this.readProgress({
             ...op,
             state: status.state,
             reason: status.reason,
           })
         : null,
-      steps: status.steps.map((step) => ({
-        ...step,
-        explorerUrl: transactionLink(this.chain.executionInstance, step.hash),
-      })),
-      input: { ...intent },
-      imageReady: !!(evidence && object(evidence).imageHash) || !!op.plan,
-      prepared: !!op.plan,
-      updatedAt: op.updatedAt,
-      revision: op.version,
-      canEdit:
-        ["DRAFT", "READY"].includes(op.state) && status.steps.length === 0,
-      imageUrl: intent.image,
-      publishedImageUrl: op.actualToken
-        ? this.storage.publicUrl(`buffalo/${op.actualToken}.jpg`)
-        : null,
-      environment: executionEnvironment(this.chain.executionInstance),
-    };
+    );
   }
 }

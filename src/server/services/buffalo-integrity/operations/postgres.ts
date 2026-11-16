@@ -1,3 +1,5 @@
+import { inventoryRead } from "../create/inventory-read";
+import { type StatusStep } from "./status";
 import {
   applyRepairDatabaseProjection,
   validateRepairProjection,
@@ -265,6 +267,30 @@ export class PostgresOperationRepository implements Repository {
       }
       return operation(row);
     });
+  }
+  /** One SQL statement gives operation + steps one MVCC snapshot. No chain/progress reads.
+   * The lateral aggregate only visits the selected owner's capped 30 operations.
+   * Signed bytes are reduced to a boolean inside PostgreSQL, never selected.
+   */
+  async listCreateSnapshots(owner: string) {
+    const rows = await inventoryRead(
+      this.db,
+      (tx) => tx.$queryRaw<(OpRow & { inventory_steps: StatusStep[] })[]>`
+      SELECT o.*, COALESCE(s.items,'[]'::jsonb) AS inventory_steps
+      FROM (SELECT * FROM buffalo_integrity.operation
+        WHERE owner=${owner} AND intent->>'kind'='create' AND state<>'CANCELLED'
+        ORDER BY (state NOT IN ('COMPLETED','CANCELLED')) DESC, created_at DESC, id DESC LIMIT 30) o
+      LEFT JOIN LATERAL (
+        SELECT jsonb_agg(jsonb_build_object('kind',kind,'state',state,'hash',transaction_hash,
+          'receipt',receipt,'hasSignedBytes',signed_bytes IS NOT NULL) ORDER BY ordinal) AS items
+        FROM buffalo_integrity.step WHERE operation_id=o.id
+      ) s ON true
+      ORDER BY (o.state NOT IN ('COMPLETED','CANCELLED')) DESC, o.created_at DESC, o.id DESC`,
+    );
+    return rows.map((row) => ({
+      operation: operation(row),
+      steps: row.inventory_steps,
+    }));
   }
   async get(id: string, owner: string): Promise<Operation> {
     return this.transaction(async (tx) => {

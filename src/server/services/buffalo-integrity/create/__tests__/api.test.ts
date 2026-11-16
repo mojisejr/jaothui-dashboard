@@ -99,3 +99,15 @@ test("production activation stays closed for create API", async () => {
     message: "INTEGRITY_FEATURE_DISABLED",
   });
 });
+
+test("list uses one owner-bound inventory call, never per-operation views or chain progress", async () => {
+  const inventory = jest.fn().mockResolvedValue([{ id }]),
+    view = jest.fn();
+  const caller = createBuffaloCreateRouter(
+    () => ({ workflow: { inventory, view } }) as unknown as CreateRuntime,
+  ).createCaller(context());
+  await expect(caller.list()).resolves.toEqual([{ id }]);
+  expect(inventory).toHaveBeenCalledTimes(1);
+  expect(inventory).toHaveBeenCalledWith("shared:phase3-shared");
+  expect(view).not.toHaveBeenCalled();
+});
