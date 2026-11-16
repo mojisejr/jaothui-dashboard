@@ -60,6 +60,25 @@ register(["DATABASE_READ_FAILED"], {
   nextAction: "retry_read",
   outcome: "not_started",
 });
+register(
+  [
+    "INVENTORY_ACQUISITION_TIMEOUT",
+    "INVENTORY_TRANSACTION_EXPIRED",
+    "INVENTORY_READ_UNAVAILABLE",
+  ],
+  {
+    stage: "database_read",
+    reason: "ยังโหลดรายการเดิมไม่ได้ ระบบยังตรวจไม่ได้ว่ามีรายการค้างหรือไม่",
+    nextAction: "retry_read",
+    outcome: "not_started",
+  },
+);
+register(["INVENTORY_READ_FAILED"], {
+  stage: "database_read",
+  reason: "ยังโหลดรายการเดิมไม่ได้ กรุณาส่งข้อมูลให้ผู้ดูแลตรวจสอบ",
+  nextAction: "contact_support",
+  outcome: "not_started",
+});
 register(["DATABASE_WRITE_FAILED"], {
   stage: "database_write",
   reason: "ยังยืนยันผลการบันทึกไม่ได้ กรุณาตรวจสอบรายการเดิมก่อนส่งซ้ำ",

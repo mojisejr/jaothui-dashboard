@@ -23,16 +23,7 @@ export function createBuffaloCreateRouter(
     list: protectProcedure.query(() =>
       safe(async () => {
         const runtime = runtimeFactory();
-        return Promise.all(
-          (await runtime.drafts.list(sharedAccount())).map((op) =>
-            runtime.workflow.view(
-              op.id,
-              sharedAccount(),
-              runtime.engine,
-              false,
-            ),
-          ),
-        );
+        return runtime.workflow.inventory(sharedAccount());
       }),
     ),
     view: protectProcedure.input(id).query(({ input }) =>
