@@ -12,7 +12,13 @@ const mockCreate = jest.fn(),
   mockListRefetch = jest.fn(),
   mockViewRefetch = jest.fn();
 let mockViewError: unknown;
-let mockList: { data?: unknown[]; isPending: boolean; error?: unknown };
+let mockList: {
+  data?: unknown[];
+  isPending: boolean;
+  isFetching?: boolean;
+  failureCount?: number;
+  error?: unknown;
+};
 const job = {
   id: "00000000-0000-4000-8000-000000000031",
   state: "AWAITING_METADATA_ACTION",
@@ -183,9 +189,7 @@ test("create inventory failure retries list, never disabled empty view", () => {
     },
   };
   render(<DurableCreate />);
-  fireEvent.click(
-    screen.getByRole("button", { name: "โหลดรายการที่บันทึกไว้อีกครั้ง" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "โหลดรายการอีกครั้ง" }));
   expect(mockListRefetch).toHaveBeenCalledTimes(1);
   expect(mockViewRefetch).not.toHaveBeenCalled();
   expect(mockCreate).not.toHaveBeenCalled();
@@ -372,4 +376,82 @@ test("a reserved mint paused by the operator has no spinner and offers continuat
     screen.queryByRole("button", { name: "สร้าง NFT" }),
   ).not.toBeInTheDocument();
   expect(document.querySelector(".loading-spinner")).toBeNull();
+});
+
+test("completed → fresh → inventory failure → read retry preserves fields and opens eligibility only after success", async () => {
+  localStorage.setItem("buffalo-create-operation", job.id);
+  mockList.data = [{ ...job, state: "COMPLETED", progress: null }];
+  let finish!: () => void;
+  mockListRefetch.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const page = render(<DurableCreate />);
+  fireEvent.click(
+    await screen.findByRole("button", { name: "เพิ่มควายตัวถัดไป" }),
+  );
+  expect(
+    screen.getByRole("button", { name: "บันทึกร่างและเพิ่มรูป" }),
+  ).toBeDisabled();
+  mockList = {
+    ...mockList,
+    error: {
+      message: "INVENTORY_READ_UNAVAILABLE",
+      data: {
+        diagnostic: {
+          code: "INVENTORY_READ_UNAVAILABLE",
+          stage: "database_read",
+          reason: "โหลดรายการเดิมไม่ได้",
+          outcome: "not_started",
+          nextAction: "retry_read",
+          requestId: "inventory-ref",
+        },
+      },
+    },
+  };
+  await act(async () => finish());
+  page.rerender(<DurableCreate />);
+  expect(
+    screen.getByRole("heading", { name: "ยังโหลดรายการเดิมไม่ได้" }),
+  ).toBeInTheDocument();
+  expect(screen.getAllByRole("alert")).toHaveLength(1);
+  expect(
+    screen.getByRole("button", { name: "บันทึกร่างและเพิ่มรูป" }),
+  ).toBeDisabled();
+  const copy = jest.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText: copy },
+  });
+  await act(async () =>
+    fireEvent.click(
+      screen.getByRole("button", { name: "คัดลอกข้อมูลส่งผู้ดูแล" }),
+    ),
+  );
+  expect(copy).toHaveBeenCalledWith(expect.stringContaining("inventory-ref"));
+  mockListRefetch.mockResolvedValueOnce({ data: [] });
+  await act(async () =>
+    fireEvent.click(screen.getByRole("button", { name: "โหลดรายการอีกครั้ง" })),
+  );
+  mockList = { data: [], isPending: false };
+  page.rerender(<DurableCreate />);
+  expect(
+    screen.getByRole("button", { name: "บันทึกร่างและเพิ่มรูป" }),
+  ).toBeEnabled();
+  fireEvent.change(screen.getByLabelText("ชื่อควาย"), {
+    target: { value: "ชื่อที่กำลังกรอก" },
+  });
+  mockList = { ...mockList, isFetching: true, failureCount: 1 };
+  page.rerender(<DurableCreate />);
+  expect(
+    screen.getByText("กำลังลองโหลดรายการเดิมอีกครั้ง…"),
+  ).toBeInTheDocument();
+  expect(screen.getByLabelText("ชื่อควาย")).toHaveValue("ชื่อที่กำลังกรอก");
+  expect(
+    screen.getByRole("button", { name: "บันทึกร่างและเพิ่มรูป" }),
+  ).toBeDisabled();
+  expect(mockCreate).not.toHaveBeenCalled();
+  expect(mockAdvance).not.toHaveBeenCalled();
 });

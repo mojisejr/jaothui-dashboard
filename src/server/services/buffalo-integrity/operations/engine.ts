@@ -1,5 +1,5 @@
+import { operationStatus } from "./status";
 import { isDatabaseRepairPlan } from "./types";
-import { DiagnosticError } from "~/server/diagnostics/errors";
 import {
   bindOperationId,
   reportDiagnostic,
@@ -112,56 +112,12 @@ export class OperationEngine {
     const operation = await this.repository.get(id, owner);
     bindOperationId(operation.id);
     const steps = await this.repository.steps(id);
-    const canResume = ![
-      "DRAFT",
-      "COMPLETED",
-      "CANCELLED",
-      "NEEDS_REVIEW",
-    ].includes(operation.state);
-    const diagnostic = operation.reason
-      ? reportDiagnostic(new DiagnosticError(operation.reason), {
-          operationId: operation.id,
-          outcome:
-            operation.reason === "PUBLIC_ASSET_READBACK_PENDING"
-              ? "pending"
-              : operation.state === "COMPLETED"
-                ? "completed"
-                : operation.state === "CANCELLED"
-                  ? "failed"
-                  : steps.some((step) => !!step.hash)
-                    ? "unknown"
-                    : "not_started",
-          nextAction: canResume ? "resume_existing" : "contact_support",
-        })
-      : undefined;
-    // Whitelist DTO. Signed bytes, calldata, plan, complete intent and private RPC errors stay server-only.
-    return {
-      id: operation.id,
-      state: operation.state,
-      version: operation.version,
-      microchip:
-        operation.intent.kind === "create"
-          ? operation.intent.buffalo.microchip
-          : operation.intent.kind === "edit"
-            ? operation.intent.microchip
-            : operation.intent.manifest.database.targets[0]!.desiredMicrochip,
-      actualToken: operation.actualToken,
-      reason: diagnostic?.code ?? null,
-      ...(diagnostic ? { diagnostic } : {}),
-      steps: steps.map((step) => ({
-        kind: step.kind,
-        state: step.state,
-        hash: step.hash,
-        receipt: step.receipt,
-      })),
-      canCancel:
-        !steps.some((step) => step.signedBytes) &&
-        !["COMPLETED", "CANCELLED"].includes(operation.state),
-      canResume: !["DRAFT", "COMPLETED", "CANCELLED", "NEEDS_REVIEW"].includes(
-        operation.state,
-      ),
-    };
+    return operationStatus(
+      operation,
+      steps.map((step) => ({ ...step, hasSignedBytes: !!step.signedBytes })),
+    );
   }
+
   private async withClaim<T>(
     id: string,
     owner: string,
