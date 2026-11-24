@@ -1186,51 +1186,63 @@ test("reconstruction never silently trims a native business name", async () => {
   );
 });
 
-test("291 legacy image-only recovery preserves exact native and DB parents while rendering native father and unspecified mother in JSON", async () => {
-  const c = legacyEdit();
-  c.raw.relation = { fatherTokenId: "764040226301172", motherTokenId: '""' };
-  c.raw.certify.issuedAt = 0n;
-  c.setRow({ fatherId: "", motherId: "" });
-  const nativeBefore = structuredClone(c.raw.relation);
-  const databaseBefore = { fatherId: c.row.fatherId, motherId: c.row.motherId };
-  const businessBefore = chainSnapshot(c.raw);
-  const op = await c.start({ image: replacementImage });
-  const ctx = op.plan!.context as LegacyTestContext;
-  const json = JSON.parse(
-    c.files.get(`${ctx.prefix}/final.json`)!.toString(),
-  ) as { attributes: { trait_type: string; value: string }[] };
-  expect(json.attributes).toContainEqual({
-    trait_type: "FatherId",
-    value: "764040226301172",
-  });
-  expect(json.attributes).toContainEqual({ trait_type: "MotherId", value: "" });
-  const retry = await c.workflow.prepare(op);
-  expect((retry.context as LegacyTestContext).jsonHash).toBe(ctx.jsonHash);
-  const fetch = jest.spyOn(globalThis, "fetch").mockImplementation(c.fetcher);
-  try {
-    const steps = await c.finish(op);
-    expect(steps.map((s) => s.kind)).toEqual(["batch", "dna_restore", "uri"]);
-    const proof = await c.workflow.project(op, steps);
-    expect(await c.workflow.verifyPublication(op, steps, proof)).toBe(true);
-    expect(c.raw.relation).toEqual(nativeBefore);
-    expect({ fatherId: c.row.fatherId, motherId: c.row.motherId }).toEqual(
-      databaseBefore,
-    );
-    expect(chainSnapshot(c.raw)).toEqual({
-      ...businessBefore,
-      image: ctx.nftImage,
+test.each(['""', "0"])(
+  "legacy image-only recovery preserves exact native and DB parents with unspecified mother sentinel %s",
+  async (mother) => {
+    const c = legacyEdit();
+    c.raw.relation = {
+      fatherTokenId: "764040226301172",
+      motherTokenId: mother,
+    };
+    c.raw.certify.issuedAt = 0n;
+    c.setRow({ fatherId: "", motherId: "" });
+    const nativeBefore = structuredClone(c.raw.relation);
+    const databaseBefore = {
+      fatherId: c.row.fatherId,
+      motherId: c.row.motherId,
+    };
+    const businessBefore = chainSnapshot(c.raw);
+    const op = await c.start({ image: replacementImage });
+    const ctx = op.plan!.context as LegacyTestContext;
+    const json = JSON.parse(
+      c.files.get(`${ctx.prefix}/final.json`)!.toString(),
+    ) as { attributes: { trait_type: string; value: string }[] };
+    expect(json.attributes).toContainEqual({
+      trait_type: "FatherId",
+      value: "764040226301172",
     });
-    expect(c.raw.certify.issuedAt).toBe(0n);
-    expect(c.db.pedigree.update.mock.calls[0]?.[0].data).not.toHaveProperty(
-      "fatherId",
-    );
-    expect(c.db.pedigree.update.mock.calls[0]?.[0].data).not.toHaveProperty(
-      "motherId",
-    );
-  } finally {
-    fetch.mockRestore();
-  }
-});
+    expect(json.attributes).toContainEqual({
+      trait_type: "MotherId",
+      value: "",
+    });
+    const retry = await c.workflow.prepare(op);
+    expect((retry.context as LegacyTestContext).jsonHash).toBe(ctx.jsonHash);
+    const fetch = jest.spyOn(globalThis, "fetch").mockImplementation(c.fetcher);
+    try {
+      const steps = await c.finish(op);
+      expect(steps.map((s) => s.kind)).toEqual(["batch", "dna_restore", "uri"]);
+      const proof = await c.workflow.project(op, steps);
+      expect(await c.workflow.verifyPublication(op, steps, proof)).toBe(true);
+      expect(c.raw.relation).toEqual(nativeBefore);
+      expect({ fatherId: c.row.fatherId, motherId: c.row.motherId }).toEqual(
+        databaseBefore,
+      );
+      expect(chainSnapshot(c.raw)).toEqual({
+        ...businessBefore,
+        image: ctx.nftImage,
+      });
+      expect(c.raw.certify.issuedAt).toBe(0n);
+      expect(c.db.pedigree.update.mock.calls[0]?.[0].data).not.toHaveProperty(
+        "fatherId",
+      );
+      expect(c.db.pedigree.update.mock.calls[0]?.[0].data).not.toHaveProperty(
+        "motherId",
+      );
+    } finally {
+      fetch.mockRestore();
+    }
+  },
+);
 test.each(["unknown-parent", "1234", " 764040226301172", '"764040226301172"'])(
   "missing database parents do not authorize arbitrary native values: %s",
   async (father) => {
@@ -1248,4 +1260,62 @@ test("legacy reconstruction cannot combine image replacement with a parent or ot
   if (op.intent.kind !== "edit") throw Error("expected edit");
   op.intent.patch.name = "changed name";
   await expect(c.workflow.prepare(op)).rejects.toThrow();
+});
+
+test("royal rarity disagreement remains blocked even with a recognized zero parent sentinel", async () => {
+  const c = legacyEdit();
+  c.raw.name = "คุณเพชรพิมาน";
+  c.raw.certify.rarity = "Super Special Rare";
+  c.raw.relation = { fatherTokenId: "900115003414472", motherTokenId: "0" };
+  c.setRow({
+    name: c.raw.name,
+    rarity: "Normal",
+    fatherId: null,
+    motherId: null,
+  });
+  await expect(c.start({ image: replacementImage })).rejects.toThrow(
+    "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+  );
+  expect(c.db.pedigree.update).not.toHaveBeenCalled();
+});
+
+test("101 image-only replacement retains approved royal rarity and exact native zero mother after registry reconciliation", async () => {
+  const c = legacyEdit();
+  c.raw.name = "คุณเพชรพิมาน";
+  c.raw.certify.rarity = "Super Special Rare";
+  c.raw.relation = { fatherTokenId: "900115003414472", motherTokenId: "0" };
+  c.setRow({
+    name: c.raw.name,
+    rarity: "Super Special Rare",
+    fatherId: null,
+    motherId: null,
+  });
+  const before = chainSnapshot(c.raw);
+  const op = await c.start({ image: replacementImage });
+  const ctx = op.plan!.context as LegacyTestContext;
+  const json = JSON.parse(
+    c.files.get(`${ctx.prefix}/final.json`)!.toString(),
+  ) as {
+    attributes: { trait_type: string; value: string }[];
+  };
+  expect(json.attributes).toContainEqual({ trait_type: "MotherId", value: "" });
+  expect(json.attributes).toContainEqual({
+    trait_type: "Rarity",
+    value: "Super Special Rare",
+  });
+  const fetch = jest.spyOn(globalThis, "fetch").mockImplementation(c.fetcher);
+  try {
+    const steps = await c.finish(op);
+    const proof = await c.workflow.project(op, steps);
+    expect(await c.workflow.verifyPublication(op, steps, proof)).toBe(true);
+  } finally {
+    fetch.mockRestore();
+  }
+  expect(chainSnapshot(c.raw)).toEqual({ ...before, image: ctx.nftImage });
+  expect(c.raw.relation.motherTokenId).toBe("0");
+  expect(c.row).toMatchObject({
+    rarity: "Super Special Rare",
+    fatherId: null,
+    motherId: null,
+  });
 });
