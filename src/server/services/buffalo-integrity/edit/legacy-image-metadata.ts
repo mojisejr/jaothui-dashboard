@@ -25,7 +25,15 @@ export function replacementMetadata(
   image: string,
 ): Buffer {
   const baseline = chainSnapshot(raw);
-  if (businessDifferences(databaseSnapshot(row), baseline).length)
+  const conflicts = businessDifferences(databaseSnapshot(row), baseline).filter(
+    ({ field, database, chain }) =>
+      !(
+        (field === "fatherId" || field === "motherId") &&
+        database === "" &&
+        (/^[0-9]{15}$/.test(chain) || chain === '""')
+      ),
+  );
+  if (conflicts.length)
     throw new IntegrityError("LEGACY_METADATA_RECONSTRUCTION_CONFLICT");
   try {
     const intent = buffaloIntentSchema.parse({
@@ -34,6 +42,9 @@ export function replacementMetadata(
       height: Number(baseline.height),
       issuedOn: secondsToCalendar(raw.certify.issuedAt),
       image,
+      // Display-only legacy absence. Neither native relations nor DB are rewritten.
+      fatherId: baseline.fatherId === '""' ? "" : baseline.fatherId,
+      motherId: baseline.motherId === '""' ? "" : baseline.motherId,
     });
     if (
       intent.name !== baseline.name ||

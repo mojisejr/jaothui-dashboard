@@ -108,6 +108,7 @@ type Context = {
     mode: "native-chain-reconstruction-v1";
     previousNftImage: string;
     previousNftUri: string;
+    parentSource: "native-chain-preserve-database-v1";
   };
 };
 const edit = (op: Operation) => {
@@ -503,6 +504,7 @@ export class BuffaloEditWorkflow {
     );
     const reconstruct =
       patch.image !== undefined &&
+      Object.keys(patch).length === 1 &&
       isLegacyIpfsReference(String(nft[0])) &&
       isLegacyIpfsReference(String(nft[1]));
     const originalJson = reconstruct
@@ -619,6 +621,7 @@ export class BuffaloEditWorkflow {
               mode: "native-chain-reconstruction-v1" as const,
               previousNftImage: String(nft[0]),
               previousNftUri: String(nft[1]),
+              parentSource: "native-chain-preserve-database-v1" as const,
             },
           }
         : {}),
