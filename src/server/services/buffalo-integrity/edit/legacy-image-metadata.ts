@@ -18,6 +18,11 @@ export function isLegacyIpfsReference(value: string): boolean {
   ).test(value);
 }
 
+/** Legacy absence only for image reconstruction; never rewrite native relations. */
+function unspecifiedLegacyParent(value: string): boolean {
+  return value === '""' || value === "0";
+}
+
 /** Explicit replacement: use authoritative business data, not old IPFS/alias JSON. */
 export function replacementMetadata(
   row: Pedigree,
@@ -30,7 +35,7 @@ export function replacementMetadata(
       !(
         (field === "fatherId" || field === "motherId") &&
         database === "" &&
-        (/^[0-9]{15}$/.test(chain) || chain === '""')
+        (/^[0-9]{15}$/.test(chain) || unspecifiedLegacyParent(chain))
       ),
   );
   if (conflicts.length)
@@ -43,8 +48,12 @@ export function replacementMetadata(
       issuedOn: secondsToCalendar(raw.certify.issuedAt),
       image,
       // Display-only legacy absence. Neither native relations nor DB are rewritten.
-      fatherId: baseline.fatherId === '""' ? "" : baseline.fatherId,
-      motherId: baseline.motherId === '""' ? "" : baseline.motherId,
+      fatherId: unspecifiedLegacyParent(baseline.fatherId)
+        ? ""
+        : baseline.fatherId,
+      motherId: unspecifiedLegacyParent(baseline.motherId)
+        ? ""
+        : baseline.motherId,
     });
     if (
       intent.name !== baseline.name ||
