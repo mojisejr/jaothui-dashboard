@@ -204,7 +204,7 @@ export function setupEdit(chip = intent.buffalo.microchip) {
     storage,
     chain,
   );
-  const start = async (patch: EditPatch) => {
+  const start = async (patch: EditPatch, prepare = true) => {
     key = randomUUID();
     const op = await workflow.create(owner, {
       key,
@@ -221,7 +221,7 @@ export function setupEdit(chip = intent.buffalo.microchip) {
       files.set(path, bytes);
       op.result = { uploadHash: contentHash(bytes) };
     }
-    op.plan = await workflow.prepare(op);
+    if (prepare) op.plan = await workflow.prepare(op);
     return op;
   };
   let ordinal = 0;
@@ -1025,4 +1025,227 @@ test("a file check starting between status reads includes its automatic schedule
     attempts: 0,
     exhausted: false,
   });
+});
+
+type LegacyTestContext = {
+  prefix: string;
+  nftImage: string;
+  jsonHash: string;
+  metadataSource?: unknown;
+};
+const legacyIpfsImage =
+  "https://nftstorage.link/ipfs/bafybeicocgiuexmfwj7tvi3ucvwwdi4cpcmaa2iobdqz6pg4ynm3vmpycm";
+const legacyIpfsJson =
+  "https://nftstorage.link/ipfs/bafkreiak2vb6ho5kgisbx2bfvgvre6van2r5drrracudsdolt3ofclqxme";
+const replacementImage =
+  "https://storage.example.test/storage/v1/object/public/slipstorage/buffalo/902.jpg";
+function legacyEdit() {
+  const c = setupEdit();
+  c.nft[0] = legacyIpfsImage;
+  c.nft[1] = legacyIpfsJson;
+  c.files.set("buffalo/902.jpg", Buffer.from("replacement pixels"));
+  return c;
+}
+test("IPFS image replacement reconstructs verified business metadata without fetching old assets, completes and supports subsequent ordinary edits", async () => {
+  const c = legacyEdit();
+  const baseline = chainSnapshot(c.raw);
+  const noNetwork = jest
+    .spyOn(globalThis, "fetch")
+    .mockRejectedValue(new Error("IPFS must not be fetched"));
+  const reads = jest.spyOn(c.storage, "get");
+  const op = await c.start({ image: replacementImage });
+  expect(noNetwork).not.toHaveBeenCalled();
+  expect(reads.mock.calls.every(([key]) => !key.includes("ipfs"))).toBe(true);
+  noNetwork.mockRestore();
+  const ctx = op.plan!.context as LegacyTestContext;
+  expect(ctx.metadataSource).toEqual({
+    mode: "native-chain-reconstruction-v1",
+    previousNftImage: legacyIpfsImage,
+    previousNftUri: legacyIpfsJson,
+    parentSource: "native-chain-preserve-database-v1",
+  });
+  expect(c.files.has(`${ctx.prefix}/previous-nft.json`)).toBe(false);
+  expect(c.files.has(`${ctx.prefix}/reconstructed-baseline.json`)).toBe(true);
+  const rebuilt = JSON.parse(
+    c.files.get(`${ctx.prefix}/final.json`)!.toString(),
+  ) as {
+    name: string;
+    image: string;
+    custom?: unknown;
+    attributes: { trait_type: string; value: string }[];
+  };
+  expect(rebuilt.custom).toBeUndefined();
+  const traits = new Map(
+    rebuilt.attributes.map((a: { trait_type: string; value: string }) => [
+      a.trait_type,
+      a.value,
+    ]),
+  );
+  expect(traits.get("FatherId")).toBe(baseline.fatherId);
+  expect(traits.get("MotherId")).toBe(baseline.motherId);
+  expect(traits.get("DNA")).toBe(baseline.dna);
+  expect(traits.get("IssuedAtSeconds")).toBe("1000");
+  expect(rebuilt.name).toBe(`${baseline.name} #${baseline.microchip}`);
+  expect(rebuilt.image).toBe(ctx.nftImage);
+  // Retrying prepare cannot replace or collide with immutable assets from the same draft.
+  const retry = await c.workflow.prepare(op);
+  expect((retry.context as LegacyTestContext).jsonHash).toBe(ctx.jsonHash);
+  const fetch = jest.spyOn(globalThis, "fetch").mockImplementation(c.fetcher);
+  try {
+    const steps = await c.finish(op);
+    expect(steps.map((s) => s.kind)).toEqual(["batch", "dna_restore", "uri"]);
+    const proof = await c.workflow.project(op, steps);
+    expect(await c.workflow.verifyPublication(op, steps, proof)).toBe(true);
+    expect(chainSnapshot(c.raw)).toEqual({ ...baseline, image: ctx.nftImage });
+    expect(databaseSnapshot(c.row)).toEqual({
+      ...baseline,
+      image: ctx.nftImage,
+    });
+    const next = await c.start({ height: "150" });
+    expect(
+      (next.plan!.context as LegacyTestContext).metadataSource,
+    ).toBeUndefined();
+  } finally {
+    fetch.mockRestore();
+  }
+});
+test("legacy zero issue timestamp stays unknown rather than inventing a 1970 issue date", async () => {
+  const c = legacyEdit();
+  c.raw.certify.issuedAt = 0n;
+  const op = await c.start({ image: replacementImage });
+  const ctx = op.plan!.context as LegacyTestContext;
+  const json = JSON.parse(
+    c.files.get(`${ctx.prefix}/final.json`)!.toString(),
+  ) as {
+    attributes: { trait_type: string; value: string }[];
+  };
+  expect(
+    json.attributes.some(
+      (a: { trait_type: string }) => a.trait_type === "IssuedAt",
+    ),
+  ).toBe(false);
+  expect(json.attributes).toContainEqual({
+    trait_type: "IssuedAtSeconds",
+    value: "0",
+  });
+});
+test("legacy reconstruction fails closed on registry disagreement and leaves an unsigned draft", async () => {
+  const c = legacyEdit();
+  c.setRow({ fatherId: "999000000000999" });
+  const op = await c.start({ image: replacementImage }, false);
+  await expect(c.workflow.prepare(op)).rejects.toThrow(
+    "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+  );
+  expect(op.state).toBe("DRAFT");
+  expect(op.plan).toBeNull();
+  expect(c.db.pedigree.update).not.toHaveBeenCalled();
+});
+test("an old failed prepare's published image is reusable but an unbound replacement is rejected", async () => {
+  const c = legacyEdit();
+  const op = await c.start({ image: replacementImage }, false);
+  const path = String(
+    (op.intent as { patch: { image: string } }).patch.image,
+  ).split("/slipstorage/")[1]!;
+  const prefix = path.slice(0, -"/source.jpg".length);
+  c.files.set(
+    `${prefix}/published-image.jpg`,
+    Buffer.from("replacement pixels"),
+  );
+  await expect(c.workflow.prepare(op)).resolves.toBeDefined();
+  c.files.set(path, Buffer.from("changed upload"));
+  await expect(c.workflow.prepare(op)).rejects.toThrow("UPLOAD_NOT_READY");
+});
+test.each([
+  "https://evil.example/ipfs/bafkreiak2vb6ho5kgisbx2bfvgvre6van2r5drrracudsdolt3ofclqxme",
+  `${legacyIpfsJson}?download=true`,
+  `${legacyIpfsJson}#fragment`,
+  legacyIpfsJson.replace("nftstorage.link", "nftstorage.link.evil.example"),
+  legacyIpfsJson.replace("https://", "https://user:secret@"),
+  `${legacyIpfsJson}/../other`,
+])("unrecognized old metadata reference remains blocked: %s", async (uri) => {
+  const c = legacyEdit();
+  c.nft[1] = uri;
+  await expect(c.start({ image: replacementImage })).rejects.toThrow(
+    "ASSET_ORIGIN_REVIEW_REQUIRED",
+  );
+  expect(c.db.pedigree.update).not.toHaveBeenCalled();
+});
+test("IPFS scalar-only edits are not authorized as metadata reconstruction", async () => {
+  const c = legacyEdit();
+  await expect(c.start({ height: "150" })).rejects.toThrow(
+    "ASSET_ORIGIN_REVIEW_REQUIRED",
+  );
+});
+
+test("reconstruction never silently trims a native business name", async () => {
+  const c = legacyEdit();
+  c.raw.name = " Synthetic ";
+  c.setRow({ name: " Synthetic " });
+  await expect(c.start({ image: replacementImage })).rejects.toThrow(
+    "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+  );
+});
+
+test("291 legacy image-only recovery preserves exact native and DB parents while rendering native father and unspecified mother in JSON", async () => {
+  const c = legacyEdit();
+  c.raw.relation = { fatherTokenId: "764040226301172", motherTokenId: '""' };
+  c.raw.certify.issuedAt = 0n;
+  c.setRow({ fatherId: "", motherId: "" });
+  const nativeBefore = structuredClone(c.raw.relation);
+  const databaseBefore = { fatherId: c.row.fatherId, motherId: c.row.motherId };
+  const businessBefore = chainSnapshot(c.raw);
+  const op = await c.start({ image: replacementImage });
+  const ctx = op.plan!.context as LegacyTestContext;
+  const json = JSON.parse(
+    c.files.get(`${ctx.prefix}/final.json`)!.toString(),
+  ) as { attributes: { trait_type: string; value: string }[] };
+  expect(json.attributes).toContainEqual({
+    trait_type: "FatherId",
+    value: "764040226301172",
+  });
+  expect(json.attributes).toContainEqual({ trait_type: "MotherId", value: "" });
+  const retry = await c.workflow.prepare(op);
+  expect((retry.context as LegacyTestContext).jsonHash).toBe(ctx.jsonHash);
+  const fetch = jest.spyOn(globalThis, "fetch").mockImplementation(c.fetcher);
+  try {
+    const steps = await c.finish(op);
+    expect(steps.map((s) => s.kind)).toEqual(["batch", "dna_restore", "uri"]);
+    const proof = await c.workflow.project(op, steps);
+    expect(await c.workflow.verifyPublication(op, steps, proof)).toBe(true);
+    expect(c.raw.relation).toEqual(nativeBefore);
+    expect({ fatherId: c.row.fatherId, motherId: c.row.motherId }).toEqual(
+      databaseBefore,
+    );
+    expect(chainSnapshot(c.raw)).toEqual({
+      ...businessBefore,
+      image: ctx.nftImage,
+    });
+    expect(c.raw.certify.issuedAt).toBe(0n);
+    expect(c.db.pedigree.update.mock.calls[0]?.[0].data).not.toHaveProperty(
+      "fatherId",
+    );
+    expect(c.db.pedigree.update.mock.calls[0]?.[0].data).not.toHaveProperty(
+      "motherId",
+    );
+  } finally {
+    fetch.mockRestore();
+  }
+});
+test.each(["unknown-parent", "1234", " 764040226301172", '"764040226301172"'])(
+  "missing database parents do not authorize arbitrary native values: %s",
+  async (father) => {
+    const c = legacyEdit();
+    c.setRow({ fatherId: "" });
+    c.raw.relation.fatherTokenId = father;
+    await expect(c.start({ image: replacementImage })).rejects.toThrow(
+      "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+    );
+  },
+);
+test("legacy reconstruction cannot combine image replacement with a parent or other business patch", async () => {
+  const c = legacyEdit();
+  const op = await c.start({ image: replacementImage }, false);
+  if (op.intent.kind !== "edit") throw Error("expected edit");
+  op.intent.patch.name = "changed name";
+  await expect(c.workflow.prepare(op)).rejects.toThrow();
 });
