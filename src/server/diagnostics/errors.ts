@@ -22,6 +22,13 @@ const registry: Record<string, ErrorPolicy> = {};
 function register(codes: readonly string[], policy: ErrorPolicy) {
   for (const code of codes) registry[code] = policy;
 }
+register(["LEGACY_METADATA_RECONSTRUCTION_CONFLICT"], {
+  stage: "validation",
+  reason:
+    "ยังเปลี่ยนรูปไม่ได้: ข้อมูลทะเบียนกับข้อมูลบนเชนไม่ตรงกัน หรือข้อมูลเดิมไม่ครบสำหรับสร้างไฟล์ข้อมูลใหม่ กรุณาส่งข้อมูลรายการให้ผู้ดูแลตรวจสอบ",
+  nextAction: "contact_support",
+  outcome: "not_started",
+});
 register(["UNAUTHORIZED", "FORBIDDEN"], {
   stage: "authentication",
   reason: "เซสชันไม่พร้อมใช้งาน กรุณาเข้าสู่ระบบอีกครั้ง",
