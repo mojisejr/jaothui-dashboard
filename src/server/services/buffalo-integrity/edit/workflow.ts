@@ -27,6 +27,10 @@ import {
 } from "../field-policy";
 import { calendarToDate } from "../calendar";
 import {
+  isLegacyIpfsReference,
+  replacementMetadata,
+} from "./legacy-image-metadata";
+import {
   asJson,
   BoundMicrochipError,
   IntegrityError,
@@ -100,6 +104,12 @@ type Context = {
   batch: boolean;
   publicationTime: string;
   legacyDifferences: Json;
+  metadataSource?: {
+    mode: "native-chain-reconstruction-v1";
+    previousNftImage: string;
+    previousNftUri: string;
+    parentSource: "native-chain-preserve-database-v1";
+  };
 };
 const edit = (op: Operation) => {
   if (op.intent.kind !== "edit")
@@ -492,21 +502,28 @@ export class BuffaloEditWorkflow {
       image,
       "image/jpeg",
     );
-    const originalJson = await this.storage.get(
-      ownedAssetKey(this.storage, String(nft[1])),
-    );
+    const reconstruct =
+      patch.image !== undefined &&
+      Object.keys(patch).length === 1 &&
+      isLegacyIpfsReference(String(nft[0])) &&
+      isLegacyIpfsReference(String(nft[1]));
+    const originalJson = reconstruct
+      ? replacementMetadata(row, raw, nftImage)
+      : await this.storage.get(ownedAssetKey(this.storage, String(nft[1])));
     if (!originalJson) throw new IntegrityError("NFT_JSON_ORIGIN_UNAVAILABLE");
-    const parsedJson = JSON.parse(originalJson.toString()) as {
-      image?: string;
-    };
-    if (
-      !parsedJson.image ||
-      contentHash(await this.imageBytes(parsedJson.image)) !==
-        contentHash(await this.imageBytes(String(nft[0])))
-    )
-      throw new IntegrityError("NFT_JSON_IMAGE_BINDING_CONFLICT");
+    if (!reconstruct) {
+      const parsedJson = JSON.parse(originalJson.toString()) as {
+        image?: string;
+      };
+      if (
+        !parsedJson.image ||
+        contentHash(await this.imageBytes(parsedJson.image)) !==
+          contentHash(await this.imageBytes(String(nft[0])))
+      )
+        throw new IntegrityError("NFT_JSON_IMAGE_BINDING_CONFLICT");
+    }
     await this.storage.putImmutable(
-      `${prefix}/previous-nft.json`,
+      `${prefix}/${reconstruct ? "reconstructed-baseline" : "previous-nft"}.json`,
       originalJson,
       "application/json",
     );
@@ -598,6 +615,16 @@ export class BuffaloEditWorkflow {
         ...businessDifferences(databaseSnapshot(row), baseline),
         ...jsonDifferences,
       ]),
+      ...(reconstruct
+        ? {
+            metadataSource: {
+              mode: "native-chain-reconstruction-v1" as const,
+              previousNftImage: String(nft[0]),
+              previousNftUri: String(nft[1]),
+              parentSource: "native-chain-preserve-database-v1" as const,
+            },
+          }
+        : {}),
     };
     await this.drafts.observed(op, "EDIT_BASELINE", {
       blockNumber: block.number.toString(),
@@ -605,6 +632,9 @@ export class BuffaloEditWorkflow {
       baselineHash: payloadHash(context.rawBaseline),
       nativeBookkeeping: asJson(invariants),
       batchResetsDNA: context.batch && !!context.rawBaseline.certify.dna,
+      ...(context.metadataSource
+        ? { metadataSource: context.metadataSource }
+        : {}),
     });
     return {
       domain: this.chain.domain,
