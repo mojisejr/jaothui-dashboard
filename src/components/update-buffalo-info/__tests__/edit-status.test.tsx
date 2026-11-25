@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { EditProof } from "../EditStatus";
 
@@ -216,3 +216,108 @@ test("explains a verified conflicting token only when the diagnostic supplies it
   ).toBeEnabled();
   expect(screen.queryByRole("button", { name: /ผู้ดูแล/ })).toBeNull();
 });
+
+test("legacy conflict survives hydrated view and copies only allowlisted causes", async () => {
+  view(
+    job({
+      fields: ["image"],
+      diagnostic: {
+        code: "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+        stage: "validation",
+        reason: "generic explanation",
+        requestId: "legacy-ref",
+        outcome: "not_started",
+        nextAction: "contact_support",
+        legacyReconstruction: {
+          version: 1,
+          issues: [{ field: "rarity", kind: "business_mismatch" }],
+        },
+      },
+    }),
+  );
+  expect(
+    screen.getByText("ระดับความหายาก: ข้อมูลทะเบียนกับบนเชนไม่ตรงกัน"),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: /ดำเนินการต่อ|บันทึกบนเชน/ }),
+  ).toBeNull();
+  fireEvent.click(
+    screen.getByRole("button", { name: "คัดลอกข้อมูลส่งผู้ดูแล" }),
+  );
+  const report = await screen.findByRole<HTMLTextAreaElement>("textbox", {
+    name: "ข้อมูลส่งผู้ดูแล",
+  });
+  expect(report.value).toContain(
+    "ระดับความหายาก: ข้อมูลทะเบียนกับบนเชนไม่ตรงกัน",
+  );
+  expect(report.value).not.toContain("generic explanation");
+});
+
+test.each(["request", "cause"])(
+  "new legacy %s invalidates copied status including a late clipboard result",
+  async (change) => {
+    let finish: () => void = () => undefined;
+    const copy = jest
+      .fn<Promise<void>, [string]>()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: copy },
+      configurable: true,
+    });
+    const issue = (requestId: string, field: string) =>
+      job({
+        fields: ["image"],
+        diagnostic: {
+          code: "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+          stage: "validation",
+          reason: "legacy",
+          requestId,
+          outcome: "not_started",
+          nextAction: "contact_support",
+          legacyReconstruction: {
+            version: 1,
+            issues: [{ field, kind: "business_mismatch" }],
+          },
+        },
+      });
+    const element = (value: Job) => (
+      <EditProof job={value} busy={false} onResume={jest.fn()} />
+    );
+    const initial = issue("request-a", "rarity");
+    const next = issue(
+      change === "request" ? "request-b" : "request-a",
+      change === "cause" ? "origin" : "rarity",
+    );
+    const rendered = render(element(initial));
+    fireEvent.click(
+      screen.getByRole("button", { name: "คัดลอกข้อมูลส่งผู้ดูแล" }),
+    );
+    rendered.rerender(element(next));
+    await act(async () => {
+      finish();
+    });
+    expect(screen.queryByText("คัดลอกแล้ว นำไปวางในแชตทีมผู้ดูแล")).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: "คัดลอกข้อมูลส่งผู้ดูแล" }),
+    );
+    await screen.findByText("คัดลอกแล้ว นำไปวางในแชตทีมผู้ดูแล");
+    const report = copy.mock.calls.at(-1)![0];
+    expect(report).toContain(
+      change === "request"
+        ? "request-b"
+        : "แหล่งกำเนิด: ข้อมูลทะเบียนกับบนเชนไม่ตรงกัน",
+    );
+    rendered.rerender(element(initial));
+    expect(screen.queryByText("คัดลอกแล้ว นำไปวางในแชตทีมผู้ดูแล")).toBeNull();
+    Object.defineProperty(navigator, "clipboard", {
+      value: undefined,
+      configurable: true,
+    });
+  },
+);

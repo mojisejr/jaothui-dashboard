@@ -11,6 +11,7 @@ export type JournalEvent = {
   lease_until?: Date | null;
   blocked_code?: string | null;
   request_id?: string | null;
+  legacy_reconstruction?: unknown;
   conflict_chip?: string | null;
   conflict_token?: string | null;
   readback?: PublicationReadbackError["evidence"] | null;

@@ -1,3 +1,4 @@
+import { type LegacyReconstruction } from "./legacy-reconstruction";
 /** Safe transport contract; never include provider errors, payloads or credentials. */
 export type DiagnosticStage =
   | "authentication"
@@ -37,5 +38,6 @@ export interface DiagnosticEnvelope {
   operationId?: string;
   outcome: DiagnosticOutcome;
   nextAction: DiagnosticAction;
+  legacyReconstruction?: LegacyReconstruction;
   fieldErrors?: Record<string, string[]>;
 }

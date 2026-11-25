@@ -1,4 +1,5 @@
 /** @jest-environment node */
+import { inspectLegacyReconstruction } from "../legacy-image-metadata";
 import { bindReceiptEvidence } from "../../operations/receipt-evidence";
 import { randomUUID, createHash } from "crypto";
 import { type Pedigree, type PrismaClient } from "@prisma/client";
@@ -1318,4 +1319,244 @@ test("101 image-only replacement retains approved royal rarity and exact native 
     fatherId: null,
     motherId: null,
   });
+});
+
+test("legacy preflight reports rarity without values before prepared asset write and survives reload", async () => {
+  const c = legacyEdit();
+  c.raw.certify.rarity = "Super Special Rare";
+  c.setRow({ rarity: "Normal" });
+  const op = await c.start({ image: replacementImage }, false);
+  const put = jest.spyOn(c.storage, "putImmutable");
+  const observed = jest.spyOn(c.drafts, "observed");
+  const evidence = {
+    version: 1,
+    issues: [{ field: "rarity", kind: "business_mismatch" }],
+  };
+  await expect(c.workflow.prepare(op)).rejects.toMatchObject({ evidence });
+  expect(put).not.toHaveBeenCalled();
+  expect(observed).toHaveBeenCalledWith(
+    op,
+    "EDIT_PREPARE_STOPPED",
+    expect.objectContaining({ legacyReconstruction: evidence }),
+  );
+  expect(c.db.pedigree.update).not.toHaveBeenCalled();
+  c.db.$queryRaw.mockResolvedValue([
+    {
+      kind: "EDIT_PREPARE_STOPPED",
+      created_at: new Date(),
+      blocked_code: "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+      legacy_reconstruction: evidence,
+    },
+  ]);
+  const dto = await c.workflow.view(
+    op.id,
+    owner,
+    new OperationEngine(c.drafts.operations, fakeChain()),
+  );
+  expect(dto.diagnostic).toMatchObject({ legacyReconstruction: evidence });
+  expect(JSON.stringify(dto.diagnostic)).not.toContain("Super Special Rare");
+});
+
+test.each(["origin", "color"] as const)(
+  "preflight classifies missing legacy %s even when database agrees",
+  (field) => {
+    const c = legacyEdit();
+    c.raw[field] = "";
+    c.setRow({ [field]: "" });
+    expect(inspectLegacyReconstruction(c.row, c.raw)).toEqual([
+      { field, kind: "invalid_legacy_field" },
+    ]);
+  },
+);
+test("preflight classifies normalization and invalid dates without inventing business values", () => {
+  const c = legacyEdit();
+  c.raw.name = " Synthetic ";
+  c.setRow({ name: c.raw.name });
+  expect(inspectLegacyReconstruction(c.row, c.raw)).toContainEqual({
+    field: "name",
+    kind: "normalization_change",
+  });
+  c.raw.certify.issuedAt = 99999999999999999999999n;
+  expect(inspectLegacyReconstruction(c.row, c.raw)).toContainEqual({
+    field: "issuedOn",
+    kind: "invalid_legacy_field",
+  });
+  c.raw.birthdate = 99999999999999999999999n;
+  expect(inspectLegacyReconstruction(c.row, c.raw)).toEqual([
+    { field: "birthday", kind: "invalid_legacy_field" },
+  ]);
+});
+test.each([
+  undefined,
+  { version: 1, issues: [{ field: "SECRET", kind: "business_mismatch" }] },
+])(
+  "old or malformed journal evidence remains generic: %j",
+  async (evidence) => {
+    const c = legacyEdit();
+    const op = await c.start({ image: replacementImage }, false);
+    c.db.$queryRaw.mockResolvedValue([
+      {
+        kind: "EDIT_PREPARE_STOPPED",
+        created_at: new Date(),
+        blocked_code: "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+        legacy_reconstruction: evidence,
+      },
+    ]);
+    const dto = await c.workflow.view(
+      op.id,
+      owner,
+      new OperationEngine(c.drafts.operations, fakeChain()),
+    );
+    expect(dto.diagnostic?.code).toBe(
+      "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+    );
+    expect(dto.diagnostic?.legacyReconstruction).toBeUndefined();
+    expect(JSON.stringify(dto.diagnostic)).not.toContain("SECRET");
+  },
+);
+
+test.each<[BusinessField, Partial<Pedigree>]>([
+  ["name", { name: "Different" }],
+  ["microchip", { microchip: "999000000009999" }],
+  ["certNo", { certNo: "different" }],
+  ["birthday", { birthday: new Date("2000-01-01T00:00:00Z") }],
+  ["sex", { sex: "Female" }],
+  ["origin", { origin: "different" }],
+  ["color", { color: "different" }],
+  ["height", { height: 999 }],
+  ["detail", { detail: "different" }],
+  ["dna", { dna: "different" }],
+  ["rarity", { rarity: "Rare" }],
+  ["fatherId", { fatherId: "999000000009998" }],
+  ["motherId", { motherId: "999000000009997" }],
+])(
+  "classifier identifies %s mismatches without returning values",
+  (field, patch) => {
+    const c = legacyEdit();
+    c.setRow(patch);
+    expect(inspectLegacyReconstruction(c.row, c.raw)).toContainEqual({
+      field,
+      kind: "business_mismatch",
+    });
+  },
+);
+
+test("legacy invalid native birthday is classified before ordinary baseline conversion", async () => {
+  const c = legacyEdit();
+  c.raw.birthdate = 99999999999999999999999n;
+  const op = await c.start({ image: replacementImage }, false);
+  await expect(c.workflow.prepare(op)).rejects.toMatchObject({
+    evidence: {
+      version: 1,
+      issues: [{ field: "birthday", kind: "invalid_legacy_field" }],
+    },
+  });
+});
+
+test("mixed owned image plus IPFS metadata completes image-only replacement and preserves business fields", async () => {
+  const c = legacyEdit();
+  c.nft[0] = c.raw.imageUri;
+  const before = chainSnapshot(c.raw);
+  const op = await c.start({ image: replacementImage });
+  const ctx = op.plan!.context as LegacyTestContext;
+  const retry = await c.workflow.prepare(op);
+  expect((retry.context as LegacyTestContext).jsonHash).toBe(ctx.jsonHash);
+  const fetch = jest.spyOn(globalThis, "fetch").mockImplementation(c.fetcher);
+  try {
+    const steps = await c.finish(op);
+    const proof = await c.workflow.project(op, steps);
+    expect(await c.workflow.verifyPublication(op, steps, proof)).toBe(true);
+    expect(chainSnapshot(c.raw)).toEqual({ ...before, image: ctx.nftImage });
+  } finally {
+    fetch.mockRestore();
+  }
+});
+
+test.each(["wrong-token", "foreign-origin", "native-mismatch", "malformed"])(
+  "mixed reconstruction rejects %s before prepared assets",
+  async (kind) => {
+    const c = legacyEdit();
+    const image =
+      kind === "wrong-token"
+        ? c.storage.publicUrl("buffalo/902.jpg")
+        : kind === "foreign-origin"
+          ? "https://evil.example/buffalo/901.jpg"
+          : kind === "malformed"
+            ? `${legacyIpfsImage}'`
+            : c.storage.publicUrl("buffalo/901.jpg");
+    c.nft[0] = image;
+    if (kind !== "native-mismatch") c.raw.imageUri = image;
+    else c.raw.imageUri = c.storage.publicUrl("buffalo/902.jpg");
+    const op = await c.start({ image: replacementImage }, false);
+    const put = jest.spyOn(c.storage, "putImmutable");
+    await expect(c.workflow.prepare(op)).rejects.toThrow();
+    expect(put).not.toHaveBeenCalled();
+  },
+);
+
+test("mixed owned image still blocks rarity conflict and altered bound upload", async () => {
+  const c = legacyEdit();
+  c.nft[0] = c.raw.imageUri;
+  c.raw.certify.rarity = "Super Special Rare";
+  const op = await c.start({ image: replacementImage }, false);
+  await expect(c.workflow.prepare(op)).rejects.toMatchObject({
+    evidence: {
+      version: 1,
+      issues: [{ field: "rarity", kind: "business_mismatch" }],
+    },
+  });
+});
+
+test("latest prepare journal replaces stale blocked causes and request references", async () => {
+  const c = legacyEdit();
+  const op = await c.start({ image: replacementImage }, false);
+  const first = {
+    kind: "EDIT_PREPARE_STOPPED",
+    created_at: new Date(),
+    blocked_code: "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+    request_id: "11111111-1111-4111-8111-111111111111",
+    legacy_reconstruction: {
+      version: 1,
+      issues: [{ field: "rarity", kind: "business_mismatch" }],
+    },
+  };
+  c.db.$queryRaw.mockResolvedValue([
+    first,
+    { kind: "EDIT_PREPARING", created_at: new Date() },
+  ]);
+  const engine = new OperationEngine(c.drafts.operations, fakeChain());
+  expect(
+    (await c.workflow.view(op.id, owner, engine)).diagnostic,
+  ).toBeUndefined();
+  c.db.$queryRaw.mockResolvedValue([
+    first,
+    {
+      ...first,
+      request_id: "22222222-2222-4222-8222-222222222222",
+      legacy_reconstruction: {
+        version: 1,
+        issues: [{ field: "origin", kind: "invalid_legacy_field" }],
+      },
+    },
+  ]);
+  const view = await c.workflow.view(op.id, owner, engine);
+  expect(view.diagnostic).toMatchObject({
+    requestId: "22222222-2222-4222-8222-222222222222",
+    legacyReconstruction: {
+      version: 1,
+      issues: [{ field: "origin", kind: "invalid_legacy_field" }],
+    },
+  });
+});
+
+test("mixed image replacement rejects changed operation upload bytes", async () => {
+  const c = legacyEdit();
+  c.nft[0] = c.raw.imageUri;
+  const op = await c.start({ image: replacementImage }, false);
+  if (op.intent.kind !== "edit") throw Error("expected edit");
+  const key = op.intent.patch.image!.split("/slipstorage/")[1]!;
+  c.files.set(key, Buffer.from("tampered"));
+  const put = jest.spyOn(c.storage, "putImmutable");
+  await expect(c.workflow.prepare(op)).rejects.toThrow("UPLOAD_NOT_READY");
+  expect(put).not.toHaveBeenCalled();
 });
