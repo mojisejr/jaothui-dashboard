@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  act,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from "@testing-library/react";
 import { FeedbackPanel } from "../FeedbackPanel";
 import {
   feedbackFor,
@@ -16,7 +22,7 @@ const diagnostic = {
   operationId: "22222222-2222-4222-8222-222222222222",
 };
 test("exact server reason and references survive transport and can be copied", async () => {
-  const copy = jest.fn().mockResolvedValue(undefined);
+  const copy = jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined);
   Object.defineProperty(navigator, "clipboard", {
     value: { writeText: copy },
     configurable: true,
@@ -88,3 +94,103 @@ test("prototype keys cannot supply a local diagnostic policy", () => {
   for (const key of ["constructor", "toString", "__proto__"])
     expect(feedbackFor(new Error(key)).outcome).toBe("unknown");
 });
+
+test("legacy support panel copies safe classified fields without arbitrary reason", async () => {
+  const copy = jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, "clipboard", {
+    value: { writeText: copy },
+    configurable: true,
+  });
+  const feedback = feedbackFor({
+    data: {
+      diagnostic: {
+        ...diagnostic,
+        code: "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+        reason: "uncopied reason sentinel",
+        legacyReconstruction: {
+          version: 1,
+          issues: [
+            { field: "rarity", kind: "business_mismatch" },
+            { field: "origin", kind: "invalid_legacy_field" },
+            { field: "name", kind: "normalization_change" },
+          ],
+        },
+      },
+    },
+  });
+  render(<FeedbackPanel feedback={feedback} />);
+  expect(
+    screen.getByText("ระดับความหายาก: ข้อมูลทะเบียนกับบนเชนไม่ตรงกัน"),
+  ).toBeVisible();
+  expect(
+    screen.getByText("แหล่งกำเนิด: ข้อมูลเดิมยังไม่รองรับการสร้างไฟล์ใหม่"),
+  ).toBeVisible();
+  expect(
+    screen.getByText("ชื่อ: การสร้างไฟล์ใหม่จะเปลี่ยนค่าข้อมูลเดิม"),
+  ).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "คัดลอกรหัสอ้างอิง" }));
+  await waitFor(() => expect(copy).toHaveBeenCalled());
+  const report = String(copy.mock.calls[0]?.[0]);
+  expect(report).toContain("ระดับความหายาก: ข้อมูลทะเบียนกับบนเชนไม่ตรงกัน");
+  expect(report).not.toContain("uncopied reason sentinel");
+});
+
+test.each(["request", "cause"])(
+  "feedback %s change invalidates copy confirmation and pending old results",
+  async (change) => {
+    let finish: () => void = () => undefined;
+    const copy = jest
+      .fn<Promise<void>, [string]>()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: copy },
+      configurable: true,
+    });
+    const initial = {
+      ...diagnostic,
+      code: "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+      legacyReconstruction: {
+        version: 1 as const,
+        issues: [
+          { field: "rarity" as const, kind: "business_mismatch" as const },
+        ],
+      },
+    };
+    const next = {
+      ...initial,
+      requestId: change === "request" ? "new-request" : initial.requestId,
+      legacyReconstruction: {
+        ...initial.legacyReconstruction,
+        issues: [
+          {
+            field:
+              change === "cause" ? ("origin" as const) : ("rarity" as const),
+            kind: "business_mismatch" as const,
+          },
+        ],
+      },
+    };
+    const rendered = render(<FeedbackPanel feedback={initial} />);
+    fireEvent.click(screen.getByRole("button", { name: "คัดลอกรหัสอ้างอิง" }));
+    rendered.rerender(<FeedbackPanel feedback={next} />);
+    await act(async () => {
+      finish();
+    });
+    expect(screen.queryByText("คัดลอกรหัสอ้างอิงแล้ว")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "คัดลอกรหัสอ้างอิง" }));
+    await screen.findByText("คัดลอกรหัสอ้างอิงแล้ว");
+    expect(copy.mock.calls.at(-1)![0]).toContain(
+      change === "request"
+        ? "new-request"
+        : "แหล่งกำเนิด: ข้อมูลทะเบียนกับบนเชนไม่ตรงกัน",
+    );
+    rendered.rerender(<FeedbackPanel feedback={initial} />);
+    expect(screen.queryByText("คัดลอกรหัสอ้างอิงแล้ว")).toBeNull();
+  },
+);

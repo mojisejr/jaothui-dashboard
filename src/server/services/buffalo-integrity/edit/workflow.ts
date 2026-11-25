@@ -27,12 +27,14 @@ import {
 } from "../field-policy";
 import { calendarToDate } from "../calendar";
 import {
-  isLegacyIpfsReference,
+  supportsLegacyReconstruction,
   replacementMetadata,
+  inspectLegacyReconstruction,
 } from "./legacy-image-metadata";
 import {
   asJson,
   BoundMicrochipError,
+  LegacyMetadataReconstructionError,
   IntegrityError,
   PublicationReadbackError,
   payloadHash,
@@ -436,6 +438,9 @@ export class BuffaloEditWorkflow {
         outcome: "not_started",
       });
       await this.drafts.observed(op, "EDIT_PREPARE_STOPPED", {
+        ...(diagnosed.legacyReconstruction
+          ? { legacyReconstruction: asJson(diagnosed.legacyReconstruction) }
+          : {}),
         code: diagnosed.code,
         requestId: diagnosed.requestId,
         ...(error instanceof BoundMicrochipError
@@ -460,8 +465,23 @@ export class BuffaloEditWorkflow {
       throw new IntegrityError("CANONICAL_READ_PORT_REQUIRED");
     const block = await this.chain.block(),
       raw = await this.identity(row, block.number),
-      baseline = chainSnapshot(raw),
       invariants = await this.invariants(row.tokenId, raw, block.number);
+    const nativeNft = invariants.nftRecord as Json[];
+    if (
+      patch.image !== undefined &&
+      Object.keys(patch).length === 1 &&
+      supportsLegacyReconstruction(
+        String(nativeNft[0]),
+        String(nativeNft[1]),
+        raw.imageUri,
+        this.storage.publicUrl(`buffalo/${row.tokenId}.jpg`),
+      )
+    ) {
+      const issues = inspectLegacyReconstruction(row, raw);
+      if (issues.length)
+        throw new LegacyMetadataReconstructionError({ version: 1, issues });
+    }
+    const baseline = chainSnapshot(raw);
     if (patch.microchip)
       await this.available(patch.microchip, row, block.number);
     if ((await this.chain.block(block.number)).hash !== block.hash)
@@ -497,19 +517,23 @@ export class BuffaloEditWorkflow {
     const nft = invariants.nftRecord as Json[];
     const nftImage = patch.image ?? String(nft[0]);
     const image = await this.imageBytes(nftImage);
+    const reconstruct =
+      patch.image !== undefined &&
+      Object.keys(patch).length === 1 &&
+      supportsLegacyReconstruction(
+        String(nft[0]),
+        String(nft[1]),
+        raw.imageUri,
+        this.storage.publicUrl(`buffalo/${row.tokenId}.jpg`),
+      );
+    const originalJson = reconstruct
+      ? replacementMetadata(row, raw, nftImage)
+      : await this.storage.get(ownedAssetKey(this.storage, String(nft[1])));
     await this.storage.putImmutable(
       `${prefix}/published-image.jpg`,
       image,
       "image/jpeg",
     );
-    const reconstruct =
-      patch.image !== undefined &&
-      Object.keys(patch).length === 1 &&
-      isLegacyIpfsReference(String(nft[0])) &&
-      isLegacyIpfsReference(String(nft[1]));
-    const originalJson = reconstruct
-      ? replacementMetadata(row, raw, nftImage)
-      : await this.storage.get(ownedAssetKey(this.storage, String(nft[1])));
     if (!originalJson) throw new IntegrityError("NFT_JSON_ORIGIN_UNAVAILABLE");
     if (!reconstruct) {
       const parsedJson = JSON.parse(originalJson.toString()) as {
@@ -1126,6 +1150,7 @@ export class BuffaloEditWorkflow {
       (e.detail->>'fence' = o.fence::text AND o.lease_until > clock_timestamp()) AS live_attempt,
       CASE WHEN e.kind='EDIT_PREPARE_STOPPED' THEN e.detail->>'code' END as blocked_code,
       CASE WHEN e.kind='EDIT_PREPARE_STOPPED' THEN e.detail->>'requestId' END as request_id,
+      CASE WHEN e.kind='EDIT_PREPARE_STOPPED' THEN e.detail->'legacyReconstruction' END as legacy_reconstruction,
       CASE WHEN e.kind='EDIT_PREPARE_STOPPED' THEN e.detail->>'chip' END as conflict_chip,
       CASE WHEN e.kind='EDIT_PREPARE_STOPPED' THEN e.detail->>'token' END as conflict_token,
       CASE WHEN e.kind IN ('RECOVERY_REQUIRED','READY') THEN e.detail->>'reason' END as reason, CASE WHEN e.kind='RECOVERY_REQUIRED' THEN e.detail->'readback' END as readback
@@ -1196,7 +1221,11 @@ export class BuffaloEditWorkflow {
         token &&
         /^[1-9]\d*$/.test(token)
           ? new BoundMicrochipError(chip, BigInt(token))
-          : new DiagnosticError(lastDraft.blocked_code);
+          : lastDraft.blocked_code === "LEGACY_METADATA_RECONSTRUCTION_CONFLICT"
+            ? new LegacyMetadataReconstructionError(
+                lastDraft.legacy_reconstruction,
+              )
+            : new DiagnosticError(lastDraft.blocked_code);
       problem = diagnosticFor(err, {
         operationId: op.id,
         outcome: "not_started",

@@ -1,0 +1,51 @@
+{
+  "tokenId": "334",
+  "row": {
+    "microchip": "900115003763031",
+    "name": "เพชรวันใหม่",
+    "certNo": "",
+    "birthday": "2021-10-13T00:00:00.000Z",
+    "sex": "Male",
+    "motherId": null,
+    "fatherId": null,
+    "origin": "thai",
+    "height": 0,
+    "color": "Black",
+    "createdAt": "1724690781206",
+    "detail": "",
+    "dna": "N/A",
+    "image": "https://wtnqjxerhmdnqszkhbvs.supabase.co/storage/v1/object/public/slipstorage/buffalo/334",
+    "rarity": "Normal",
+    "tokenId": "334",
+    "updatedAt": "1724690781206"
+  },
+  "native": {
+    "name": "เพชรวันใหม่",
+    "origin": "thai",
+    "color": "Black",
+    "imageUri": "https://wtnqjxerhmdnqszkhbvs.supabase.co/storage/v1/object/public/slipstorage/buffalo/334.jpg",
+    "detail": "N/A",
+    "sex": "Male",
+    "birthdate": "1634083200",
+    "height": "0",
+    "certify": {
+      "microchip": "900115003763031",
+      "certNo": "N/A",
+      "rarity": "Normal",
+      "dna": "",
+      "issuedAt": "0"
+    },
+    "relation": {
+      "motherTokenId": "",
+      "fatherTokenId": ""
+    },
+    "createdAt": "1719506680",
+    "updatedAt": "1719506680"
+  },
+  "nftRecord": [
+    "https://wtnqjxerhmdnqszkhbvs.supabase.co/storage/v1/object/public/slipstorage/buffalo/334.jpg",
+    "https://nftstorage.link/ipfs/bafkreigynuvob4drnzc2yneg74zbxdj32juxmkmbodmbxppie4hxdwf2ka",
+    "1719506640",
+    "0"
+  ]
+}

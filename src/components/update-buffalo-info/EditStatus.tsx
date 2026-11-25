@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { legacyReconstructionLines } from "../buffalo-feedback/legacy-reconstruction";
 import type { RouterOutputs } from "~/utils/api";
 import type { Feedback } from "../buffalo-feedback/feedback";
 import { IdentityDiagnosisLink } from "../buffalo-repair/IdentityDiagnosisLink";
@@ -332,7 +333,7 @@ function describe({
     job.state === "NEEDS_REVIEW" ||
     job.state === "RETRYABLE" ||
     job.state === "RECOVERY_REQUIRED" ||
-    (job.state === "DRAFT" && job.reason)
+    (job.state === "DRAFT" && (job.reason ?? job.diagnostic?.code))
   )
     return diagnosis(job, job.diagnostic, phase);
   switch (job.state) {
@@ -435,10 +436,17 @@ export function EditProof(props: Props) {
   const display = describe(props);
   const complete = job.state === "COMPLETED";
   const [now, setNow] = useState(() => Date.now());
-  const [copied, setCopied] = useState<"" | "copied" | "manual">("");
+  const [copyResult, setCopyResult] = useState<{
+    body: string;
+    status: "copied" | "manual";
+  } | null>(null);
   const working = !!display.working;
   const diagnostic = props.feedback ?? job.diagnostic;
   const code = diagnostic?.code ?? job.reason;
+  const legacyCauses = legacyReconstructionLines(
+    code ?? undefined,
+    diagnostic?.legacyReconstruction,
+  );
   const showCancel =
     job.canCancel &&
     onCancel &&
@@ -446,45 +454,44 @@ export function EditProof(props: Props) {
     display.action === "resume" &&
     !["CANCELLED", "COMPLETED"].includes(job.state);
   useEffect(() => {
-    setCopied("");
-  }, [job.id, code]);
-  useEffect(() => {
     if (!working) return;
     setNow(Date.now());
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [working]);
-  const report = () =>
-    [
-      `เวลา: ${new Date().toISOString()}`,
-      "หน้า: แก้ไขควาย",
-      `operationId: ${job.id}`,
-      `NFT: #${job.actualToken}`,
-      `state: ${job.state}`,
-      `version: ${job.version}`,
-      `phase: ${Math.min(display.phase + 1, 3)}/3`,
-      `lastConfirmed: ${job.steps.filter((step) => step.state === "CONFIRMED").at(-1)?.kind ?? "none"}`,
-      `outcome: ${job.steps.some((step) => step.state === "REVERTED") ? "failed" : (diagnostic?.outcome ?? "unknown")}`,
-      code && `code: ${code}`,
-      diagnostic?.requestId && `requestId: ${diagnostic.requestId}`,
-      diagnostic?.stage && `stage: ${diagnostic.stage}`,
-      `ช่องที่แก้ไข: ${job.fields.join(", ")}`,
-      ...job.steps.map(
-        (s) => `${s.kind}: ${s.state}${s.hash ? " " + s.hash : ""}`,
-      ),
-      p?.readback &&
-        `readback: ${p.readback.asset} ${p.readback.problem} ${p.readback.source}`,
-      p?.fileRetry && `ตรวจไฟล์: ${p.fileRetry.attempts} รอบ`,
-      p?.unknownRetry && `ตรวจธุรกรรม: ${p.unknownRetry.attempts} รอบ`,
-    ]
-      .filter(Boolean)
-      .join("\n");
+  const reportBody = [
+    "หน้า: แก้ไขควาย",
+    `operationId: ${job.id}`,
+    `NFT: #${job.actualToken}`,
+    `state: ${job.state}`,
+    `version: ${job.version}`,
+    `phase: ${Math.min(display.phase + 1, 3)}/3`,
+    `lastConfirmed: ${job.steps.filter((step) => step.state === "CONFIRMED").at(-1)?.kind ?? "none"}`,
+    `outcome: ${job.steps.some((step) => step.state === "REVERTED") ? "failed" : (diagnostic?.outcome ?? "unknown")}`,
+    code && `code: ${code}`,
+    diagnostic?.requestId && `requestId: ${diagnostic.requestId}`,
+    diagnostic?.stage && `stage: ${diagnostic.stage}`,
+    ...legacyCauses.map((cause) => `สาเหตุ: ${cause}`),
+    `ช่องที่แก้ไข: ${job.fields.join(", ")}`,
+    ...job.steps.map(
+      (s) => `${s.kind}: ${s.state}${s.hash ? " " + s.hash : ""}`,
+    ),
+    p?.readback &&
+      `readback: ${p.readback.asset} ${p.readback.problem} ${p.readback.source}`,
+    p?.fileRetry && `ตรวจไฟล์: ${p.fileRetry.attempts} รอบ`,
+    p?.unknownRetry && `ตรวจธุรกรรม: ${p.unknownRetry.attempts} รอบ`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const report = () => `เวลา: ${new Date().toISOString()}\n${reportBody}`;
+  // A late clipboard result belongs only to the exact evidence that was copied.
+  const copied = copyResult?.body === reportBody ? copyResult.status : "";
   async function copyReport() {
     try {
       await navigator.clipboard.writeText(report());
-      setCopied("copied");
+      setCopyResult({ body: reportBody, status: "copied" });
     } catch {
-      setCopied("manual");
+      setCopyResult({ body: reportBody, status: "manual" });
     }
   }
   const actions = {
@@ -618,6 +625,16 @@ export function EditProof(props: Props) {
           <h2 className="break-words text-xl font-semibold">{display.title}</h2>
         </div>
         <p>{display.message}</p>
+        {legacyCauses.length > 0 && (
+          <ul
+            aria-label="ช่องข้อมูลเดิมที่ต้องตรวจสอบ"
+            className="space-y-1 break-words"
+          >
+            {legacyCauses.map((cause) => (
+              <li key={cause}>{cause}</li>
+            ))}
+          </ul>
+        )}
         {working && nextCheck && (
           <p className="text-sm text-base-content/75">
             กำหนดตรวจครั้งถัดไป {localTime(nextCheck)} น.
