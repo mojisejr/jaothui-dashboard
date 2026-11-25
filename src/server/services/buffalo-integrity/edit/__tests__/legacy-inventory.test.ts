@@ -97,3 +97,42 @@ test("captured name mismatch flag does not become an identity conflict", () => {
     kind: "business_mismatch",
   });
 });
+
+import captured334 from "./fixtures/legacy334.json";
+const trustedStorageBase =
+  "https://wtnqjxerhmdnqszkhbvs.supabase.co/storage/v1/object/public/slipstorage/";
+test("captured334 requires explicitly configured trusted storage and preserves input", () => {
+  const before = JSON.stringify(captured334);
+  expect(classifyLegacyInventory({ results: [captured334] }).counts).toEqual({
+    not_legacy: 1,
+  });
+  expect(
+    classifyLegacyInventory({ results: [captured334] }, { trustedStorageBase })
+      .counts,
+  ).toEqual({ eligible_reconstruction: 1 });
+  expect(JSON.stringify(captured334)).toBe(before);
+});
+test.each([
+  "foreign",
+  "wrong-token",
+  "native-mismatch",
+  "malformed",
+  "reverse-mixed",
+])("mixed classifier rejects %s", (kind) => {
+  const entry = structuredClone(captured334);
+  if (kind === "foreign")
+    entry.nftRecord[0] = "https://evil.example/buffalo/334.jpg";
+  if (kind === "wrong-token")
+    entry.nftRecord[0] = trustedStorageBase + "buffalo/335.jpg";
+  if (kind === "native-mismatch")
+    entry.native.imageUri = trustedStorageBase + "buffalo/335.jpg";
+  if (kind === "malformed") entry.nftRecord[0] += "'";
+  if (kind === "reverse-mixed") {
+    entry.nftRecord[0] = entry.nftRecord[1]!;
+    entry.nftRecord[1] = trustedStorageBase + "json/334.json";
+  }
+  expect(
+    classifyLegacyInventory({ results: [entry] }, { trustedStorageBase })
+      .counts,
+  ).toEqual({ not_legacy: 1 });
+});

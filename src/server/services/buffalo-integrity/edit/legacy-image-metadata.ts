@@ -19,6 +19,22 @@ export function isLegacyIpfsReference(value: string): boolean {
   ).test(value);
 }
 
+/** Mixed-origin support is explicit: the caller supplies its configured same-token alias. */
+export function supportsLegacyReconstruction(
+  nftImage: string,
+  nftUri: string,
+  nativeImage: string,
+  expectedOwnedImage?: string,
+): boolean {
+  if (!isLegacyIpfsReference(nftUri)) return false;
+  if (isLegacyIpfsReference(nftImage)) return true;
+  return (
+    !!expectedOwnedImage &&
+    nftImage === expectedOwnedImage &&
+    nativeImage === nftImage
+  );
+}
+
 /** Legacy absence only for image reconstruction; never rewrite native relations. */
 function unspecifiedLegacyParent(value: string): boolean {
   return value === '""' || value === "0";

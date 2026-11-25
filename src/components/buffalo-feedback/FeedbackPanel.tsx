@@ -49,7 +49,10 @@ export function FeedbackPanel({
   busy?: boolean;
   showCopy?: boolean;
 }) {
-  const [copyState, setCopyState] = useState("");
+  const [copyResult, setCopyResult] = useState<{
+    reference: string;
+    message: string;
+  } | null>(null);
   const legacyCauses = legacyReconstructionLines(
     feedback.code,
     feedback.legacyReconstruction,
@@ -62,6 +65,11 @@ export function FeedbackPanel({
   ]
     .filter(Boolean)
     .join("\n");
+  const copyState =
+    copyResult?.reference === reference ? copyResult.message : "";
+  function setCopyState(message: string) {
+    setCopyResult({ reference, message });
+  }
   return (
     <section
       role="alert"

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import {
   inspectLegacyReconstruction,
-  isLegacyIpfsReference,
+  supportsLegacyReconstruction,
 } from "./legacy-image-metadata";
 import { type LegacyReconstructionIssue } from "~/lib/legacy-reconstruction";
 const integer = z
@@ -84,7 +84,24 @@ function tokenOf(value: unknown): string | null {
     : null;
 }
 /** Offline evidence classification only. No signer, network, storage or database ports. */
-export function classifyLegacyInventory(input: unknown) {
+export function classifyLegacyInventory(
+  input: unknown,
+  options: { trustedStorageBase?: string } = {},
+) {
+  let trustedBase: string | undefined;
+  if (options.trustedStorageBase) {
+    const url = new URL(options.trustedStorageBase);
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      !url.pathname.endsWith("/storage/v1/object/public/slipstorage/")
+    )
+      throw new Error("INVALID_TRUSTED_STORAGE_BASE");
+    trustedBase = url.href;
+  }
   const inventory = inventorySchema.parse(input);
   if (
     inventory.registryRows !== undefined &&
@@ -126,8 +143,12 @@ export function classifyLegacyInventory(input: unknown) {
     )
       return result("identity_conflict");
     if (
-      !isLegacyIpfsReference(entry.nftRecord[0]) ||
-      !isLegacyIpfsReference(entry.nftRecord[1])
+      !supportsLegacyReconstruction(
+        entry.nftRecord[0],
+        entry.nftRecord[1],
+        entry.native.imageUri,
+        trustedBase ? `${trustedBase}buffalo/${tokenId}.jpg` : undefined,
+      )
     )
       return result("not_legacy");
     const issues = inspectLegacyReconstruction(entry.row, entry.native);

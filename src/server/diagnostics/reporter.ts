@@ -39,6 +39,9 @@ function object(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 function safeCode(error: unknown): string {
+  // Transport BAD_REQUEST is an HTTP category; retain our typed preflight cause.
+  if (object(error) && error.cause instanceof LegacyMetadataReconstructionError)
+    return safeCode(error.cause);
   if (object(error) && error.code === "PAYLOAD_TOO_LARGE")
     return "INPUT_TOO_LARGE";
   if (error instanceof ZodError) return "INPUT_INVALID";
@@ -98,8 +101,11 @@ export function diagnosticFor(
           error.cause instanceof LegacyMetadataReconstructionError
         ? error.cause
         : null;
-  if (code === "LEGACY_METADATA_RECONSTRUCTION_CONFLICT" && legacy?.evidence)
-    envelope.legacyReconstruction = legacy.evidence;
+  if (code === "LEGACY_METADATA_RECONSTRUCTION_CONFLICT" && legacy) {
+    // This typed error is raised by pre-sign preparation, never transaction execution.
+    envelope.outcome = overrides.outcome ?? "not_started";
+    if (legacy.evidence) envelope.legacyReconstruction = legacy.evidence;
+  }
   const conflict =
     error instanceof BoundMicrochipError
       ? error

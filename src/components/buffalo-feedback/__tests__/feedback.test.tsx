@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  act,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from "@testing-library/react";
 import { FeedbackPanel } from "../FeedbackPanel";
 import {
   feedbackFor,
@@ -128,3 +134,63 @@ test("legacy support panel copies safe classified fields without arbitrary reaso
   expect(report).toContain("ระดับความหายาก: ข้อมูลทะเบียนกับบนเชนไม่ตรงกัน");
   expect(report).not.toContain("uncopied reason sentinel");
 });
+
+test.each(["request", "cause"])(
+  "feedback %s change invalidates copy confirmation and pending old results",
+  async (change) => {
+    let finish: () => void = () => undefined;
+    const copy = jest
+      .fn<Promise<void>, [string]>()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: copy },
+      configurable: true,
+    });
+    const initial = {
+      ...diagnostic,
+      code: "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+      legacyReconstruction: {
+        version: 1 as const,
+        issues: [
+          { field: "rarity" as const, kind: "business_mismatch" as const },
+        ],
+      },
+    };
+    const next = {
+      ...initial,
+      requestId: change === "request" ? "new-request" : initial.requestId,
+      legacyReconstruction: {
+        ...initial.legacyReconstruction,
+        issues: [
+          {
+            field:
+              change === "cause" ? ("origin" as const) : ("rarity" as const),
+            kind: "business_mismatch" as const,
+          },
+        ],
+      },
+    };
+    const rendered = render(<FeedbackPanel feedback={initial} />);
+    fireEvent.click(screen.getByRole("button", { name: "คัดลอกรหัสอ้างอิง" }));
+    rendered.rerender(<FeedbackPanel feedback={next} />);
+    await act(async () => {
+      finish();
+    });
+    expect(screen.queryByText("คัดลอกรหัสอ้างอิงแล้ว")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "คัดลอกรหัสอ้างอิง" }));
+    await screen.findByText("คัดลอกรหัสอ้างอิงแล้ว");
+    expect(copy.mock.calls.at(-1)![0]).toContain(
+      change === "request"
+        ? "new-request"
+        : "แหล่งกำเนิด: ข้อมูลทะเบียนกับบนเชนไม่ตรงกัน",
+    );
+    rendered.rerender(<FeedbackPanel feedback={initial} />);
+    expect(screen.queryByText("คัดลอกรหัสอ้างอิงแล้ว")).toBeNull();
+  },
+);

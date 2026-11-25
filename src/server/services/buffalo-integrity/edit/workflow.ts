@@ -27,7 +27,7 @@ import {
 } from "../field-policy";
 import { calendarToDate } from "../calendar";
 import {
-  isLegacyIpfsReference,
+  supportsLegacyReconstruction,
   replacementMetadata,
   inspectLegacyReconstruction,
 } from "./legacy-image-metadata";
@@ -470,8 +470,12 @@ export class BuffaloEditWorkflow {
     if (
       patch.image !== undefined &&
       Object.keys(patch).length === 1 &&
-      isLegacyIpfsReference(String(nativeNft[0])) &&
-      isLegacyIpfsReference(String(nativeNft[1]))
+      supportsLegacyReconstruction(
+        String(nativeNft[0]),
+        String(nativeNft[1]),
+        raw.imageUri,
+        this.storage.publicUrl(`buffalo/${row.tokenId}.jpg`),
+      )
     ) {
       const issues = inspectLegacyReconstruction(row, raw);
       if (issues.length)
@@ -516,8 +520,12 @@ export class BuffaloEditWorkflow {
     const reconstruct =
       patch.image !== undefined &&
       Object.keys(patch).length === 1 &&
-      isLegacyIpfsReference(String(nft[0])) &&
-      isLegacyIpfsReference(String(nft[1]));
+      supportsLegacyReconstruction(
+        String(nft[0]),
+        String(nft[1]),
+        raw.imageUri,
+        this.storage.publicUrl(`buffalo/${row.tokenId}.jpg`),
+      );
     const originalJson = reconstruct
       ? replacementMetadata(row, raw, nftImage)
       : await this.storage.get(ownedAssetKey(this.storage, String(nft[1])));

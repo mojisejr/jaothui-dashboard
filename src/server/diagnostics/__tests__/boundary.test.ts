@@ -15,6 +15,7 @@ import { z } from "zod";
 import { type PrismaClient } from "@prisma/client";
 import { createTRPCRouter, protectProcedure } from "~/server/api/trpc";
 import {
+  bindOperationId,
   diagnosticFor,
   reportDiagnostic,
   runDiagnosticContext,
@@ -33,6 +34,15 @@ const router = createTRPCRouter({
   write: protectProcedure
     .input(z.object({ value: z.string() }))
     .mutation(() => true),
+  legacy: protectProcedure.mutation(() => {
+    bindOperationId("33333333-3333-4333-8333-333333333333");
+    throw diagnosticTRPCError(
+      new LegacyMetadataReconstructionError({
+        version: 1,
+        issues: [{ field: "rarity", kind: "business_mismatch" }],
+      }),
+    );
+  }),
   unexpected: protectProcedure.mutation(() => {
     throw new Error(sentinel);
   }),
@@ -246,4 +256,55 @@ test.each([
   { version: 1, issues: [] },
 ])("legacy evidence rejects untrusted classification %j", (evidence) => {
   expect(parseLegacyReconstruction(evidence)).toBeUndefined();
+});
+
+test("real tRPC BAD_REQUEST transport retains legacy field evidence and generic input validation stays generic", () => {
+  const evidence = {
+    version: 1,
+    issues: [{ field: "rarity", kind: "business_mismatch" }],
+  };
+  const transported = diagnosticTRPCError(
+    new LegacyMetadataReconstructionError(evidence),
+  );
+  expect(transported.code).toBe("BAD_REQUEST");
+  expect(diagnosticFor(transported)).toMatchObject({
+    code: "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+    legacyReconstruction: evidence,
+  });
+  expect(diagnosticFor(diagnosticTRPCError(transported))).toMatchObject({
+    code: "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+    legacyReconstruction: evidence,
+  });
+  expect(
+    diagnosticFor({
+      code: "BAD_REQUEST",
+      cause: { code: "LEGACY_METADATA_RECONSTRUCTION_CONFLICT", evidence },
+    }).code,
+  ).toBe("INPUT_INVALID");
+});
+
+test("actual legacy prepare HTTP response remains pre-sign not_started with safe field evidence", async () => {
+  const response = await http("buffaloEdit.legacy", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: '{"json":null}',
+  });
+  expect(response.status).toBe(400);
+  const body = (await response.json()) as {
+    error: { json: { data: { diagnostic: unknown } } };
+  };
+  expect(body.error.json.data.diagnostic).toMatchObject({
+    code: "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+    outcome: "not_started",
+    operationId: "33333333-3333-4333-8333-333333333333",
+    legacyReconstruction: {
+      version: 1,
+      issues: [{ field: "rarity", kind: "business_mismatch" }],
+    },
+  });
+  expect(
+    diagnosticFor(new LegacyMetadataReconstructionError(undefined), {
+      outcome: "unknown",
+    }).outcome,
+  ).toBe("unknown");
 });
