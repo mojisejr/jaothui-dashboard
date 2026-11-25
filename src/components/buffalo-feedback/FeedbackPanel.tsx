@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { legacyReconstructionLines } from "./legacy-reconstruction";
 import { type Feedback } from "./feedback";
 const stages = {
   authentication: "เข้าสู่ระบบ",
@@ -49,10 +50,15 @@ export function FeedbackPanel({
   showCopy?: boolean;
 }) {
   const [copyState, setCopyState] = useState("");
+  const legacyCauses = legacyReconstructionLines(
+    feedback.code,
+    feedback.legacyReconstruction,
+  );
   const reference = [
     feedback.requestId && `requestId: ${feedback.requestId}`,
     feedback.operationId && `operationId: ${feedback.operationId}`,
     `code: ${feedback.code}`,
+    ...legacyCauses.map((cause) => `สาเหตุ: ${cause}`),
   ]
     .filter(Boolean)
     .join("\n");
@@ -64,6 +70,16 @@ export function FeedbackPanel({
     >
       {title && <h2 className="font-semibold">{title}</h2>}
       <p>{feedback.reason}</p>
+      {legacyCauses.length > 0 && (
+        <ul
+          aria-label="ช่องข้อมูลเดิมที่ต้องตรวจสอบ"
+          className="space-y-1 break-words"
+        >
+          {legacyCauses.map((cause) => (
+            <li key={cause}>{cause}</li>
+          ))}
+        </ul>
+      )}
       <p className="text-sm">
         ขั้นตอน: {stages[feedback.stage]} · {outcomes[feedback.outcome]}
       </p>

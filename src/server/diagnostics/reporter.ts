@@ -1,6 +1,9 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
-import { BoundMicrochipError } from "../services/buffalo-integrity/operations/hash";
+import {
+  BoundMicrochipError,
+  LegacyMetadataReconstructionError,
+} from "../services/buffalo-integrity/operations/hash";
 import { ZodError } from "zod";
 import {
   type DiagnosticEnvelope,
@@ -52,7 +55,11 @@ function safeCode(error: unknown): string {
     return String(error.code);
   if (error instanceof DiagnosticError && errorPolicy(error.code))
     return error.code;
-  if (object(error) && error.cause instanceof DiagnosticError)
+  if (
+    object(error) &&
+    (error.cause instanceof DiagnosticError ||
+      error.cause instanceof LegacyMetadataReconstructionError)
+  )
     return safeCode(error.cause);
   if (error instanceof Error && errorPolicy(error.message))
     return error.message;
@@ -84,6 +91,15 @@ export function diagnosticFor(
         : (policy.outcome ?? fallback)),
     nextAction: overrides.nextAction ?? policy.nextAction,
   };
+  const legacy =
+    error instanceof LegacyMetadataReconstructionError
+      ? error
+      : object(error) &&
+          error.cause instanceof LegacyMetadataReconstructionError
+        ? error.cause
+        : null;
+  if (code === "LEGACY_METADATA_RECONSTRUCTION_CONFLICT" && legacy?.evidence)
+    envelope.legacyReconstruction = legacy.evidence;
   const conflict =
     error instanceof BoundMicrochipError
       ? error

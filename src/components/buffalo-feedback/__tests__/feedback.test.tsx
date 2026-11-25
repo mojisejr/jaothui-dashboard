@@ -16,7 +16,7 @@ const diagnostic = {
   operationId: "22222222-2222-4222-8222-222222222222",
 };
 test("exact server reason and references survive transport and can be copied", async () => {
-  const copy = jest.fn().mockResolvedValue(undefined);
+  const copy = jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined);
   Object.defineProperty(navigator, "clipboard", {
     value: { writeText: copy },
     configurable: true,
@@ -87,4 +87,44 @@ test("raw upload preserves server diagnostic; malformed response remains uncerta
 test("prototype keys cannot supply a local diagnostic policy", () => {
   for (const key of ["constructor", "toString", "__proto__"])
     expect(feedbackFor(new Error(key)).outcome).toBe("unknown");
+});
+
+test("legacy support panel copies safe classified fields without arbitrary reason", async () => {
+  const copy = jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, "clipboard", {
+    value: { writeText: copy },
+    configurable: true,
+  });
+  const feedback = feedbackFor({
+    data: {
+      diagnostic: {
+        ...diagnostic,
+        code: "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+        reason: "uncopied reason sentinel",
+        legacyReconstruction: {
+          version: 1,
+          issues: [
+            { field: "rarity", kind: "business_mismatch" },
+            { field: "origin", kind: "invalid_legacy_field" },
+            { field: "name", kind: "normalization_change" },
+          ],
+        },
+      },
+    },
+  });
+  render(<FeedbackPanel feedback={feedback} />);
+  expect(
+    screen.getByText("ระดับความหายาก: ข้อมูลทะเบียนกับบนเชนไม่ตรงกัน"),
+  ).toBeVisible();
+  expect(
+    screen.getByText("แหล่งกำเนิด: ข้อมูลเดิมยังไม่รองรับการสร้างไฟล์ใหม่"),
+  ).toBeVisible();
+  expect(
+    screen.getByText("ชื่อ: การสร้างไฟล์ใหม่จะเปลี่ยนค่าข้อมูลเดิม"),
+  ).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "คัดลอกรหัสอ้างอิง" }));
+  await waitFor(() => expect(copy).toHaveBeenCalled());
+  const report = String(copy.mock.calls[0]?.[0]);
+  expect(report).toContain("ระดับความหายาก: ข้อมูลทะเบียนกับบนเชนไม่ตรงกัน");
+  expect(report).not.toContain("uncopied reason sentinel");
 });

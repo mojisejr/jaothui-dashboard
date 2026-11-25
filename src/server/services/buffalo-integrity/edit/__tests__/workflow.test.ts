@@ -1,4 +1,5 @@
 /** @jest-environment node */
+import { inspectLegacyReconstruction } from "../legacy-image-metadata";
 import { bindReceiptEvidence } from "../../operations/receipt-evidence";
 import { randomUUID, createHash } from "crypto";
 import { type Pedigree, type PrismaClient } from "@prisma/client";
@@ -1317,5 +1318,137 @@ test("101 image-only replacement retains approved royal rarity and exact native 
     rarity: "Super Special Rare",
     fatherId: null,
     motherId: null,
+  });
+});
+
+test("legacy preflight reports rarity without values before prepared asset write and survives reload", async () => {
+  const c = legacyEdit();
+  c.raw.certify.rarity = "Super Special Rare";
+  c.setRow({ rarity: "Normal" });
+  const op = await c.start({ image: replacementImage }, false);
+  const put = jest.spyOn(c.storage, "putImmutable");
+  const observed = jest.spyOn(c.drafts, "observed");
+  const evidence = {
+    version: 1,
+    issues: [{ field: "rarity", kind: "business_mismatch" }],
+  };
+  await expect(c.workflow.prepare(op)).rejects.toMatchObject({ evidence });
+  expect(put).not.toHaveBeenCalled();
+  expect(observed).toHaveBeenCalledWith(
+    op,
+    "EDIT_PREPARE_STOPPED",
+    expect.objectContaining({ legacyReconstruction: evidence }),
+  );
+  expect(c.db.pedigree.update).not.toHaveBeenCalled();
+  c.db.$queryRaw.mockResolvedValue([
+    {
+      kind: "EDIT_PREPARE_STOPPED",
+      created_at: new Date(),
+      blocked_code: "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+      legacy_reconstruction: evidence,
+    },
+  ]);
+  const dto = await c.workflow.view(
+    op.id,
+    owner,
+    new OperationEngine(c.drafts.operations, fakeChain()),
+  );
+  expect(dto.diagnostic).toMatchObject({ legacyReconstruction: evidence });
+  expect(JSON.stringify(dto.diagnostic)).not.toContain("Super Special Rare");
+});
+
+test.each(["origin", "color"] as const)(
+  "preflight classifies missing legacy %s even when database agrees",
+  (field) => {
+    const c = legacyEdit();
+    c.raw[field] = "";
+    c.setRow({ [field]: "" });
+    expect(inspectLegacyReconstruction(c.row, c.raw)).toEqual([
+      { field, kind: "invalid_legacy_field" },
+    ]);
+  },
+);
+test("preflight classifies normalization and invalid dates without inventing business values", () => {
+  const c = legacyEdit();
+  c.raw.name = " Synthetic ";
+  c.setRow({ name: c.raw.name });
+  expect(inspectLegacyReconstruction(c.row, c.raw)).toContainEqual({
+    field: "name",
+    kind: "normalization_change",
+  });
+  c.raw.certify.issuedAt = 99999999999999999999999n;
+  expect(inspectLegacyReconstruction(c.row, c.raw)).toContainEqual({
+    field: "issuedOn",
+    kind: "invalid_legacy_field",
+  });
+  c.raw.birthdate = 99999999999999999999999n;
+  expect(inspectLegacyReconstruction(c.row, c.raw)).toEqual([
+    { field: "birthday", kind: "invalid_legacy_field" },
+  ]);
+});
+test.each([
+  undefined,
+  { version: 1, issues: [{ field: "SECRET", kind: "business_mismatch" }] },
+])(
+  "old or malformed journal evidence remains generic: %j",
+  async (evidence) => {
+    const c = legacyEdit();
+    const op = await c.start({ image: replacementImage }, false);
+    c.db.$queryRaw.mockResolvedValue([
+      {
+        kind: "EDIT_PREPARE_STOPPED",
+        created_at: new Date(),
+        blocked_code: "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+        legacy_reconstruction: evidence,
+      },
+    ]);
+    const dto = await c.workflow.view(
+      op.id,
+      owner,
+      new OperationEngine(c.drafts.operations, fakeChain()),
+    );
+    expect(dto.diagnostic?.code).toBe(
+      "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+    );
+    expect(dto.diagnostic?.legacyReconstruction).toBeUndefined();
+    expect(JSON.stringify(dto.diagnostic)).not.toContain("SECRET");
+  },
+);
+
+test.each<[BusinessField, Partial<Pedigree>]>([
+  ["name", { name: "Different" }],
+  ["microchip", { microchip: "999000000009999" }],
+  ["certNo", { certNo: "different" }],
+  ["birthday", { birthday: new Date("2000-01-01T00:00:00Z") }],
+  ["sex", { sex: "Female" }],
+  ["origin", { origin: "different" }],
+  ["color", { color: "different" }],
+  ["height", { height: 999 }],
+  ["detail", { detail: "different" }],
+  ["dna", { dna: "different" }],
+  ["rarity", { rarity: "Rare" }],
+  ["fatherId", { fatherId: "999000000009998" }],
+  ["motherId", { motherId: "999000000009997" }],
+])(
+  "classifier identifies %s mismatches without returning values",
+  (field, patch) => {
+    const c = legacyEdit();
+    c.setRow(patch);
+    expect(inspectLegacyReconstruction(c.row, c.raw)).toContainEqual({
+      field,
+      kind: "business_mismatch",
+    });
+  },
+);
+
+test("legacy invalid native birthday is classified before ordinary baseline conversion", async () => {
+  const c = legacyEdit();
+  c.raw.birthdate = 99999999999999999999999n;
+  const op = await c.start({ image: replacementImage }, false);
+  await expect(c.workflow.prepare(op)).rejects.toMatchObject({
+    evidence: {
+      version: 1,
+      issues: [{ field: "birthday", kind: "invalid_legacy_field" }],
+    },
   });
 });

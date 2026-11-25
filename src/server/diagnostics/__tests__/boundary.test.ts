@@ -208,3 +208,42 @@ test("duplicate edit feedback names only validated registry IDs", () => {
     diagnosticFor(new BoundMicrochipError(sentinel, 974n)).reason,
   ).not.toContain(sentinel);
 });
+
+import { LegacyMetadataReconstructionError } from "../../services/buffalo-integrity/operations/hash";
+import { parseLegacyReconstruction } from "~/lib/legacy-reconstruction";
+test("legacy evidence survives wrapped errors but never transports raw values", () => {
+  const evidence = {
+    version: 1,
+    issues: [
+      {
+        field: "rarity",
+        kind: "business_mismatch",
+        database: sentinel,
+        chain: sentinel,
+      },
+    ],
+    secret: sentinel,
+  };
+  const error = new LegacyMetadataReconstructionError(evidence);
+  const wrapped = new Error("wrapper", { cause: error });
+  for (const candidate of [error, wrapped]) {
+    const diagnostic = diagnosticFor(candidate);
+    expect(diagnostic.legacyReconstruction).toEqual({
+      version: 1,
+      issues: [{ field: "rarity", kind: "business_mismatch" }],
+    });
+    expect(JSON.stringify(diagnostic)).not.toContain(sentinel);
+  }
+});
+test.each([
+  { version: 2, issues: [{ field: "rarity", kind: "business_mismatch" }] },
+  { version: 1, issues: [{ field: "__proto__", kind: "business_mismatch" }] },
+  { version: 1, issues: [{ field: "rarity", kind: "SECRET" }] },
+  {
+    version: 1,
+    issues: Array(46).fill({ field: "rarity", kind: "business_mismatch" }),
+  },
+  { version: 1, issues: [] },
+])("legacy evidence rejects untrusted classification %j", (evidence) => {
+  expect(parseLegacyReconstruction(evidence)).toBeUndefined();
+});

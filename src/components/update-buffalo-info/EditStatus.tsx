@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { legacyReconstructionLines } from "../buffalo-feedback/legacy-reconstruction";
 import type { RouterOutputs } from "~/utils/api";
 import type { Feedback } from "../buffalo-feedback/feedback";
 import { IdentityDiagnosisLink } from "../buffalo-repair/IdentityDiagnosisLink";
@@ -332,7 +333,7 @@ function describe({
     job.state === "NEEDS_REVIEW" ||
     job.state === "RETRYABLE" ||
     job.state === "RECOVERY_REQUIRED" ||
-    (job.state === "DRAFT" && job.reason)
+    (job.state === "DRAFT" && (job.reason ?? job.diagnostic?.code))
   )
     return diagnosis(job, job.diagnostic, phase);
   switch (job.state) {
@@ -439,6 +440,10 @@ export function EditProof(props: Props) {
   const working = !!display.working;
   const diagnostic = props.feedback ?? job.diagnostic;
   const code = diagnostic?.code ?? job.reason;
+  const legacyCauses = legacyReconstructionLines(
+    code ?? undefined,
+    diagnostic?.legacyReconstruction,
+  );
   const showCancel =
     job.canCancel &&
     onCancel &&
@@ -468,6 +473,7 @@ export function EditProof(props: Props) {
       code && `code: ${code}`,
       diagnostic?.requestId && `requestId: ${diagnostic.requestId}`,
       diagnostic?.stage && `stage: ${diagnostic.stage}`,
+      ...legacyCauses.map((cause) => `สาเหตุ: ${cause}`),
       `ช่องที่แก้ไข: ${job.fields.join(", ")}`,
       ...job.steps.map(
         (s) => `${s.kind}: ${s.state}${s.hash ? " " + s.hash : ""}`,
@@ -618,6 +624,16 @@ export function EditProof(props: Props) {
           <h2 className="break-words text-xl font-semibold">{display.title}</h2>
         </div>
         <p>{display.message}</p>
+        {legacyCauses.length > 0 && (
+          <ul
+            aria-label="ช่องข้อมูลเดิมที่ต้องตรวจสอบ"
+            className="space-y-1 break-words"
+          >
+            {legacyCauses.map((cause) => (
+              <li key={cause}>{cause}</li>
+            ))}
+          </ul>
+        )}
         {working && nextCheck && (
           <p className="text-sm text-base-content/75">
             กำหนดตรวจครั้งถัดไป {localTime(nextCheck)} น.

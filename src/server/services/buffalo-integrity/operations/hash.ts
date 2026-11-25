@@ -1,3 +1,7 @@
+import {
+  parseLegacyReconstruction,
+  type LegacyReconstruction,
+} from "~/lib/legacy-reconstruction";
 import { createHash } from "crypto";
 import { type Json } from "./types";
 export function stableJson(value: unknown): string {
@@ -63,5 +67,14 @@ export class PublicationReadbackError extends IntegrityError {
       problem,
       source,
     };
+  }
+}
+
+/** Safe reconstruction evidence also rehydrates from untrusted journal JSON. */
+export class LegacyMetadataReconstructionError extends IntegrityError {
+  readonly evidence: LegacyReconstruction | undefined;
+  constructor(evidence: unknown) {
+    super("LEGACY_METADATA_RECONSTRUCTION_CONFLICT");
+    this.evidence = parseLegacyReconstruction(evidence);
   }
 }

@@ -216,3 +216,39 @@ test("explains a verified conflicting token only when the diagnostic supplies it
   ).toBeEnabled();
   expect(screen.queryByRole("button", { name: /ผู้ดูแล/ })).toBeNull();
 });
+
+test("legacy conflict survives hydrated view and copies only allowlisted causes", async () => {
+  view(
+    job({
+      fields: ["image"],
+      diagnostic: {
+        code: "LEGACY_METADATA_RECONSTRUCTION_CONFLICT",
+        stage: "validation",
+        reason: "generic explanation",
+        requestId: "legacy-ref",
+        outcome: "not_started",
+        nextAction: "contact_support",
+        legacyReconstruction: {
+          version: 1,
+          issues: [{ field: "rarity", kind: "business_mismatch" }],
+        },
+      },
+    }),
+  );
+  expect(
+    screen.getByText("ระดับความหายาก: ข้อมูลทะเบียนกับบนเชนไม่ตรงกัน"),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: /ดำเนินการต่อ|บันทึกบนเชน/ }),
+  ).toBeNull();
+  fireEvent.click(
+    screen.getByRole("button", { name: "คัดลอกข้อมูลส่งผู้ดูแล" }),
+  );
+  const report = await screen.findByRole<HTMLTextAreaElement>("textbox", {
+    name: "ข้อมูลส่งผู้ดูแล",
+  });
+  expect(report.value).toContain(
+    "ระดับความหายาก: ข้อมูลทะเบียนกับบนเชนไม่ตรงกัน",
+  );
+  expect(report.value).not.toContain("generic explanation");
+});
